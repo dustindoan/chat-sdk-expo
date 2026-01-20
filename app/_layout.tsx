@@ -17,17 +17,14 @@ export default function RootLayout() {
         <ToastProvider>
           <Stack
             screenOptions={{
-              title: 'AI Chat',
-              headerStyle: {
-                backgroundColor: colors.headerBackground,
-              },
-              headerTintColor: colors.text,
-              headerShadowVisible: false,
+              headerShown: false,
               contentStyle: {
                 backgroundColor: colors.background,
               },
             }}
-          />
+          >
+            <Stack.Screen name="(drawer)" />
+          </Stack>
         </ToastProvider>
       </KeyboardProvider>
     </GestureHandlerRootView>

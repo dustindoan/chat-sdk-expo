@@ -2,9 +2,9 @@
  * ChatUI - Pre-styled, dark-themed chat interface
  * Adapted from expo-gen-ui to work with @ai-sdk/react useChat hook
  */
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Platform, StyleSheet, type ViewStyle } from 'react-native';
-import { useChat } from '@ai-sdk/react';
+import { useChat, type UIMessage } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { fetch as expoFetch } from 'expo/fetch';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
@@ -16,7 +16,20 @@ import { useToast } from './toast';
 import { useClipboard } from '../hooks/useClipboard';
 import { chatModels, DEFAULT_MODEL_ID, getModelName } from '../lib/ai/models';
 
+// Generate a random UUID
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
 export interface ChatUIProps {
+  /** Chat ID (optional - generates new ID if not provided) */
+  chatId?: string;
+  /** Initial messages to load */
+  initialMessages?: UIMessage[];
   /** API endpoint for chat */
   api: string;
   /** Placeholder text for input */
@@ -25,22 +38,48 @@ export interface ChatUIProps {
   welcomeMessage?: string;
   /** Welcome subtitle */
   welcomeSubtitle?: string;
+  /** Callback when chat ID is created/changed */
+  onChatIdChange?: (chatId: string) => void;
+  /** Callback when the first message is sent (chat is created in DB) */
+  onChatCreated?: (chatId: string) => void;
 }
 
 export function ChatUI({
+  chatId: initialChatId,
+  initialMessages = [],
   api,
   placeholder = 'Send a message...',
   welcomeMessage = 'Hello there!',
   welcomeSubtitle = 'How can I help you today?',
+  onChatIdChange,
+  onChatCreated,
 }: ChatUIProps) {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { showToast } = useToast();
   const { copyToClipboard } = useClipboard();
 
+  // Chat ID - generate one if not provided
+  const [currentChatId] = useState(() => initialChatId || generateUUID());
+  const currentChatIdRef = useRef(currentChatId);
+
   // Model selection state
   const [selectedModelId, setSelectedModelId] = useState(DEFAULT_MODEL_ID);
+  const selectedModelIdRef = useRef(selectedModelId);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
+
+  // Track if we've notified about chat creation
+  const hasNotifiedCreationRef = useRef(false);
+
+  // Keep refs in sync
+  useEffect(() => {
+    selectedModelIdRef.current = selectedModelId;
+  }, [selectedModelId]);
+
+  // Notify parent of chat ID
+  useEffect(() => {
+    onChatIdChange?.(currentChatId);
+  }, [currentChatId, onChatIdChange]);
 
   // Set body background color on web
   useEffect(() => {
@@ -55,11 +94,22 @@ export function ChatUI({
 
   // Chat state using @ai-sdk/react
   const { messages, sendMessage, status, error, stop } = useChat({
+    id: currentChatId,
+    messages: initialMessages,
+    generateId: generateUUID,
     transport: new DefaultChatTransport({
       api,
       fetch: expoFetch as unknown as typeof globalThis.fetch,
-      body: {
-        model: selectedModelId,
+      prepareSendMessagesRequest(request) {
+        const lastMessage = request.messages.at(-1);
+        return {
+          body: {
+            id: currentChatIdRef.current,
+            message: lastMessage,
+            model: selectedModelIdRef.current,
+            ...request.body,
+          },
+        };
       },
     }),
   });
@@ -68,10 +118,21 @@ export function ChatUI({
 
   const handleSend = useCallback(() => {
     if (localInput?.trim() && !isLoading) {
+      // If this is a new chat (no initial messages and first send), notify parent
+      const isNewChat = initialMessages.length === 0 && messages.length === 0;
+
       sendMessage({ text: localInput.trim() });
       setLocalInput('');
+
+      // Notify about chat creation after a delay (to ensure it's saved)
+      if (isNewChat && !hasNotifiedCreationRef.current && onChatCreated) {
+        hasNotifiedCreationRef.current = true;
+        setTimeout(() => {
+          onChatCreated(currentChatId);
+        }, 1000);
+      }
     }
-  }, [localInput, isLoading, sendMessage]);
+  }, [localInput, isLoading, sendMessage, initialMessages.length, messages.length, onChatCreated, currentChatId]);
 
   const handleCopy = useCallback(
     async (text: string) => {
