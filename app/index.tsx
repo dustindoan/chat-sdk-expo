@@ -9,7 +9,6 @@ export default function ChatScreen() {
         api={generateAPIUrl('/api/chat')}
         welcomeMessage="Hello there!"
         welcomeSubtitle="How can I help you today?"
-        modelName="Claude Haiku"
         placeholder="Send a message..."
       />
     </View>

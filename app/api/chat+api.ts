@@ -49,10 +49,13 @@ function transformMessages(messages: any[]) {
 }
 
 export async function POST(request: Request) {
-  const { messages } = await request.json();
+  const { messages, model: modelId } = await request.json();
+
+  // Use the model from the request body, or default to Haiku
+  const modelName = modelId || 'claude-haiku-4-5-20251001';
 
   const result = streamText({
-    model: anthropic('claude-haiku-4-5-20251001'),
+    model: anthropic(modelName),
     system: 'You are a helpful assistant. You can help with coding questions, general knowledge, and more. You also have tools to get weather information and convert temperatures.',
     messages: transformMessages(messages),
     tools: {

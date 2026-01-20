@@ -1,6 +1,8 @@
 import '../polyfills.js';
 import { Stack } from 'expo-router';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ToastProvider } from '../components/toast';
 
 const colors = {
   background: '#0a0a0a',
@@ -10,20 +12,24 @@ const colors = {
 
 export default function RootLayout() {
   return (
-    <KeyboardProvider>
-      <Stack
-        screenOptions={{
-          title: 'AI Chat',
-          headerStyle: {
-            backgroundColor: colors.headerBackground,
-          },
-          headerTintColor: colors.text,
-          headerShadowVisible: false,
-          contentStyle: {
-            backgroundColor: colors.background,
-          },
-        }}
-      />
-    </KeyboardProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <KeyboardProvider>
+        <ToastProvider>
+          <Stack
+            screenOptions={{
+              title: 'AI Chat',
+              headerStyle: {
+                backgroundColor: colors.headerBackground,
+              },
+              headerTintColor: colors.text,
+              headerShadowVisible: false,
+              contentStyle: {
+                backgroundColor: colors.background,
+              },
+            }}
+          />
+        </ToastProvider>
+      </KeyboardProvider>
+    </GestureHandlerRootView>
   );
 }
