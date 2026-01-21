@@ -32,34 +32,37 @@ export const MessageList = memo(function MessageList({
     <ScrollView
       ref={scrollViewRef}
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={styles.scrollContent}
     >
-      {messages.length === 0 ? (
-        <WelcomeMessage title={welcomeTitle} subtitle={welcomeSubtitle} />
-      ) : (
-        messages.map((message, index) => (
-          <MessageBubble
-            key={message.id}
-            message={message}
-            isStreaming={isLoading && index === messages.length - 1 && message.role === 'assistant'}
-            onCopy={onCopy}
-            onStopStreaming={onStopStreaming}
-          />
-        ))
-      )}
+      {/* Centered content wrapper with max-width */}
+      <View style={styles.content}>
+        {messages.length === 0 ? (
+          <WelcomeMessage title={welcomeTitle} subtitle={welcomeSubtitle} />
+        ) : (
+          messages.map((message, index) => (
+            <MessageBubble
+              key={message.id}
+              message={message}
+              isStreaming={isLoading && index === messages.length - 1 && message.role === 'assistant'}
+              onCopy={onCopy}
+              onStopStreaming={onStopStreaming}
+            />
+          ))
+        )}
 
-      {showThinkingIndicator && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={colors.accent.primary} />
-          <Text style={styles.loadingText}>Thinking...</Text>
-        </View>
-      )}
+        {showThinkingIndicator && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="small" color={colors.accent.primary} />
+            <Text style={styles.loadingText}>Thinking...</Text>
+          </View>
+        )}
 
-      {error && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>Error: {error.message}</Text>
-        </View>
-      )}
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>Error: {error.message}</Text>
+          </View>
+        )}
+      </View>
     </ScrollView>
   );
 });
@@ -70,8 +73,14 @@ const styles = StyleSheet.create({
     minHeight: 0,
     backgroundColor: colors.background.primary,
   },
+  scrollContent: {
+    flexGrow: 1,
+    alignItems: 'center',
+  },
   content: {
-    paddingHorizontal: spacing['3xl'],
+    width: '100%',
+    maxWidth: 896, // max-w-4xl equivalent
+    paddingHorizontal: spacing.md,
     paddingVertical: spacing.lg,
     gap: spacing.md,
   },

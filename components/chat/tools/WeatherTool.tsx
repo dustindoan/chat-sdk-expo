@@ -272,6 +272,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginVertical: spacing.sm,
     minHeight: 200,
+    maxWidth: 450,
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,

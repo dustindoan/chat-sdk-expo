@@ -3,9 +3,11 @@ import { db } from './client';
 import {
   chat,
   message,
+  document,
   type Chat,
   type DBMessage,
   type MessagePartDB,
+  type Document,
 } from './schema';
 
 // ============================================================================
@@ -144,4 +146,39 @@ export async function deleteMessagesByChatIdAfterTimestamp(
   await db
     .delete(message)
     .where(and(eq(message.chatId, chatId), gt(message.createdAt, timestamp)));
+}
+
+// ============================================================================
+// DOCUMENT QUERIES
+// ============================================================================
+
+export async function getDocumentById(id: string): Promise<Document | undefined> {
+  // Get the most recent version of the document
+  const [result] = await db
+    .select()
+    .from(document)
+    .where(eq(document.id, id))
+    .orderBy(desc(document.createdAt))
+    .limit(1);
+  return result;
+}
+
+export async function saveDocument(data: {
+  id: string;
+  title: string;
+  content: string;
+  kind: 'text' | 'code';
+  language?: string;
+}): Promise<Document> {
+  const [result] = await db
+    .insert(document)
+    .values({
+      id: data.id,
+      title: data.title,
+      content: data.content,
+      kind: data.kind,
+      language: data.language,
+    })
+    .returning();
+  return result;
 }

@@ -87,7 +87,9 @@ export function ChatHistoryList({
   const handleDeleteAll = useCallback(async () => {
     setShowDeleteAllConfirm(false);
     await history.deleteAllChats();
-  }, [history]);
+    // Navigate to new chat after deleting all
+    onNewChat?.();
+  }, [history, onNewChat]);
 
   return (
     <View style={styles.container}>

@@ -5,6 +5,7 @@ import {
   text,
   timestamp,
   json,
+  primaryKey,
 } from 'drizzle-orm/pg-core';
 import type { InferSelectModel } from 'drizzle-orm';
 
@@ -50,3 +51,26 @@ export interface MessagePartDB {
   result?: unknown;
   [key: string]: unknown;
 }
+
+// ============================================================================
+// DOCUMENT
+// ============================================================================
+
+export const document = pgTable(
+  'Document',
+  {
+    id: uuid('id').notNull().defaultRandom(),
+    createdAt: timestamp('createdAt').notNull().defaultNow(),
+    title: text('title').notNull(),
+    content: text('content'),
+    kind: varchar('kind', { enum: ['text', 'code'] })
+      .notNull()
+      .default('text'),
+    language: varchar('language', { length: 50 }),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.id, table.createdAt] }),
+  })
+);
+
+export type Document = InferSelectModel<typeof document>;

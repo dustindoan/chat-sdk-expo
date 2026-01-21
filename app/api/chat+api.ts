@@ -4,16 +4,24 @@ import {
   stepCountIs,
   createUIMessageStream,
   createUIMessageStreamResponse,
+  convertToModelMessages,
 } from 'ai';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
 import {
   getChatById,
+  getMessagesByChatId,
   saveChat,
   saveMessages,
   updateChatTitle,
 } from '../../lib/db';
-import { weatherTool, convertTemperatureTool } from '../../lib/ai/tools';
+import {
+  weatherTool,
+  convertTemperatureTool,
+  createDocumentTool,
+  updateDocumentTool,
+} from '../../lib/ai/tools';
+import type { DataStreamWriter } from '../../lib/artifacts/types';
 
 // Load API key from .env file
 function getApiKey(): string {
@@ -35,25 +43,6 @@ const anthropic = createAnthropic({
   baseURL: 'https://api.anthropic.com/v1',
 });
 
-// Transform messages from useChat format to AI SDK model format
-function transformMessages(messages: any[]) {
-  return messages.map((msg) => {
-    if (msg.parts && Array.isArray(msg.parts)) {
-      const textContent = msg.parts
-        .filter((part: any) => part.type === 'text')
-        .map((part: any) => part.text)
-        .join('');
-      return {
-        role: msg.role,
-        content: textContent,
-      };
-    }
-    return {
-      role: msg.role,
-      content: msg.content || '',
-    };
-  });
-}
 
 // Generate a title from the first user message
 function generateTitleFromMessage(message: any): string {
@@ -100,10 +89,7 @@ export async function POST(request: Request) {
     isNewChat = true;
   }
 
-  // Determine which messages to use
-  const uiMessages = messages || (message ? [message] : []);
-
-  // Save user message if provided
+  // Save user message if provided (before loading history so it's included)
   if (message?.role === 'user' && chat) {
     await saveMessages([
       {
@@ -115,16 +101,93 @@ export async function POST(request: Request) {
     ]);
   }
 
+  // Load full message history from database (following chat-sdk pattern)
+  // This ensures the AI model sees previous tool calls and results
+  let uiMessages: any[] = [];
+  if (chat) {
+    const dbMessages = await getMessagesByChatId(chat.id);
+    // Convert DB messages to UI message format
+    uiMessages = dbMessages.map((dbMsg) => ({
+      id: dbMsg.id,
+      role: dbMsg.role,
+      parts: dbMsg.parts,
+    }));
+  } else if (message) {
+    // Fallback for edge cases where chat doesn't exist
+    uiMessages = [message];
+  }
+
   const stream = createUIMessageStream({
     execute: async ({ writer }) => {
+      // Create a dataStream adapter for artifact tools
+      // This wraps the writer to match our DataStreamWriter interface
+      const dataStream: DataStreamWriter = {
+        write: (data) => {
+          writer.write(data as any);
+        },
+      };
+
+      // Create artifact tools with dataStream context and API key
+      const artifactApiKey = getApiKey();
+      const createDocument = createDocumentTool({ dataStream, apiKey: artifactApiKey });
+      const updateDocument = updateDocumentTool({ dataStream, apiKey: artifactApiKey });
+
+      // System prompt following chat-sdk's pattern
+      const regularPrompt = `You are a friendly assistant! Keep your responses concise and helpful.
+
+When asked to write, create, or help with something, just do it directly. Don't ask clarifying questions unless absolutely necessary - make reasonable assumptions and proceed with the task.`;
+
+      const artifactsPrompt = `
+Artifacts is a special user interface mode that helps users with writing, editing, and other content creation tasks. When artifact is open, it is on the right side of the screen, while the conversation is on the left side. When creating or updating documents, changes are reflected in real-time on the artifacts and visible to the user.
+
+When asked to write code, always use artifacts. When writing code, specify the language in the backticks.
+
+DO NOT UPDATE DOCUMENTS IMMEDIATELY AFTER CREATING THEM. WAIT FOR USER FEEDBACK OR REQUEST TO UPDATE IT.
+
+This is a guide for using artifacts tools: \`createDocument\` and \`updateDocument\`, which render content on a artifacts beside the conversation.
+
+**When to use \`createDocument\`:**
+- For substantial content (>10 lines) or code
+- For content users will likely save/reuse (emails, code, essays, etc.)
+- When explicitly requested to create a document
+- For when content contains a single code snippet
+
+**When NOT to use \`createDocument\`:**
+- For informational/explanatory content
+- For conversational responses
+- When asked to keep it in chat
+
+**Using \`updateDocument\`:**
+- When user asks to modify, edit, update, or change an existing document
+- Use the document ID from your previous createDocument tool result
+- Default to full document rewrites for major changes
+- Follow user instructions for which parts to modify
+
+**When NOT to use \`updateDocument\`:**
+- Immediately after creating a document (wait for user feedback first)
+
+Do not update document right after creating it. Wait for user feedback or request to update it.
+`;
+
+      const toolsPrompt = `
+## Additional Tools:
+- **weather**: Get current weather for a location
+- **convertTemperature**: Convert between Fahrenheit and Celsius
+`;
+
+      // Convert UI messages to model format using AI SDK's built-in converter
+      // This properly handles tool calls and results across messages
+      const modelMessages = await convertToModelMessages(uiMessages);
+
       const result = streamText({
         model: anthropic(modelName),
-        system:
-          'You are a helpful assistant. You can help with coding questions, general knowledge, and more. You also have tools to get weather information and convert temperatures.',
-        messages: transformMessages(uiMessages),
+        system: `${regularPrompt}\n\n${artifactsPrompt}\n\n${toolsPrompt}`,
+        messages: modelMessages,
         tools: {
           weather: weatherTool,
           convertTemperature: convertTemperatureTool,
+          createDocument,
+          updateDocument,
         },
         stopWhen: stepCountIs(5),
       });

@@ -15,6 +15,7 @@ import { MessageList, MessageInput, ModelSelector } from './chat';
 import { useToast } from './toast';
 import { useClipboard } from '../hooks/useClipboard';
 import { chatModels, DEFAULT_MODEL_ID, getModelName } from '../lib/ai/models';
+import { useArtifact } from '../contexts/ArtifactContext';
 
 // Generate a random UUID
 function generateUUID(): string {
@@ -58,6 +59,7 @@ export function ChatUI({
   const headerHeight = useHeaderHeight();
   const { showToast } = useToast();
   const { copyToClipboard } = useClipboard();
+  const { processStreamPart, openFirstDocument } = useArtifact();
 
   // Chat ID - generate one if not provided
   const [currentChatId] = useState(() => initialChatId || generateUUID());
@@ -112,9 +114,23 @@ export function ChatUI({
         };
       },
     }),
+    // Process artifact stream parts
+    onData: (dataPart) => {
+      processStreamPart(dataPart);
+    },
   });
 
   const isLoading = status === 'streaming' || status === 'submitted';
+
+  // Track previous status to detect when streaming ends
+  const prevStatusRef = useRef(status);
+  useEffect(() => {
+    // When status changes from streaming to ready, auto-open first document
+    if (prevStatusRef.current === 'streaming' && status === 'ready') {
+      openFirstDocument();
+    }
+    prevStatusRef.current = status;
+  }, [status, openFirstDocument]);
 
   const handleSend = useCallback(() => {
     if (localInput?.trim() && !isLoading) {

@@ -4,6 +4,7 @@ import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { ChatHistoryList } from '../../components/ChatHistoryList';
 import { ChatHistoryProvider, useChatHistoryContext } from '../../contexts/ChatHistoryContext';
+import { useArtifact } from '../../contexts/ArtifactContext';
 import { generateAPIUrl } from '../../utils';
 import type { Chat } from '../../hooks/useChatHistory';
 
@@ -16,12 +17,14 @@ const colors = {
 function DrawerContent() {
   const router = useRouter();
   const { setRefreshFn, requestNewChat } = useChatHistoryContext();
+  const { resetArtifact } = useArtifact();
 
   const handleSelectChat = (chat: Chat) => {
     router.push(`/chat/${chat.id}`);
   };
 
   const handleNewChat = () => {
+    resetArtifact();
     requestNewChat();
     router.push('/');
   };
@@ -39,12 +42,14 @@ function DrawerContent() {
 function NewChatButton() {
   const router = useRouter();
   const { requestNewChat } = useChatHistoryContext();
+  const { resetArtifact } = useArtifact();
 
   if (Platform.OS === 'web') {
     return null;
   }
 
   const handlePress = () => {
+    resetArtifact();
     requestNewChat();
     router.push('/');
   };

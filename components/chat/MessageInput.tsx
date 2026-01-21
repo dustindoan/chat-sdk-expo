@@ -38,7 +38,8 @@ export function MessageInput({
 
   return (
     <View style={styles.wrapper}>
-      <View style={styles.container}>
+      <View style={styles.innerWrapper}>
+        <View style={styles.container}>
         <TextInput
           style={[
             styles.input,
@@ -95,14 +96,20 @@ export function MessageInput({
           )}
         </View>
       </View>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrapper: {
-    paddingHorizontal: spacing.lg,
+    alignItems: 'center',
     paddingBottom: spacing.lg,
+  },
+  innerWrapper: {
+    width: '100%',
+    maxWidth: 896, // max-w-4xl equivalent
+    paddingHorizontal: spacing.md,
   },
   container: {
     backgroundColor: colors.background.tertiary,

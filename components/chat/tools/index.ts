@@ -7,6 +7,7 @@
 
 import { WeatherTool } from './WeatherTool';
 import { TemperatureTool } from './TemperatureTool';
+import { DocumentTool } from './DocumentTool';
 import { DefaultTool } from './DefaultTool';
 import type { ToolUIRegistry, ToolUIComponent } from './types';
 
@@ -16,6 +17,8 @@ import type { ToolUIRegistry, ToolUIComponent } from './types';
 export const toolRegistry: ToolUIRegistry = {
   weather: WeatherTool,
   convertTemperature: TemperatureTool,
+  createDocument: DocumentTool,
+  updateDocument: DocumentTool,
 };
 
 /**
@@ -30,4 +33,5 @@ export function getToolComponent(toolName: string): ToolUIComponent {
 export type { ToolUIProps, ToolState, ToolUIComponent, ToolUIRegistry } from './types';
 export { WeatherTool } from './WeatherTool';
 export { TemperatureTool } from './TemperatureTool';
+export { DocumentTool } from './DocumentTool';
 export { DefaultTool } from './DefaultTool';

@@ -27,10 +27,46 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 - **Phase 3:** Conversation persistence (Drizzle + PostgreSQL)
 - **Phase 4:** Chat history sidebar (drawer navigation)
 - **Phase 5:** Enhanced tool system - Tool registry with custom UI components (WeatherTool, TemperatureTool, DefaultTool)
+- **Phase 6:** Artifacts system - createDocument/updateDocument tools, streaming text/code content to slide-in panel, document storage with preview cards
 
-### Next Up (Artifacts)
-- **Phase 6:** Artifacts - Document creation/editing with streaming, following chat-sdk's `Artifact` class pattern
+### Phase 6 Status: COMPLETE ✓
+
+All artifact features working:
+- **createDocument** - Creates text/code artifacts with streaming
+- **updateDocument** - Modifies existing documents using document ID from history
+- **Multi-document streaming** - Concurrent documents render correctly without mixing
+- **Artifact panel** - Opens after streaming completes showing first document
+
+### Next Up
 - **Phase 7:** Version history - Document versioning with diff view
+
+---
+
+## Resolved Issues (Phase 6)
+
+### Multi-Document Concurrent Streaming
+
+**Testing prompt:** "Can you generate two files for me (a jsx and a css), in an effort to create a complete React component for a todo list app."
+
+**Issues fixed:**
+1. **Content mixing** - Code handler uses `streamObject`, ArtifactContext replaces (not appends) content, compound data format `{ value, docId }` routes to correct doc
+2. **Inline card flickering** - `getStreamingDocument(idOrTitle)` provides per-document state
+3. **Panel flickering** - Panel opens only after streaming ends via `openFirstDocument()`
+4. **Error handling** - try/catch in handlers prevents stream crashes
+
+**Key files:** `lib/artifacts/handlers/code.ts`, `contexts/ArtifactContext.tsx`, `components/chat/tools/DocumentTool.tsx`, `components/ChatUI.tsx`
+
+### updateDocument Tool
+
+**Problem:** AI couldn't use updateDocument - didn't see previous tool results.
+
+**Root cause:** API wasn't loading message history from database.
+
+**Fixed:**
+1. Load full history from DB using `getMessagesByChatId()`
+2. Use AI SDK's `convertToModelMessages()` for proper tool call/result formatting
+
+**Key file:** `app/api/chat+api.ts`
 
 ### Future
 - Phase 8: File attachments
@@ -76,7 +112,15 @@ components/
 │       ├── types.ts        # ToolUIProps, ToolState types
 │       ├── WeatherTool.tsx # Weather card with SVG icons, day/night theming
 │       ├── TemperatureTool.tsx  # F° to C° conversion display
+│       ├── DocumentTool.tsx    # Artifact preview card
 │       └── DefaultTool.tsx # Fallback for unknown tools
+├── artifacts/              # Artifact system components
+│   ├── index.ts            # Barrel exports
+│   ├── ArtifactPanel.tsx   # Slide-in panel container
+│   ├── ArtifactHeader.tsx  # Title, kind badge, actions
+│   ├── TextContent.tsx     # Markdown content renderer
+│   ├── CodeContent.tsx     # Syntax-highlighted code
+│   └── DocumentPreview.tsx # Inline message preview
 └── toast/                  # Toast notification system
 
 hooks/
@@ -89,7 +133,17 @@ lib/
 │   └── tools/              # AI SDK tool definitions
 │       ├── index.ts        # Barrel exports
 │       ├── weather.ts      # Weather tool (Open-Meteo API)
-│       └── temperature.ts  # Temperature conversion tool
+│       ├── temperature.ts  # Temperature conversion tool
+│       ├── createDocument.ts   # Artifact creation tool
+│       └── updateDocument.ts   # Artifact update tool
+├── artifacts/              # Artifact system
+│   ├── index.ts            # Barrel exports
+│   ├── types.ts            # UIArtifact, ArtifactDefinition types
+│   ├── registry.ts         # Artifact definitions registry
+│   └── handlers/           # Document generation handlers
+│       ├── index.ts
+│       ├── text.ts         # Text document handler
+│       └── code.ts         # Code document handler
 └── db/
     ├── schema.ts           # Drizzle schema (Chat, Message)
     ├── client.ts           # PostgreSQL connection
@@ -97,7 +151,8 @@ lib/
     └── index.ts            # Barrel exports
 
 contexts/
-└── ChatHistoryContext.tsx  # Cross-component chat state
+├── ChatHistoryContext.tsx  # Cross-component chat state
+└── ArtifactContext.tsx     # Global artifact state (like useArtifact)
 ```
 
 ## chat-sdk Patterns to Follow
@@ -160,6 +215,8 @@ npm run db:studio       # Open Drizzle Studio
 - **Tool registry pattern** - Maps tool names to custom UI components
 - **AI SDK v6 tool states** - Uses `'output-available'` (not `'result'`) for completed tools
 - **React 19.1.0** pinned for Expo compatibility (use `--legacy-peer-deps` for installs)
+- **Artifact streaming** - Uses `onData` callback in useChat to process custom data parts (`data-textDelta`, etc.)
+- **ArtifactContext** - React Context instead of SWR for global artifact state (Expo-compatible)
 
 ## Development
 
