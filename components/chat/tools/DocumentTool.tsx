@@ -22,10 +22,20 @@ import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme
 import type { ToolUIProps } from './types';
 import type { ArtifactKind } from '../../../lib/artifacts/types';
 
-interface DocumentToolArgs {
+// createDocument args have title and kind
+interface CreateDocumentArgs {
   title: string;
   kind: ArtifactKind;
 }
+
+// updateDocument args have id and description
+interface UpdateDocumentArgs {
+  id: string;
+  description: string;
+}
+
+// Union type for both tool args
+type DocumentToolArgs = CreateDocumentArgs | UpdateDocumentArgs;
 
 interface DocumentToolResult {
   id: string;
@@ -36,6 +46,15 @@ interface DocumentToolResult {
 }
 
 type DocumentToolProps = ToolUIProps<DocumentToolArgs, DocumentToolResult>;
+
+// Type guards for args
+function isCreateDocumentArgs(args: DocumentToolArgs | undefined): args is CreateDocumentArgs {
+  return args !== undefined && 'title' in args && 'kind' in args;
+}
+
+function isUpdateDocumentArgs(args: DocumentToolArgs | undefined): args is UpdateDocumentArgs {
+  return args !== undefined && 'id' in args && 'description' in args;
+}
 
 /**
  * DocumentTool component
@@ -52,19 +71,28 @@ export const DocumentTool = memo(function DocumentTool({
   const isToolLoading = state === 'partial-call' || state === 'call';
   const hasResult = (state === 'result' || state === 'output-available') && result;
 
-  // Get streaming document for THIS specific tool invocation (by title or ID)
-  // This enables each card to track its own streaming state independently
-  const streamingDoc = args?.title ? getStreamingDocument(args.title) : undefined;
+  // Get streaming document for THIS specific tool invocation
+  // - For updateDocument: look up by ID (args.id)
+  // - For createDocument: look up by title (args.title)
+  // This ensures each card only shows its own streaming state
+  let streamingDoc;
+  if (isUpdateDocumentArgs(args)) {
+    // updateDocument - look up by the document ID
+    streamingDoc = getStreamingDocument(args.id);
+  } else if (isCreateDocumentArgs(args)) {
+    // createDocument - look up by title
+    streamingDoc = getStreamingDocument(args.title);
+  }
   const isStreamingThisDocument = streamingDoc?.status === 'streaming';
 
-  // Get the document ID - prefer result (completed), then streaming doc, then stored
-  const documentId = result?.id || streamingDoc?.id;
+  // Get the document ID - prefer result (completed), then streaming doc, then args (for update)
+  const documentId = result?.id || streamingDoc?.id || (isUpdateDocumentArgs(args) ? args.id : undefined);
   const storedDoc = documentId ? getDocument(documentId) : undefined;
 
   // For completed cards, use ONLY stored doc or result data (NOT global artifact)
   // For streaming cards, use the per-document streaming state
-  const title = result?.title || args?.title || streamingDoc?.title || 'Untitled';
-  const kind = result?.kind || args?.kind || streamingDoc?.kind || 'text';
+  const title = result?.title || (isCreateDocumentArgs(args) ? args.title : undefined) || streamingDoc?.title || 'Untitled';
+  const kind = result?.kind || (isCreateDocumentArgs(args) ? args.kind : undefined) || streamingDoc?.kind || 'text';
 
   // Language: use result first (for historical chats), then streaming doc, then stored doc
   const language = result?.language || streamingDoc?.language || storedDoc?.language;
@@ -139,7 +167,9 @@ export const DocumentTool = memo(function DocumentTool({
   }, [documentId, title, kind, content, language, setArtifact]);
 
   // Show streaming preview when generating
-  if (isStreamingThisDocument || (isToolLoading && !hasResult)) {
+  // IMPORTANT: Never show streaming preview if this tool invocation already has a result
+  // This prevents completed createDocument cards from showing updateDocument streaming
+  if (!hasResult && (isStreamingThisDocument || isToolLoading)) {
     const displayContent = streamingDoc?.content || '';
     const isStreaming = streamingDoc?.status === 'streaming';
 
