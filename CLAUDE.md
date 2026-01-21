@@ -99,6 +99,30 @@ All version history features working:
 
 **Key files:** `lib/db/queries.ts`, `app/api/documents/index+api.ts`, `contexts/ArtifactContext.tsx`, `components/artifacts/DiffView.tsx`, `components/artifacts/VersionNavigation.tsx`, `components/artifacts/VersionFooter.tsx`
 
+### Post-Phase 7 Bug Fixes
+
+**1. Completed cards showing streaming content (commit 3c7259a)**
+
+**Problem:** When updateDocument ran, the original createDocument card would show the streaming preview instead of staying as a compact completed card.
+
+**Root cause:** Both cards share the same document ID, so both found the streaming doc.
+
+**Fix in `DocumentTool.tsx`:**
+- Added type guards `isCreateDocumentArgs()` and `isUpdateDocumentArgs()` to distinguish tool types
+- createDocument looks up streaming doc by title, updateDocument by ID
+- Key change: `if (!hasResult && (isStreamingThisDocument || isToolLoading))` - completed cards never show streaming preview
+
+**2. Panel not refreshing when document updated (commit 54d791e)**
+
+**Problem:** When updateDocument completed while the panel was open, the panel didn't refresh its version count or content.
+
+**Fix in `ArtifactContext.tsx`:**
+- In `data-finish` handler, check if panel is showing the updated document
+- If so, call `fetchVersions(targetId)` to refresh version list
+- Update content immediately in artifact state
+
+---
+
 ## Architecture
 
 ```
