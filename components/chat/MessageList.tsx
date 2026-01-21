@@ -13,6 +13,8 @@ export const MessageList = memo(function MessageList({
   welcomeSubtitle,
   onCopy,
   onStopStreaming,
+  onEdit,
+  onRegenerate,
 }: MessageListProps) {
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -44,8 +46,11 @@ export const MessageList = memo(function MessageList({
               key={message.id}
               message={message}
               isStreaming={isLoading && index === messages.length - 1 && message.role === 'assistant'}
+              isLoading={isLoading}
               onCopy={onCopy}
               onStopStreaming={onStopStreaming}
+              onEdit={onEdit}
+              onRegenerate={onRegenerate}
             />
           ))
         )}

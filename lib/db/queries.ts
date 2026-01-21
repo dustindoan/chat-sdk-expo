@@ -142,10 +142,15 @@ export async function deleteMessagesByChatIdAfterTimestamp(
   chatId: string,
   timestamp: Date
 ): Promise<void> {
-  const { gt } = await import('drizzle-orm');
+  const { gte } = await import('drizzle-orm');
   await db
     .delete(message)
-    .where(and(eq(message.chatId, chatId), gt(message.createdAt, timestamp)));
+    .where(and(eq(message.chatId, chatId), gte(message.createdAt, timestamp)));
+}
+
+export async function getMessageById(id: string): Promise<DBMessage | undefined> {
+  const [result] = await db.select().from(message).where(eq(message.id, id));
+  return result;
 }
 
 // ============================================================================

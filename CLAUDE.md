@@ -30,9 +30,10 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 - **Phase 6:** Artifacts system - createDocument/updateDocument tools, streaming text/code content to slide-in panel, document storage with preview cards
 - **Phase 7:** Version history - Index-based version navigation, word-level diff view, restore functionality
 - **Phase 8:** File attachments - Image picker, base64 data URLs, attachment preview, tap-to-expand modal, Claude vision
+- **Phase 9:** Message editing/regeneration - Edit user messages, regenerate assistant responses, delete trailing messages
 
 ### Next Up
-- **Phase 9:** Message editing/regeneration
+- **Phase 10:** Reasoning display
 
 ---
 
@@ -63,7 +64,6 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 **Key file:** `app/api/chat+api.ts`
 
 ### Future Phases
-- Phase 9: Message editing/regeneration
 - Phase 10: Reasoning display
 - Phase 11: Tool approval flow
 - Phase 12: Authentication
@@ -152,6 +152,40 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 
 ---
 
+## Resolved Issues (Phase 9)
+
+### Message Editing/Regeneration Implementation
+
+**Pattern from chat-sdk reference:**
+1. User clicks edit on message → MessageEditor appears
+2. On save: call API to delete trailing messages from DB
+3. Update client state with `setMessages()`
+4. Call `reload()` to regenerate response
+
+**Testing prompts:**
+1. Send a message: "Hello, my name is Alice"
+2. Click edit (pencil) icon on user message
+3. Change to "Hello, my name is Bob"
+4. Click Send → Previous response deleted, new response generated
+5. Click regenerate (refresh) icon on assistant message → Same message regenerated
+
+**Key implementation details:**
+- Database query: `getMessageById()`, `deleteMessagesByChatIdAfterTimestamp()` (uses `gte` to delete target message + all after)
+- API endpoint: `DELETE /api/messages/:id` - deletes message and all trailing messages
+- useChat hook: `setMessages()` for client state, `reload()` for regeneration
+- MessageEditor: Inline textarea with Cancel/Send buttons
+- MessageActions: Edit button for user messages, Regenerate button for assistant messages
+
+**Key files:**
+- `lib/db/queries.ts` - `getMessageById()` query
+- `app/api/messages/[id]+api.ts` - DELETE endpoint
+- `components/chat/MessageEditor.tsx` - Edit UI component
+- `components/chat/MessageActions.tsx` - Edit/Regenerate buttons
+- `components/chat/MessageBubble.tsx` - Edit mode state management
+- `components/ChatUI.tsx` - `handleEdit()`, `handleRegenerate()` handlers
+
+---
+
 ## Architecture
 
 ```
@@ -165,6 +199,8 @@ app/
 └── api/
     ├── chat+api.ts         # Chat streaming with persistence
     ├── history+api.ts      # Chat list pagination
+    ├── messages/
+    │   └── [id]+api.ts     # Delete trailing messages (for edit/regenerate)
     └── chats/
         ├── index+api.ts    # Create new chat
         ├── [id]+api.ts     # Get/update/delete chat
@@ -177,16 +213,17 @@ components/
 ├── theme.ts                # Design tokens
 ├── chat/                   # Chat components
 │   ├── MessageList.tsx
-│   ├── MessageBubble.tsx
+│   ├── MessageBubble.tsx     # Supports view/edit modes
+│   ├── MessageEditor.tsx     # Inline message editing
 │   ├── MessageInput.tsx
-│   ├── MessageActions.tsx
-│   ├── SimpleMarkdown.tsx  # Custom streaming-optimized renderer
+│   ├── MessageActions.tsx    # Copy, edit, regenerate, vote buttons
+│   ├── SimpleMarkdown.tsx    # Custom streaming-optimized renderer
 │   ├── ModelSelector.tsx
-│   ├── ToolInvocation.tsx  # Routes to tool-specific components
+│   ├── ToolInvocation.tsx    # Routes to tool-specific components
 │   ├── WelcomeMessage.tsx
-│   ├── AttachmentPreview.tsx  # Pending attachment thumbnail
-│   ├── ImagePreview.tsx       # Image display with tap-to-expand
-│   └── tools/              # Tool-specific UI components
+│   ├── AttachmentPreview.tsx # Pending attachment thumbnail
+│   ├── ImagePreview.tsx      # Image display with tap-to-expand
+│   └── tools/                # Tool-specific UI components
 │       ├── index.ts        # Tool registry
 │       ├── types.ts        # ToolUIProps, ToolState types
 │       ├── WeatherTool.tsx # Weather card with SVG icons, day/night theming

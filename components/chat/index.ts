@@ -4,6 +4,7 @@ export { ToolInvocation } from './ToolInvocation';
 export { SimpleMarkdown } from './SimpleMarkdown';
 export { MessageActions } from './MessageActions';
 export { MessageBubble } from './MessageBubble';
+export { MessageEditor } from './MessageEditor';
 export { MessageInput } from './MessageInput';
 export { MessageList } from './MessageList';
 export { ModelSelector } from './ModelSelector';

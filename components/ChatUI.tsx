@@ -105,7 +105,7 @@ export function ChatUI({
   const [localInput, setLocalInput] = useState('');
 
   // Chat state using @ai-sdk/react
-  const { messages, sendMessage, status, error, stop } = useChat({
+  const { messages, sendMessage, setMessages, reload, status, error, stop } = useChat({
     id: currentChatId,
     messages: initialMessages,
     generateId: generateUUID,
@@ -218,6 +218,98 @@ export function ChatUI({
     setIsModelSelectorOpen(false);
   }, []);
 
+  // Handle editing a user message
+  const handleEdit = useCallback(
+    async (messageId: string, newContent: string) => {
+      if (isLoading) return;
+
+      try {
+        // 1. Delete trailing messages from database
+        const response = await expoFetch(`/api/messages/${messageId}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete trailing messages');
+        }
+
+        // 2. Update client state: keep messages up to (but not including) the edited one,
+        // then add the edited message with new content
+        setMessages((currentMessages) => {
+          const index = currentMessages.findIndex((m) => m.id === messageId);
+          if (index === -1) return currentMessages;
+
+          const editedMessage: UIMessage = {
+            ...currentMessages[index],
+            parts: [{ type: 'text', text: newContent }],
+          };
+
+          return [...currentMessages.slice(0, index), editedMessage];
+        });
+
+        // 3. Regenerate response from the edited message
+        // Small delay to ensure state is updated
+        setTimeout(() => {
+          reload();
+        }, 100);
+      } catch (err) {
+        console.error('Error editing message:', err);
+        showToast('Failed to edit message', 'error');
+      }
+    },
+    [isLoading, setMessages, reload, showToast]
+  );
+
+  // Handle regenerating an assistant response
+  const handleRegenerate = useCallback(
+    async (messageId: string) => {
+      if (isLoading) return;
+
+      try {
+        // Find the message to regenerate
+        const messageIndex = messages.findIndex((m) => m.id === messageId);
+        if (messageIndex === -1) return;
+
+        // For assistant messages, we want to regenerate from the previous user message
+        // Find the user message before this assistant message
+        let userMessageIndex = messageIndex - 1;
+        while (userMessageIndex >= 0 && messages[userMessageIndex].role !== 'user') {
+          userMessageIndex--;
+        }
+
+        if (userMessageIndex < 0) {
+          showToast('No user message to regenerate from', 'error');
+          return;
+        }
+
+        const userMessage = messages[userMessageIndex];
+
+        // 1. Delete the assistant message and all following messages from database
+        const response = await expoFetch(`/api/messages/${messageId}`, {
+          method: 'DELETE',
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to delete messages');
+        }
+
+        // 2. Update client state: keep messages up to and including the user message
+        setMessages((currentMessages) => {
+          return currentMessages.slice(0, userMessageIndex + 1);
+        });
+
+        // 3. Regenerate response
+        setTimeout(() => {
+          reload();
+        }, 100);
+      } catch (err) {
+        console.error('Error regenerating response:', err);
+        showToast('Failed to regenerate response', 'error');
+      }
+    },
+    [isLoading, messages, setMessages, reload, showToast]
+  );
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -233,6 +325,8 @@ export function ChatUI({
           welcomeSubtitle={welcomeSubtitle}
           onCopy={handleCopy}
           onStopStreaming={handleStopStreaming}
+          onEdit={handleEdit}
+          onRegenerate={handleRegenerate}
         />
 
         <MessageInput

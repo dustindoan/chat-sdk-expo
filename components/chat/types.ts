@@ -43,19 +43,35 @@ export type MessagePart = TextPart | ToolPart | FilePart;
 // Chat status from useChat hook
 export type ChatStatus = 'submitted' | 'streaming' | 'ready' | 'error';
 
+// Edit mode for messages
+export type MessageMode = 'view' | 'edit';
+
 // Props for message components
 export interface MessageBubbleProps {
   message: Message;
   isStreaming?: boolean;
+  isLoading?: boolean;
   onCopy?: (text: string) => void;
   onStopStreaming?: () => void;
+  onEdit?: (messageId: string, newContent: string) => void;
+  onRegenerate?: (messageId: string) => void;
 }
 
 export interface MessageActionsProps {
   content: string;
+  role: 'user' | 'assistant';
   isStreaming?: boolean;
   onCopy?: (text: string) => void;
   onStopStreaming?: () => void;
+  onEdit?: () => void;
+  onRegenerate?: () => void;
+}
+
+export interface MessageEditorProps {
+  message: Message;
+  onSave: (newContent: string) => void;
+  onCancel: () => void;
+  isSubmitting?: boolean;
 }
 
 export interface CodeBlockProps {
@@ -81,6 +97,8 @@ export interface MessageListProps {
   welcomeSubtitle: string;
   onCopy?: (text: string) => void;
   onStopStreaming?: () => void;
+  onEdit?: (messageId: string, newContent: string) => void;
+  onRegenerate?: (messageId: string) => void;
 }
 
 export interface MessageInputProps {
