@@ -455,6 +455,21 @@ export function ArtifactProvider({ children }: { children: ReactNode }) {
 
             updateArtifactFromStreamingDoc(doc);
 
+            // If the panel is currently showing this document, refresh versions
+            // This handles the case where updateDocument completes while panel is open
+            setArtifact((prev) => {
+              if (prev.isVisible && prev.documentId === targetId) {
+                // Update content immediately and trigger version refresh
+                fetchVersions(targetId);
+                return {
+                  ...prev,
+                  content: doc.content,
+                  status: 'idle',
+                };
+              }
+              return prev;
+            });
+
             // Clean up streaming entry
             streamingDocsRef.current.delete(targetId);
             if (lastActiveDocIdRef.current === targetId) {
@@ -465,7 +480,7 @@ export function ArtifactProvider({ children }: { children: ReactNode }) {
         }
       }
     },
-    [updateArtifactFromStreamingDoc]
+    [updateArtifactFromStreamingDoc, fetchVersions]
   );
 
   const value: ArtifactContextValue = {
