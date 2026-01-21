@@ -1,20 +1,19 @@
 import { createAnthropic } from '@ai-sdk/anthropic';
 import {
   streamText,
-  tool,
   stepCountIs,
   createUIMessageStream,
   createUIMessageStreamResponse,
 } from 'ai';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
-import { z } from 'zod';
 import {
   getChatById,
   saveChat,
   saveMessages,
   updateChatTitle,
 } from '../../lib/db';
+import { weatherTool, convertTemperatureTool } from '../../lib/ai/tools';
 
 // Load API key from .env file
 function getApiKey(): string {
@@ -124,31 +123,8 @@ export async function POST(request: Request) {
           'You are a helpful assistant. You can help with coding questions, general knowledge, and more. You also have tools to get weather information and convert temperatures.',
         messages: transformMessages(uiMessages),
         tools: {
-          weather: tool({
-            description: 'Get the weather in a location (fahrenheit)',
-            inputSchema: z.object({
-              location: z.string().describe('The location to get the weather for'),
-            }),
-            execute: async ({ location }) => {
-              const temperature = Math.round(Math.random() * 40 + 40);
-              const conditions = ['sunny', 'cloudy', 'rainy', 'partly cloudy'][
-                Math.floor(Math.random() * 4)
-              ];
-              return { location, temperature, unit: 'fahrenheit', conditions };
-            },
-          }),
-          convertTemperature: tool({
-            description: 'Convert a temperature from Fahrenheit to Celsius',
-            inputSchema: z.object({
-              fahrenheit: z
-                .number()
-                .describe('The temperature in Fahrenheit to convert'),
-            }),
-            execute: async ({ fahrenheit }) => {
-              const celsius = Math.round((fahrenheit - 32) * (5 / 9) * 10) / 10;
-              return { fahrenheit, celsius, unit: 'celsius' };
-            },
-          }),
+          weather: weatherTool,
+          convertTemperature: convertTemperatureTool,
         },
         stopWhen: stepCountIs(5),
       });

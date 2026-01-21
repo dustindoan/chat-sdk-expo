@@ -73,6 +73,8 @@ export function MessageInput({
                 Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
               ]}
               onPress={onStop}
+              accessibilityLabel="Stop generating"
+              accessibilityRole="button"
             >
               <Feather name="square" size={16} color={colors.text.primary} />
             </TouchableOpacity>
@@ -85,6 +87,8 @@ export function MessageInput({
               ]}
               onPress={onSend}
               disabled={!canSend}
+              accessibilityLabel="Send message"
+              accessibilityRole="button"
             >
               <Text style={styles.sendIcon}>↑</Text>
             </TouchableOpacity>
