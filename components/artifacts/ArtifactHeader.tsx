@@ -2,6 +2,7 @@
  * ArtifactHeader Component
  *
  * Header bar for the artifact panel showing title, kind badge, and actions.
+ * Phase 7: Added version navigation controls.
  */
 
 import React, { memo } from 'react';
@@ -16,6 +17,17 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { colors, spacing, fontSize, fontWeight, borderRadius } from '../theme';
 import type { ArtifactKind, ArtifactStatus } from '../../lib/artifacts/types';
+import { VersionNavigation } from './VersionNavigation';
+
+interface VersionProps {
+  currentIndex: number;
+  totalVersions: number;
+  mode: 'view' | 'diff';
+  isLoading: boolean;
+  onPrev: () => void;
+  onNext: () => void;
+  onToggleDiff: () => void;
+}
 
 interface ArtifactHeaderProps {
   title: string;
@@ -23,6 +35,7 @@ interface ArtifactHeaderProps {
   status: ArtifactStatus;
   onCopy: () => void;
   onClose: () => void;
+  versionProps?: VersionProps;
 }
 
 /**
@@ -35,6 +48,7 @@ export const ArtifactHeader = memo(function ArtifactHeader({
   status,
   onCopy,
   onClose,
+  versionProps,
 }: ArtifactHeaderProps) {
   const isStreaming = status === 'streaming';
   const kindLabel = kind === 'code' ? 'Code' : 'Document';
@@ -63,8 +77,21 @@ export const ArtifactHeader = memo(function ArtifactHeader({
         </View>
       </View>
 
-      {/* Right side: status and actions */}
+      {/* Right side: version navigation, status and actions */}
       <View style={styles.rightSection}>
+        {/* Version navigation (only when not streaming and has versions) */}
+        {!isStreaming && versionProps && versionProps.totalVersions > 1 && (
+          <VersionNavigation
+            currentIndex={versionProps.currentIndex}
+            totalVersions={versionProps.totalVersions}
+            mode={versionProps.mode}
+            isLoading={versionProps.isLoading}
+            onPrev={versionProps.onPrev}
+            onNext={versionProps.onNext}
+            onToggleDiff={versionProps.onToggleDiff}
+          />
+        )}
+
         {isStreaming && (
           <View style={styles.streamingIndicator}>
             <ActivityIndicator size="small" color={colors.accent.primary} />

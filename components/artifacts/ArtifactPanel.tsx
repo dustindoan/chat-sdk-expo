@@ -5,9 +5,11 @@
  * Supports two modes:
  * - 'overlay': Slides in from right with backdrop (mobile)
  * - 'inline': Rendered inline in side-by-side layout (desktop web)
+ *
+ * Phase 7: Added version history navigation and diff view.
  */
 
-import React, { memo, useCallback, useEffect, useRef } from 'react';
+import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   StyleSheet,
@@ -21,6 +23,8 @@ import { useArtifact } from '../../contexts/ArtifactContext';
 import { ArtifactHeader } from './ArtifactHeader';
 import { TextContent } from './TextContent';
 import { CodeContent } from './CodeContent';
+import { DiffView } from './DiffView';
+import { VersionFooter } from './VersionFooter';
 import { colors } from '../theme';
 
 const ANIMATION_DURATION = 250;
@@ -37,8 +41,32 @@ interface ArtifactPanelProps {
 export const ArtifactPanel = memo(function ArtifactPanel({
   mode = 'overlay',
 }: ArtifactPanelProps) {
-  const { artifact, hideArtifact } = useArtifact();
+  const {
+    artifact,
+    hideArtifact,
+    versionState,
+    fetchVersions,
+    handleVersionChange,
+    restoreVersion,
+    getDocumentContentByIndex,
+    isCurrentVersion,
+  } = useArtifact();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const [isRestoring, setIsRestoring] = useState(false);
+
+  // Fetch versions when panel opens with a document
+  const lastDocumentIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (
+      artifact.isVisible &&
+      artifact.documentId &&
+      artifact.status === 'idle' &&
+      artifact.documentId !== lastDocumentIdRef.current
+    ) {
+      lastDocumentIdRef.current = artifact.documentId;
+      fetchVersions(artifact.documentId);
+    }
+  }, [artifact.isVisible, artifact.documentId, artifact.status, fetchVersions]);
 
   // Calculate panel width based on screen size (for overlay mode)
   const isMobile = windowWidth < 768;
@@ -87,15 +115,62 @@ export const ArtifactPanel = memo(function ArtifactPanel({
   }, [isVisible, panelWidth, slideAnim, fadeAnim, mode]);
 
   const handleCopy = useCallback(async () => {
-    if (artifact.content) {
-      await Clipboard.setStringAsync(artifact.content);
+    // Copy the content of the current version being viewed
+    const contentToCopy =
+      versionState.currentVersionIndex >= 0 && versionState.versions.length > 0
+        ? getDocumentContentByIndex(versionState.currentVersionIndex)
+        : artifact.content;
+
+    if (contentToCopy) {
+      await Clipboard.setStringAsync(contentToCopy);
       // Could add a toast notification here
     }
-  }, [artifact.content]);
+  }, [artifact.content, versionState, getDocumentContentByIndex]);
 
   const handleClose = useCallback(() => {
     hideArtifact();
+    lastDocumentIdRef.current = null;
   }, [hideArtifact]);
+
+  const handleRestore = useCallback(async () => {
+    setIsRestoring(true);
+    try {
+      await restoreVersion();
+    } finally {
+      setIsRestoring(false);
+    }
+  }, [restoreVersion]);
+
+  const handleBackToLatest = useCallback(() => {
+    handleVersionChange('latest');
+  }, [handleVersionChange]);
+
+  // Get the content to display based on current version
+  const displayContent =
+    versionState.currentVersionIndex >= 0 && versionState.versions.length > 0
+      ? getDocumentContentByIndex(versionState.currentVersionIndex)
+      : artifact.content;
+
+  // For diff view, get previous version's content
+  const previousContent =
+    versionState.currentVersionIndex > 0
+      ? getDocumentContentByIndex(versionState.currentVersionIndex - 1)
+      : '';
+
+  // Determine if we should show diff view
+  const showDiff =
+    versionState.mode === 'diff' && versionState.currentVersionIndex > 0;
+
+  // Version props for header
+  const versionProps = {
+    currentIndex: versionState.currentVersionIndex,
+    totalVersions: versionState.versions.length,
+    mode: versionState.mode,
+    isLoading: versionState.isLoadingVersions,
+    onPrev: () => handleVersionChange('prev'),
+    onNext: () => handleVersionChange('next'),
+    onToggleDiff: () => handleVersionChange('toggle-diff'),
+  };
 
   // Render content based on kind
   const ContentComponent = artifact.kind === 'code' ? CodeContent : TextContent;
@@ -115,15 +190,33 @@ export const ArtifactPanel = memo(function ArtifactPanel({
           status={artifact.status}
           onCopy={handleCopy}
           onClose={handleClose}
+          versionProps={versionProps}
         />
 
         <View style={styles.content}>
-          <ContentComponent
-            content={artifact.content}
-            status={artifact.status}
-            language={artifact.language}
-          />
+          {showDiff ? (
+            <DiffView
+              oldContent={previousContent}
+              newContent={displayContent}
+              kind={artifact.kind}
+            />
+          ) : (
+            <ContentComponent
+              content={displayContent}
+              status={artifact.status}
+              language={artifact.language}
+            />
+          )}
         </View>
+
+        {/* Show footer when viewing a historical version */}
+        {!isCurrentVersion && artifact.status !== 'streaming' && (
+          <VersionFooter
+            onRestore={handleRestore}
+            onBackToLatest={handleBackToLatest}
+            isRestoring={isRestoring}
+          />
+        )}
       </View>
     );
   }
@@ -163,15 +256,33 @@ export const ArtifactPanel = memo(function ArtifactPanel({
           status={artifact.status}
           onCopy={handleCopy}
           onClose={handleClose}
+          versionProps={versionProps}
         />
 
         <View style={styles.content}>
-          <ContentComponent
-            content={artifact.content}
-            status={artifact.status}
-            language={artifact.language}
-          />
+          {showDiff ? (
+            <DiffView
+              oldContent={previousContent}
+              newContent={displayContent}
+              kind={artifact.kind}
+            />
+          ) : (
+            <ContentComponent
+              content={displayContent}
+              status={artifact.status}
+              language={artifact.language}
+            />
+          )}
         </View>
+
+        {/* Show footer when viewing a historical version */}
+        {!isCurrentVersion && artifact.status !== 'streaming' && (
+          <VersionFooter
+            onRestore={handleRestore}
+            onBackToLatest={handleBackToLatest}
+            isRestoring={isRestoring}
+          />
+        )}
       </Animated.View>
     </View>
   );

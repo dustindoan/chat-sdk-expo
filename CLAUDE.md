@@ -28,17 +28,19 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 - **Phase 4:** Chat history sidebar (drawer navigation)
 - **Phase 5:** Enhanced tool system - Tool registry with custom UI components (WeatherTool, TemperatureTool, DefaultTool)
 - **Phase 6:** Artifacts system - createDocument/updateDocument tools, streaming text/code content to slide-in panel, document storage with preview cards
+- **Phase 7:** Version history - Index-based version navigation, word-level diff view, restore functionality
 
-### Phase 6 Status: COMPLETE ✓
+### Phase 7 Status: COMPLETE ✓
 
-All artifact features working:
-- **createDocument** - Creates text/code artifacts with streaming
-- **updateDocument** - Modifies existing documents using document ID from history
-- **Multi-document streaming** - Concurrent documents render correctly without mixing
-- **Artifact panel** - Opens after streaming completes showing first document
+All version history features working:
+- **Version navigation** - Prev/Next buttons in header with "Version X of Y" indicator
+- **Diff view** - Toggle to show word-level changes (green additions, red strikethrough deletions)
+- **Restore** - Revert to previous version by deleting newer versions
+- **Version footer** - Sticky footer when viewing historical versions with restore/latest buttons
+- **On-demand loading** - Versions fetched from API when panel opens
 
 ### Next Up
-- **Phase 7:** Version history - Document versioning with diff view
+- **Phase 8:** File attachments
 
 ---
 
@@ -68,12 +70,34 @@ All artifact features working:
 
 **Key file:** `app/api/chat+api.ts`
 
-### Future
+### Future Phases
 - Phase 8: File attachments
 - Phase 9: Message editing/regeneration
 - Phase 10: Reasoning display
 - Phase 11: Tool approval flow
 - Phase 12: Authentication
+
+---
+
+## Resolved Issues (Phase 7)
+
+### Version History Implementation
+
+**Testing prompts:**
+1. Create: "Write a haiku about mountains"
+2. Update: "Make the haiku about the ocean instead"
+3. Open panel → "Version 2 of 2"
+4. Navigate prev → Version 1 shows, footer appears
+5. Toggle diff → Word-level red/green diff
+6. Restore → Deletes newer versions
+
+**Key implementation details:**
+- Database queries: `getDocumentsById()`, `deleteDocumentsByIdAfterTimestamp()`
+- API endpoint: `GET/DELETE /api/documents?id=X`
+- Word diff: `diff` npm package with `diffWords()`
+- Context extended with: `versionState`, `fetchVersions`, `handleVersionChange`, `restoreVersion`
+
+**Key files:** `lib/db/queries.ts`, `app/api/documents/index+api.ts`, `contexts/ArtifactContext.tsx`, `components/artifacts/DiffView.tsx`, `components/artifacts/VersionNavigation.tsx`, `components/artifacts/VersionFooter.tsx`
 
 ## Architecture
 
@@ -117,10 +141,13 @@ components/
 ├── artifacts/              # Artifact system components
 │   ├── index.ts            # Barrel exports
 │   ├── ArtifactPanel.tsx   # Slide-in panel container
-│   ├── ArtifactHeader.tsx  # Title, kind badge, actions
+│   ├── ArtifactHeader.tsx  # Title, kind badge, actions, version nav
 │   ├── TextContent.tsx     # Markdown content renderer
 │   ├── CodeContent.tsx     # Syntax-highlighted code
-│   └── DocumentPreview.tsx # Inline message preview
+│   ├── DocumentPreview.tsx # Inline message preview
+│   ├── DiffView.tsx        # Word-level diff visualization
+│   ├── VersionNavigation.tsx  # Version nav buttons
+│   └── VersionFooter.tsx   # Restore/latest actions footer
 └── toast/                  # Toast notification system
 
 hooks/

@@ -182,3 +182,33 @@ export async function saveDocument(data: {
     .returning();
   return result;
 }
+
+export async function getDocumentsById(id: string): Promise<Document[]> {
+  // Get all versions of a document, sorted by creation date ascending
+  return db
+    .select()
+    .from(document)
+    .where(eq(document.id, id))
+    .orderBy(asc(document.createdAt));
+}
+
+export async function deleteDocumentsByIdAfterTimestamp(
+  id: string,
+  timestamp: Date
+): Promise<Document[]> {
+  const { gt } = await import('drizzle-orm');
+  // Delete all versions created after the given timestamp
+  // Returns the deleted documents
+  const toDelete = await db
+    .select()
+    .from(document)
+    .where(and(eq(document.id, id), gt(document.createdAt, timestamp)));
+
+  if (toDelete.length > 0) {
+    await db
+      .delete(document)
+      .where(and(eq(document.id, id), gt(document.createdAt, timestamp)));
+  }
+
+  return toDelete;
+}

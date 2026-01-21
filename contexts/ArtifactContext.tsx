@@ -7,6 +7,9 @@
  * Supports multiple concurrent document streams by tracking each document
  * independently via streamingDocsRef, then displaying the most recent one
  * in the artifact panel.
+ *
+ * Phase 7: Added version history support with index-based navigation,
+ * diff view toggle, and restore functionality.
  */
 
 import React, {
@@ -27,6 +30,7 @@ import {
   isArtifactDataType,
   extractDataValue,
 } from '../lib/artifacts/types';
+import type { Document } from '../lib/db/schema';
 
 /**
  * Stored document data
@@ -50,6 +54,28 @@ interface StreamingDocument {
   language?: string;
   status: 'streaming' | 'idle';
 }
+
+/**
+ * Version state for history navigation
+ */
+interface VersionState {
+  versions: Document[];
+  currentVersionIndex: number;
+  mode: 'view' | 'diff';
+  isLoadingVersions: boolean;
+}
+
+const initialVersionState: VersionState = {
+  versions: [],
+  currentVersionIndex: -1,
+  mode: 'view',
+  isLoadingVersions: false,
+};
+
+/**
+ * Version change action types
+ */
+type VersionChangeType = 'prev' | 'next' | 'toggle-diff' | 'latest';
 
 /**
  * Context value interface
@@ -77,6 +103,20 @@ interface ArtifactContextValue {
   getStreamingDocument: (idOrTitle: string) => StreamingDocument | undefined;
   /** Open the first completed document (call when streaming ends) */
   openFirstDocument: () => void;
+
+  // Version history
+  /** Version state (versions array, current index, mode, loading) */
+  versionState: VersionState;
+  /** Fetch all versions for a document */
+  fetchVersions: (documentId: string) => Promise<void>;
+  /** Navigate versions: prev, next, toggle-diff, latest */
+  handleVersionChange: (type: VersionChangeType) => void;
+  /** Restore current version (deletes newer versions) */
+  restoreVersion: () => Promise<void>;
+  /** Get content for a specific version index */
+  getDocumentContentByIndex: (index: number) => string;
+  /** Whether currently viewing the latest version */
+  isCurrentVersion: boolean;
 }
 
 const ArtifactContext = createContext<ArtifactContextValue | null>(null);
@@ -88,6 +128,7 @@ const ArtifactContext = createContext<ArtifactContextValue | null>(null);
 export function ArtifactProvider({ children }: { children: ReactNode }) {
   const [artifact, setArtifact] = useState<UIArtifact>(initialArtifact);
   const [metadata, setMetadata] = useState<any>(null);
+  const [versionState, setVersionState] = useState<VersionState>(initialVersionState);
 
   // Store completed documents by ID for retrieval after streaming completes
   const documentsRef = useRef<Map<string, StoredDocument>>(new Map());
@@ -101,6 +142,11 @@ export function ArtifactProvider({ children }: { children: ReactNode }) {
   // Track document IDs in the order they were created (for auto-open first)
   const documentOrderRef = useRef<string[]>([]);
 
+  // Computed: check if viewing the latest version
+  const isCurrentVersion =
+    versionState.versions.length === 0 ||
+    versionState.currentVersionIndex === versionState.versions.length - 1;
+
   const showArtifact = useCallback(() => {
     setArtifact((prev) => ({ ...prev, isVisible: true }));
   }, []);
@@ -112,10 +158,118 @@ export function ArtifactProvider({ children }: { children: ReactNode }) {
   const resetArtifact = useCallback(() => {
     setArtifact(initialArtifact);
     setMetadata(null);
+    setVersionState(initialVersionState);
     streamingDocsRef.current.clear();
     lastActiveDocIdRef.current = null;
     documentOrderRef.current = [];
   }, []);
+
+  /**
+   * Fetch all versions of a document from the API
+   */
+  const fetchVersions = useCallback(async (documentId: string) => {
+    setVersionState((prev) => ({ ...prev, isLoadingVersions: true }));
+
+    try {
+      const response = await fetch(`/api/documents?id=${documentId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch versions');
+      }
+
+      const versions: Document[] = await response.json();
+
+      setVersionState({
+        versions,
+        currentVersionIndex: versions.length - 1, // Start at latest
+        mode: 'view',
+        isLoadingVersions: false,
+      });
+    } catch (error) {
+      console.error('Failed to fetch versions:', error);
+      setVersionState((prev) => ({ ...prev, isLoadingVersions: false }));
+    }
+  }, []);
+
+  /**
+   * Handle version navigation actions
+   */
+  const handleVersionChange = useCallback((type: VersionChangeType) => {
+    setVersionState((prev) => {
+      const { versions, currentVersionIndex, mode } = prev;
+      const lastIndex = versions.length - 1;
+
+      switch (type) {
+        case 'prev':
+          if (currentVersionIndex > 0) {
+            return { ...prev, currentVersionIndex: currentVersionIndex - 1 };
+          }
+          return prev;
+
+        case 'next':
+          if (currentVersionIndex < lastIndex) {
+            return { ...prev, currentVersionIndex: currentVersionIndex + 1 };
+          }
+          return prev;
+
+        case 'toggle-diff':
+          return { ...prev, mode: mode === 'view' ? 'diff' : 'view' };
+
+        case 'latest':
+          return { ...prev, currentVersionIndex: lastIndex, mode: 'view' };
+
+        default:
+          return prev;
+      }
+    });
+  }, []);
+
+  /**
+   * Restore the current version by deleting all newer versions
+   */
+  const restoreVersion = useCallback(async () => {
+    const { versions, currentVersionIndex } = versionState;
+    if (currentVersionIndex < 0 || currentVersionIndex >= versions.length - 1) {
+      return; // Already at latest or invalid index
+    }
+
+    const currentVersion = versions[currentVersionIndex];
+    if (!currentVersion) return;
+
+    try {
+      const timestamp = currentVersion.createdAt;
+      const response = await fetch(
+        `/api/documents?id=${currentVersion.id}&timestamp=${timestamp}`,
+        { method: 'DELETE' }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to restore version');
+      }
+
+      // Refetch versions to get updated list
+      await fetchVersions(currentVersion.id);
+
+      // Update artifact content to show restored version
+      setArtifact((prev) => ({
+        ...prev,
+        content: currentVersion.content || '',
+      }));
+    } catch (error) {
+      console.error('Failed to restore version:', error);
+    }
+  }, [versionState, fetchVersions]);
+
+  /**
+   * Get document content by version index
+   */
+  const getDocumentContentByIndex = useCallback(
+    (index: number): string => {
+      const { versions } = versionState;
+      if (index < 0 || index >= versions.length) return '';
+      return versions[index]?.content || '';
+    },
+    [versionState]
+  );
 
   const getDocument = useCallback((id: string): StoredDocument | undefined => {
     return documentsRef.current.get(id);
@@ -326,6 +480,13 @@ export function ArtifactProvider({ children }: { children: ReactNode }) {
     getDocument,
     getStreamingDocument,
     openFirstDocument,
+    // Version history
+    versionState,
+    fetchVersions,
+    handleVersionChange,
+    restoreVersion,
+    getDocumentContentByIndex,
+    isCurrentVersion,
   };
 
   return (
