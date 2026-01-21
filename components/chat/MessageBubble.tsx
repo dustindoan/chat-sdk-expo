@@ -4,7 +4,8 @@ import { colors, spacing, fontSize, borderRadius } from '../theme';
 import { SimpleMarkdown } from './SimpleMarkdown';
 import { ToolInvocation } from './ToolInvocation';
 import { MessageActions } from './MessageActions';
-import type { MessageBubbleProps, ToolPart } from './types';
+import { ImagePreview } from './ImagePreview';
+import type { MessageBubbleProps, ToolPart, FilePart } from './types';
 
 export const MessageBubble = memo(function MessageBubble({
   message,
@@ -28,11 +29,26 @@ export const MessageBubble = memo(function MessageBubble({
   // Extract tool invocations
   const toolParts = (message.parts?.filter((p: any) => p.type?.startsWith('tool-')) || []) as ToolPart[];
 
+  // Extract file parts (images)
+  const fileParts = (message.parts?.filter((p: any) => p.type === 'file') || []) as FilePart[];
+
   if (isUser) {
     return (
       <View style={styles.userMessageRow}>
         <View style={styles.userBubble}>
-          <Text style={styles.userText}>{textContent}</Text>
+          {/* Render file attachments first */}
+          {fileParts.length > 0 && (
+            <View style={styles.userFilesContainer}>
+              {fileParts.map((part, index) => (
+                <ImagePreview
+                  key={`file-${index}`}
+                  url={part.url}
+                  filename={part.filename}
+                />
+              ))}
+            </View>
+          )}
+          {textContent && <Text style={styles.userText}>{textContent}</Text>}
         </View>
       </View>
     );
@@ -78,6 +94,9 @@ const styles = StyleSheet.create({
     fontSize: fontSize.base,
     lineHeight: 22,
     color: colors.message.user.text,
+  },
+  userFilesContainer: {
+    marginBottom: spacing.sm,
   },
   assistantMessageRow: {
     flexDirection: 'row',

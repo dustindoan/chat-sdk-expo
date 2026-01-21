@@ -21,7 +21,24 @@ export interface TextPart {
   text: string;
 }
 
-export type MessagePart = TextPart | ToolPart;
+// File part for images and attachments (matches AI SDK FileUIPart)
+export interface FilePart {
+  type: 'file';
+  mediaType: string;
+  filename?: string;
+  url: string; // Data URL (base64) or HTTP URL
+}
+
+// Attachment state for pending uploads (before message is sent)
+export interface Attachment {
+  id: string;
+  filename: string;
+  mediaType: string;
+  url: string; // Data URL
+  isUploading?: boolean;
+}
+
+export type MessagePart = TextPart | ToolPart | FilePart;
 
 // Chat status from useChat hook
 export type ChatStatus = 'submitted' | 'streaming' | 'ready' | 'error';
@@ -75,4 +92,18 @@ export interface MessageInputProps {
   isLoading: boolean;
   selectedModel: string;
   onModelSelect?: () => void;
+  // File attachment support
+  attachments?: Attachment[];
+  onAddAttachment?: () => void;
+  onRemoveAttachment?: (id: string) => void;
+}
+
+export interface AttachmentPreviewProps {
+  attachment: Attachment;
+  onRemove?: () => void;
+}
+
+export interface ImagePreviewProps {
+  url: string;
+  filename?: string;
 }

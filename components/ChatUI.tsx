@@ -14,6 +14,7 @@ import { colors } from './theme';
 import { MessageList, MessageInput, ModelSelector } from './chat';
 import { useToast } from './toast';
 import { useClipboard } from '../hooks/useClipboard';
+import { useAttachments } from '../hooks/useAttachments';
 import { chatModels, DEFAULT_MODEL_ID, getModelName } from '../lib/ai/models';
 import { useArtifact } from '../contexts/ArtifactContext';
 
@@ -60,6 +61,15 @@ export function ChatUI({
   const { showToast } = useToast();
   const { copyToClipboard } = useClipboard();
   const { processStreamPart, openFirstDocument } = useArtifact();
+
+  // File attachments
+  const {
+    attachments,
+    addAttachment,
+    removeAttachment,
+    clearAttachments,
+    toFileParts,
+  } = useAttachments();
 
   // Chat ID - generate one if not provided
   const [currentChatId] = useState(() => initialChatId || generateUUID());
@@ -133,12 +143,30 @@ export function ChatUI({
   }, [status, openFirstDocument]);
 
   const handleSend = useCallback(() => {
-    if (localInput?.trim() && !isLoading) {
+    const hasText = localInput?.trim();
+    const hasAttachments = attachments.length > 0;
+
+    if ((hasText || hasAttachments) && !isLoading) {
       // If this is a new chat (no initial messages and first send), notify parent
       const isNewChat = initialMessages.length === 0 && messages.length === 0;
 
-      sendMessage({ text: localInput.trim() });
+      // Build message parts
+      const fileParts = toFileParts();
+      const parts: any[] = [...fileParts];
+
+      if (hasText) {
+        parts.push({ type: 'text', text: localInput.trim() });
+      }
+
+      // Send message with parts
+      sendMessage({
+        role: 'user',
+        parts,
+      });
+
+      // Clear input and attachments
       setLocalInput('');
+      clearAttachments();
 
       // Notify about chat creation after a delay (to ensure it's saved)
       if (isNewChat && !hasNotifiedCreationRef.current && onChatCreated) {
@@ -148,7 +176,18 @@ export function ChatUI({
         }, 1000);
       }
     }
-  }, [localInput, isLoading, sendMessage, initialMessages.length, messages.length, onChatCreated, currentChatId]);
+  }, [
+    localInput,
+    attachments,
+    isLoading,
+    sendMessage,
+    toFileParts,
+    clearAttachments,
+    initialMessages.length,
+    messages.length,
+    onChatCreated,
+    currentChatId,
+  ]);
 
   const handleCopy = useCallback(
     async (text: string) => {
@@ -205,6 +244,9 @@ export function ChatUI({
           isLoading={isLoading}
           selectedModel={getModelName(selectedModelId)}
           onModelSelect={handleModelSelect}
+          attachments={attachments}
+          onAddAttachment={addAttachment}
+          onRemoveAttachment={removeAttachment}
         />
       </View>
 

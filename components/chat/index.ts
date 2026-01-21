@@ -7,3 +7,5 @@ export { MessageBubble } from './MessageBubble';
 export { MessageInput } from './MessageInput';
 export { MessageList } from './MessageList';
 export { ModelSelector } from './ModelSelector';
+export { AttachmentPreview } from './AttachmentPreview';
+export { ImagePreview } from './ImagePreview';

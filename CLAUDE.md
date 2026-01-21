@@ -29,18 +29,10 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 - **Phase 5:** Enhanced tool system - Tool registry with custom UI components (WeatherTool, TemperatureTool, DefaultTool)
 - **Phase 6:** Artifacts system - createDocument/updateDocument tools, streaming text/code content to slide-in panel, document storage with preview cards
 - **Phase 7:** Version history - Index-based version navigation, word-level diff view, restore functionality
-
-### Phase 7 Status: COMPLETE ✓
-
-All version history features working:
-- **Version navigation** - Prev/Next buttons in header with "Version X of Y" indicator
-- **Diff view** - Toggle to show word-level changes (green additions, red strikethrough deletions)
-- **Restore** - Revert to previous version by deleting newer versions
-- **Version footer** - Sticky footer when viewing historical versions with restore/latest buttons
-- **On-demand loading** - Versions fetched from API when panel opens
+- **Phase 8:** File attachments - Image picker, base64 data URLs, attachment preview, tap-to-expand modal, Claude vision
 
 ### Next Up
-- **Phase 8:** File attachments
+- **Phase 9:** Message editing/regeneration
 
 ---
 
@@ -71,7 +63,6 @@ All version history features working:
 **Key file:** `app/api/chat+api.ts`
 
 ### Future Phases
-- Phase 8: File attachments
 - Phase 9: Message editing/regeneration
 - Phase 10: Reasoning display
 - Phase 11: Tool approval flow
@@ -123,6 +114,44 @@ All version history features working:
 
 ---
 
+## Resolved Issues (Phase 8)
+
+### File Attachments Implementation
+
+**Architecture Decision:** Data URLs (base64) instead of cloud blob storage
+- Simpler implementation, no external dependencies
+- Works offline, instant preview
+- Anthropic API accepts Data URLs directly
+- Easy migration to cloud storage later (just change upload function)
+
+**Testing prompts:**
+1. Click paperclip icon → select image
+2. Image appears as thumbnail in input area
+3. Click X to remove, or send with message
+4. Image appears in user bubble
+5. Tap image → fullscreen modal
+6. Claude analyzes the image content
+
+**Key files:**
+- `hooks/useAttachments.ts` - Attachment state management, image picker integration
+- `lib/files/index.ts` - fileToBase64, validation utilities
+- `components/chat/AttachmentPreview.tsx` - Input area thumbnails
+- `components/chat/ImagePreview.tsx` - Message bubble images with modal
+- `components/chat/types.ts` - FilePart, Attachment interfaces
+
+**Message format with attachments:**
+```typescript
+{
+  role: 'user',
+  parts: [
+    { type: 'file', mediaType: 'image/png', filename: 'photo.png', url: 'data:image/png;base64,...' },
+    { type: 'text', text: 'What is in this image?' }
+  ]
+}
+```
+
+---
+
 ## Architecture
 
 ```
@@ -155,6 +184,8 @@ components/
 │   ├── ModelSelector.tsx
 │   ├── ToolInvocation.tsx  # Routes to tool-specific components
 │   ├── WelcomeMessage.tsx
+│   ├── AttachmentPreview.tsx  # Pending attachment thumbnail
+│   ├── ImagePreview.tsx       # Image display with tap-to-expand
 │   └── tools/              # Tool-specific UI components
 │       ├── index.ts        # Tool registry
 │       ├── types.ts        # ToolUIProps, ToolState types
@@ -176,7 +207,8 @@ components/
 
 hooks/
 ├── useClipboard.ts
-└── useChatHistory.ts       # Paginated chat list with date grouping
+├── useChatHistory.ts       # Paginated chat list with date grouping
+└── useAttachments.ts       # File attachment state management
 
 lib/
 ├── ai/
@@ -195,6 +227,8 @@ lib/
 │       ├── index.ts
 │       ├── text.ts         # Text document handler
 │       └── code.ts         # Code document handler
+├── files/
+│   └── index.ts            # File utilities (fileToBase64, validation)
 └── db/
     ├── schema.ts           # Drizzle schema (Chat, Message)
     ├── client.ts           # PostgreSQL connection
