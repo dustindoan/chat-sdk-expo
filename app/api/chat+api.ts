@@ -78,6 +78,10 @@ export async function POST(request: Request) {
   // Determine if we should enable extended thinking
   const enableThinking = reasoningEnabled && modelSupportsReasoning(modelName);
 
+  // Detect if this is a tool approval continuation flow
+  // When `messages` array is provided, it means user approved/denied a tool
+  const isToolApprovalFlow = Boolean(messages);
+
   // Check if chat exists, create if not
   let chat = chatId ? await getChatById(chatId) : null;
   let isNewChat = false;
@@ -94,7 +98,8 @@ export async function POST(request: Request) {
   }
 
   // Save user message if provided (before loading history so it's included)
-  if (message?.role === 'user' && chat) {
+  // Don't save for tool approval flows - no new user message
+  if (message?.role === 'user' && chat && !isToolApprovalFlow) {
     await saveMessages([
       {
         id: message.id || generateUUID(),
@@ -105,10 +110,16 @@ export async function POST(request: Request) {
     ]);
   }
 
-  // Load full message history from database (following chat-sdk pattern)
-  // This ensures the AI model sees previous tool calls and results
+  // Determine UI messages to send to the model
   let uiMessages: any[] = [];
-  if (chat) {
+
+  if (isToolApprovalFlow) {
+    // For tool approval flows, use the full messages array from client
+    // This includes the approval-responded state needed for continuation
+    uiMessages = messages;
+  } else if (chat) {
+    // Load full message history from database (following chat-sdk pattern)
+    // This ensures the AI model sees previous tool calls and results
     const dbMessages = await getMessagesByChatId(chat.id);
     // Convert DB messages to UI message format
     uiMessages = dbMessages.map((dbMsg) => ({

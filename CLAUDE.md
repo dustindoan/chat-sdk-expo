@@ -24,14 +24,64 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 - **Phase 8:** File attachments - Image picker, base64 data URLs, attachment preview, tap-to-expand modal, Claude vision
 - **Phase 9:** Message editing/regeneration - Edit user messages, regenerate assistant responses, delete trailing messages
 - **Phase 10:** Reasoning display - Extended thinking toggle, collapsible thinking section with duration, NativeWind v5 + Tailwind v4
+- **Phase 11:** Tool approval flow - Human-in-the-loop tool confirmation, Allow/Deny buttons, automatic continuation after approval
 
 ### Next Up
-- **Phase 11:** Tool approval flow
 - **Phase 12:** Authentication
 
 ---
 
 ## Phase Implementation Details
+
+### Phase 11: Tool Approval Flow
+
+**Features implemented:**
+- `needsApproval: true` property on tools requiring user confirmation
+- Tool states: `approval-requested`, `approval-responded`, `output-denied`
+- ToolApprovalCard component with Allow/Deny buttons
+- ToolApprovedCard and ToolDeniedCard for feedback states
+- `addToolApprovalResponse` from useChat for approval handling
+- `sendAutomaticallyWhen` to auto-continue after approval
+- API support for tool approval continuation (sends full message history)
+
+**Testing prompts:**
+1. Ask "What's the weather in San Francisco?"
+2. Tool approval card appears with parameters
+3. Click "Allow" → Weather tool executes, shows result
+4. Or click "Deny" → Shows denied message, AI responds accordingly
+
+**Key implementation details:**
+- AI SDK v6 uses `needsApproval` on tool definitions
+- Tool part includes `approval: { id, approved?, reason? }` object
+- Transport detects approval flows via `approval-responded` or `output-denied` states
+- For approval flows, sends entire `messages` array (not just new message)
+- `sendAutomaticallyWhen` checks for `approval-responded` with `approved: true`
+
+**Key files:**
+- `lib/ai/tools/weather.ts` - Weather tool with `needsApproval: true`
+- `components/chat/tools/types.ts` - ToolState with approval states, ToolApproval type
+- `components/chat/tools/ToolApprovalCard.tsx` - Approval UI components
+- `components/chat/ToolInvocation.tsx` - Routes approval states to appropriate UI
+- `components/chat/types.ts` - ToolApprovalResponseFn, updated ToolPart
+- `components/ChatUI.tsx` - Transport with approval detection, `sendAutomaticallyWhen`
+- `app/api/chat+api.ts` - Detects tool approval flow, uses full messages array
+
+**Component flow:**
+```
+ChatUI
+├── useChat with addToolApprovalResponse, sendAutomaticallyWhen
+├── Transport: detects isToolApprovalContinuation
+│   ├── Normal: sends { message }
+│   └── Approval: sends { messages } (full history)
+└── MessageList
+    └── MessageBubble
+        └── ToolInvocation
+            ├── approval-requested → ToolApprovalCard (Allow/Deny)
+            ├── approval-responded → ToolApprovedCard (or tool result)
+            └── output-denied → ToolDeniedCard
+```
+
+---
 
 ### Phase 10: Reasoning Display
 
@@ -237,10 +287,11 @@ components/
 │   ├── ReasoningSection.tsx  # Collapsible thinking display
 │   └── tools/                # Tool-specific UI components
 │       ├── index.ts        # Tool registry
-│       ├── types.ts        # ToolUIProps, ToolState types
+│       ├── types.ts        # ToolUIProps, ToolState, ToolApproval types
 │       ├── WeatherTool.tsx # Weather card with SVG icons, day/night theming
 │       ├── TemperatureTool.tsx  # F° to C° conversion display
 │       ├── DocumentTool.tsx    # Artifact preview card
+│       ├── ToolApprovalCard.tsx # Tool approval UI (Allow/Deny)
 │       └── DefaultTool.tsx # Fallback for unknown tools
 ├── artifacts/              # Artifact system components
 │   ├── index.ts            # Barrel exports
@@ -404,12 +455,10 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/chat
 
 ## Future Phase Plans
 
-### Phase 11: Tool Approval Flow
-- Require user confirmation before executing certain tools
-- Approval UI component in message bubble
-- Tool execution states: pending-approval, approved, rejected
-
 ### Phase 12: Authentication
-- Clerk or Supabase integration
-- User-scoped chat history
-- Protected API routes
+- Clerk or Supabase integration (or custom JWT with AsyncStorage)
+- User table in database (id, email, password hash)
+- User-scoped chat history (associate chats with user IDs)
+- Protected API routes with session validation
+- Login/signup screens
+- Guest user support

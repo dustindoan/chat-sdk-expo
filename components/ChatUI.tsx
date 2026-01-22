@@ -123,7 +123,7 @@ export function ChatUI({
   const [localInput, setLocalInput] = useState('');
 
   // Chat state using @ai-sdk/react
-  const { messages, sendMessage, setMessages, regenerate, status, error, stop } = useChat({
+  const { messages, sendMessage, setMessages, regenerate, status, error, stop, addToolApprovalResponse } = useChat({
     id: currentChatId,
     messages: initialMessages,
     generateId: generateUUID,
@@ -132,10 +132,25 @@ export function ChatUI({
       fetch: expoFetch as unknown as typeof globalThis.fetch,
       prepareSendMessagesRequest(request) {
         const lastMessage = request.messages.at(-1);
+
+        // Check if this is a tool approval continuation flow
+        // (when the last message is not from user or contains approval-responded states)
+        const isToolApprovalContinuation =
+          lastMessage?.role !== 'user' ||
+          request.messages.some((msg) =>
+            msg.parts?.some((part: any) => {
+              const state = part.state;
+              return state === 'approval-responded' || state === 'output-denied';
+            })
+          );
+
         return {
           body: {
             id: currentChatIdRef.current,
-            message: lastMessage,
+            // For approval flows, send all messages; otherwise just the new message
+            ...(isToolApprovalContinuation
+              ? { messages: request.messages }
+              : { message: lastMessage }),
             model: selectedModelIdRef.current,
             reasoning: reasoningEnabledRef.current,
             ...request.body,
@@ -143,6 +158,17 @@ export function ChatUI({
         };
       },
     }),
+    // Auto-send when user approves a tool
+    sendAutomaticallyWhen: ({ messages: currentMessages }) => {
+      const lastMessage = currentMessages.at(-1);
+      const shouldContinue =
+        lastMessage?.parts?.some(
+          (part: any) =>
+            part.state === 'approval-responded' &&
+            part.approval?.approved === true
+        ) ?? false;
+      return shouldContinue;
+    },
     // Process artifact stream parts
     onData: (dataPart) => {
       processStreamPart(dataPart);
@@ -283,6 +309,14 @@ export function ChatUI({
     [isLoading, setMessages, regenerate, showToast]
   );
 
+  // Handle tool approval response
+  const handleApprovalResponse = useCallback(
+    (response: { id: string; approved: boolean; reason?: string }) => {
+      addToolApprovalResponse(response);
+    },
+    [addToolApprovalResponse]
+  );
+
   // Handle regenerating an assistant response
   const handleRegenerate = useCallback(
     async (messageId: string) => {
@@ -350,6 +384,7 @@ export function ChatUI({
           onStopStreaming={handleStopStreaming}
           onEdit={handleEdit}
           onRegenerate={handleRegenerate}
+          onApprovalResponse={handleApprovalResponse}
         />
 
         <MessageInput

@@ -3,14 +3,34 @@ import type { UIMessage } from '@ai-sdk/react';
 // Re-export UIMessage for convenience
 export type Message = UIMessage;
 
+// Tool approval response callback type
+export type ToolApprovalResponseFn = (response: {
+  id: string;
+  approved: boolean;
+  reason?: string;
+}) => void;
+
 // Tool part types from the AI SDK
 export interface ToolPart {
   type: string;
   toolCallId?: string;
   toolName?: string;
   args?: Record<string, unknown>;
-  state?: 'partial-call' | 'call' | 'result';
+  state?:
+    | 'partial-call'
+    | 'call'
+    | 'result'
+    | 'output-available'
+    | 'approval-requested'
+    | 'approval-responded'
+    | 'output-denied';
   result?: unknown;
+  // Approval data (present when state is approval-related)
+  approval?: {
+    id: string;
+    approved?: boolean;
+    reason?: string;
+  };
   // Legacy format support
   input?: Record<string, unknown>;
   output?: unknown;
@@ -55,6 +75,7 @@ export interface MessageBubbleProps {
   onStopStreaming?: () => void;
   onEdit?: (messageId: string, newContent: string) => void;
   onRegenerate?: (messageId: string) => void;
+  onApprovalResponse?: ToolApprovalResponseFn;
 }
 
 export interface MessageActionsProps {
@@ -82,6 +103,7 @@ export interface CodeBlockProps {
 
 export interface ToolInvocationProps {
   part: ToolPart;
+  onApprovalResponse?: ToolApprovalResponseFn;
 }
 
 export interface WelcomeMessageProps {
@@ -99,6 +121,7 @@ export interface MessageListProps {
   onStopStreaming?: () => void;
   onEdit?: (messageId: string, newContent: string) => void;
   onRegenerate?: (messageId: string) => void;
+  onApprovalResponse?: ToolApprovalResponseFn;
 }
 
 export interface MessageInputProps {

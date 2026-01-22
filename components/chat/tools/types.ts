@@ -8,7 +8,22 @@ export type ToolState =
   | 'partial-call' // Input being generated (streaming args)
   | 'call' // Input complete, tool is executing
   | 'result' // Legacy: Execution complete with result
-  | 'output-available'; // AI SDK v6: Execution complete with result
+  | 'output-available' // AI SDK v6: Execution complete with result
+  | 'approval-requested' // Tool requires user approval before execution
+  | 'approval-responded' // User has responded to approval request
+  | 'output-denied'; // User denied tool execution
+
+/**
+ * Tool approval data from AI SDK
+ */
+export interface ToolApproval {
+  /** Unique ID for this approval request */
+  id: string;
+  /** Whether user approved (set after response) */
+  approved?: boolean;
+  /** Optional reason for denial */
+  reason?: string;
+}
 
 /**
  * Props passed to tool UI components
@@ -24,6 +39,10 @@ export interface ToolUIProps<TArgs = unknown, TResult = unknown> {
   args?: TArgs;
   /** Tool execution result (only present when state is 'result') */
   result?: TResult;
+  /** Approval data (present when state is approval-related) */
+  approval?: ToolApproval;
+  /** Callback to respond to approval request */
+  onApprovalResponse?: (response: { id: string; approved: boolean; reason?: string }) => void;
 }
 
 /**

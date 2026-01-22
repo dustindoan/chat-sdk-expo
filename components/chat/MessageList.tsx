@@ -15,6 +15,7 @@ export const MessageList = memo(function MessageList({
   onStopStreaming,
   onEdit,
   onRegenerate,
+  onApprovalResponse,
 }: MessageListProps) {
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -51,6 +52,7 @@ export const MessageList = memo(function MessageList({
               onStopStreaming={onStopStreaming}
               onEdit={onEdit}
               onRegenerate={onRegenerate}
+              onApprovalResponse={onApprovalResponse}
             />
           ))
         )}

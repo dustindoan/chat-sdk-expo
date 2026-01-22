@@ -94,11 +94,13 @@ async function geocodeCity(
 /**
  * Weather tool definition
  * Fetches real weather data from Open-Meteo API
+ * Requires user approval before execution (Phase 11)
  */
 export const weatherTool = tool({
   description:
     'Get the current weather at a location. You can provide either coordinates or a city name.',
   inputSchema: weatherInputSchema,
+  needsApproval: true,
   execute: async (input): Promise<WeatherAtLocation> => {
     let latitude: number;
     let longitude: number;

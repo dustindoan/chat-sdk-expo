@@ -17,6 +17,7 @@ export const MessageBubble = memo(function MessageBubble({
   onStopStreaming,
   onEdit,
   onRegenerate,
+  onApprovalResponse,
 }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [mode, setMode] = useState<MessageMode>('view');
@@ -137,7 +138,11 @@ export const MessageBubble = memo(function MessageBubble({
         ))}
 
         {toolParts.map((part, index) => (
-          <ToolInvocation key={index} part={part} />
+          <ToolInvocation
+            key={index}
+            part={part}
+            onApprovalResponse={onApprovalResponse}
+          />
         ))}
 
         {textContent && (
