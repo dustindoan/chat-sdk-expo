@@ -47,10 +47,20 @@ export function ToolInvocation({ part, onApprovalResponse }: ToolInvocationProps
     );
   }
 
-  // For approval-responded, show approved card if we don't have result yet
-  // Once result is available, show the normal tool UI
+  // For approval-responded, check if it was approved or denied
+  // Show appropriate card based on approval status
   if (state === 'approval-responded' && !result) {
-    return <ToolApprovedCard toolName={toolName} />;
+    const wasApproved = part.approval?.approved !== false;
+    if (wasApproved) {
+      return <ToolApprovedCard toolName={toolName} />;
+    } else {
+      return (
+        <ToolDeniedCard
+          toolName={toolName}
+          approval={part.approval}
+        />
+      );
+    }
   }
 
   // Get the appropriate component from the registry for normal states

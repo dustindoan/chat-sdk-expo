@@ -133,6 +133,9 @@ export async function POST(request: Request) {
   }
 
   const stream = createUIMessageStream({
+    // For tool approval flows, pass original messages so stream continues
+    // updating existing messages rather than creating new ones
+    originalMessages: isToolApprovalFlow ? uiMessages : undefined,
     execute: async ({ writer }) => {
       // Create a dataStream adapter for artifact tools
       // This wraps the writer to match our DataStreamWriter interface
