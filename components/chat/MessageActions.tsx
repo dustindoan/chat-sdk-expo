@@ -32,6 +32,7 @@ export function MessageActions({
               Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
             ]}
             onPress={onEdit}
+            accessibilityLabel="Edit message"
           >
             <Feather name="edit-2" size={16} color={colors.text.tertiary} />
           </TouchableOpacity>
@@ -42,6 +43,7 @@ export function MessageActions({
             Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
           ]}
           onPress={handleCopy}
+          accessibilityLabel="Copy message"
         >
           <Feather name="copy" size={16} color={colors.text.tertiary} />
         </TouchableOpacity>
@@ -58,6 +60,7 @@ export function MessageActions({
           Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
         ]}
         onPress={handleCopy}
+        accessibilityLabel="Copy response"
       >
         <Feather name="copy" size={16} color={colors.text.tertiary} />
       </TouchableOpacity>
@@ -68,6 +71,7 @@ export function MessageActions({
             Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
           ]}
           onPress={onRegenerate}
+          accessibilityLabel="Regenerate response"
         >
           <Feather name="refresh-cw" size={16} color={colors.text.tertiary} />
         </TouchableOpacity>
@@ -77,6 +81,7 @@ export function MessageActions({
           styles.button,
           Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
         ]}
+        accessibilityLabel="Good response"
       >
         <Feather name="thumbs-up" size={16} color={colors.text.tertiary} />
       </TouchableOpacity>
@@ -85,6 +90,7 @@ export function MessageActions({
           styles.button,
           Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
         ]}
+        accessibilityLabel="Bad response"
       >
         <Feather name="thumbs-down" size={16} color={colors.text.tertiary} />
       </TouchableOpacity>

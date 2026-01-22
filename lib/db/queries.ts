@@ -126,6 +126,7 @@ export async function saveMessages(
         parts: m.parts,
       }))
     )
+    .onConflictDoNothing()
     .returning();
 }
 

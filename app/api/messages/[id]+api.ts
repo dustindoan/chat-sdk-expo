@@ -1,4 +1,4 @@
-import { getMessageById, deleteMessagesByChatIdAfterTimestamp } from '@/lib/db/queries';
+import { getMessageById, deleteMessagesByChatIdAfterTimestamp } from '../../../lib/db/queries';
 
 /**
  * DELETE /api/messages/:id

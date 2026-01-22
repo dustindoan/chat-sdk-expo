@@ -105,7 +105,7 @@ export function ChatUI({
   const [localInput, setLocalInput] = useState('');
 
   // Chat state using @ai-sdk/react
-  const { messages, sendMessage, setMessages, reload, status, error, stop } = useChat({
+  const { messages, sendMessage, setMessages, regenerate, status, error, stop } = useChat({
     id: currentChatId,
     messages: initialMessages,
     generateId: generateUUID,
@@ -250,14 +250,14 @@ export function ChatUI({
         // 3. Regenerate response from the edited message
         // Small delay to ensure state is updated
         setTimeout(() => {
-          reload();
+          regenerate();
         }, 100);
       } catch (err) {
         console.error('Error editing message:', err);
         showToast('Failed to edit message', 'error');
       }
     },
-    [isLoading, setMessages, reload, showToast]
+    [isLoading, setMessages, regenerate, showToast]
   );
 
   // Handle regenerating an assistant response
@@ -300,14 +300,14 @@ export function ChatUI({
 
         // 3. Regenerate response
         setTimeout(() => {
-          reload();
+          regenerate();
         }, 100);
       } catch (err) {
         console.error('Error regenerating response:', err);
         showToast('Failed to regenerate response', 'error');
       }
     },
-    [isLoading, messages, setMessages, reload, showToast]
+    [isLoading, messages, setMessages, regenerate, showToast]
   );
 
   return (
