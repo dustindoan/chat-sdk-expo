@@ -6,7 +6,8 @@ import { ToolInvocation } from './ToolInvocation';
 import { MessageActions } from './MessageActions';
 import { MessageEditor } from './MessageEditor';
 import { ImagePreview } from './ImagePreview';
-import type { MessageBubbleProps, ToolPart, FilePart, MessageMode } from './types';
+import { ReasoningSection } from './ReasoningSection';
+import type { MessageBubbleProps, ToolPart, FilePart, ReasoningPart, MessageMode } from './types';
 
 export const MessageBubble = memo(function MessageBubble({
   message,
@@ -37,6 +38,9 @@ export const MessageBubble = memo(function MessageBubble({
 
   // Extract file parts (images)
   const fileParts = (message.parts?.filter((p: any) => p.type === 'file') || []) as FilePart[];
+
+  // Extract reasoning parts (extended thinking)
+  const reasoningParts = (message.parts?.filter((p: any) => p.type === 'reasoning') || []) as ReasoningPart[];
 
   // Handle edit button click
   const handleEditClick = useCallback(() => {
@@ -123,6 +127,15 @@ export const MessageBubble = memo(function MessageBubble({
   return (
     <View style={styles.assistantMessageRow}>
       <View style={styles.assistantContent}>
+        {/* Reasoning sections (extended thinking) - render before main content */}
+        {reasoningParts.map((part, index) => (
+          <ReasoningSection
+            key={`reasoning-${index}`}
+            text={part.text || ''}
+            isStreaming={part.state === 'streaming' || (isStreaming && !part.text)}
+          />
+        ))}
+
         {toolParts.map((part, index) => (
           <ToolInvocation key={index} part={part} />
         ))}

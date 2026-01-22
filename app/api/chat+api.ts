@@ -21,6 +21,7 @@ import {
   createDocumentTool,
   updateDocumentTool,
 } from '../../lib/ai/tools';
+import { modelSupportsReasoning } from '../../lib/ai/models';
 import type { DataStreamWriter } from '../../lib/artifacts/types';
 
 // Load API key from .env file
@@ -70,9 +71,12 @@ function generateUUID(): string {
 
 export async function POST(request: Request) {
   const body = await request.json();
-  const { id: chatId, message, messages, model: modelId } = body;
+  const { id: chatId, message, messages, model: modelId, reasoning: reasoningEnabled } = body;
 
   const modelName = modelId || 'claude-haiku-4-5-20251001';
+
+  // Determine if we should enable extended thinking
+  const enableThinking = reasoningEnabled && modelSupportsReasoning(modelName);
 
   // Check if chat exists, create if not
   let chat = chatId ? await getChatById(chatId) : null;
@@ -190,6 +194,17 @@ Do not update document right after creating it. Wait for user feedback or reques
           updateDocument,
         },
         stopWhen: stepCountIs(5),
+        // Enable extended thinking when reasoning toggle is on
+        ...(enableThinking && {
+          providerOptions: {
+            anthropic: {
+              thinking: {
+                type: 'enabled',
+                budgetTokens: 10000,
+              },
+            },
+          },
+        }),
       });
 
       writer.merge(result.toUIMessageStream({ sendReasoning: true }));

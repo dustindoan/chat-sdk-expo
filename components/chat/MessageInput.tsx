@@ -4,18 +4,14 @@ import {
   TextInput,
   TouchableOpacity,
   Text,
-  StyleSheet,
   Platform,
   ScrollView,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../theme';
+import { colors } from '../theme';
 import { AttachmentPreview } from './AttachmentPreview';
+import { ReasoningToggle } from './ReasoningToggle';
 import type { MessageInputProps } from './types';
-
-const SEND_BUTTON_HEIGHT = 36;
-const TOOLBAR_BUTTON_SIZE = 32;
-const INPUT_TOOLBAR_PADDING_BOTTOM = spacing.sm;
 
 export function MessageInput({
   value,
@@ -29,6 +25,9 @@ export function MessageInput({
   attachments = [],
   onAddAttachment,
   onRemoveAttachment,
+  reasoningEnabled = false,
+  onToggleReasoning,
+  supportsReasoning = false,
 }: MessageInputProps) {
   const handleKeyPress = (e: any) => {
     if (Platform.OS === 'web') {
@@ -44,16 +43,16 @@ export function MessageInput({
   const canSend = hasContent && !isLoading;
 
   return (
-    <View style={styles.wrapper}>
-      <View style={styles.innerWrapper}>
-        <View style={styles.container}>
+    <View className="items-center pb-6">
+      <View className="w-full max-w-3xl md:max-w-4xl px-4">
+        <View className="bg-zinc-900 rounded-2xl border border-zinc-800 overflow-hidden">
           {/* Attachments Preview */}
           {attachments.length > 0 && (
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.attachmentsContainer}
-              style={styles.attachmentsScroll}
+              contentContainerClassName="flex-row gap-2 px-4 py-2"
+              className="max-h-[100px] border-b border-zinc-800"
             >
               {attachments.map((attachment) => (
                 <AttachmentPreview
@@ -70,10 +69,8 @@ export function MessageInput({
           )}
 
           <TextInput
-            style={[
-              styles.input,
-              Platform.OS === 'web' && ({ outlineStyle: 'none' } as any),
-            ]}
+            className="min-h-[44px] max-h-[120px] px-5 pt-4 pb-1 text-base text-zinc-100"
+            style={Platform.OS === 'web' ? ({ outlineStyle: 'none' } as any) : undefined}
             value={value}
             onChangeText={onChangeText}
             placeholder={placeholder}
@@ -83,14 +80,12 @@ export function MessageInput({
             onKeyPress={handleKeyPress}
             editable={!isLoading}
           />
-          <View style={styles.toolbar}>
+          <View className="flex-row items-center px-4 pb-2 gap-1">
             {/* Attachment Button */}
             {onAddAttachment && (
               <TouchableOpacity
-                style={[
-                  styles.toolbarButton,
-                  Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
-                ]}
+                className="size-8 rounded-full justify-center items-center"
+                style={Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined}
                 onPress={onAddAttachment}
                 disabled={isLoading}
                 accessibilityLabel="Add attachment"
@@ -99,49 +94,52 @@ export function MessageInput({
                 <Feather
                   name="paperclip"
                   size={18}
-                  color={isLoading ? colors.text.tertiary : colors.text.secondary}
+                  color={isLoading ? '#71717a' : '#a1a1aa'}
                 />
               </TouchableOpacity>
             )}
 
+            {/* Reasoning Toggle - icon only, next to attachment */}
+            {supportsReasoning && onToggleReasoning && (
+              <ReasoningToggle
+                enabled={reasoningEnabled}
+                onToggle={onToggleReasoning}
+                disabled={isLoading}
+              />
+            )}
+
             <TouchableOpacity
-              style={[
-                styles.modelSelector,
-                Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
-              ]}
+              className="flex-row items-center gap-1 px-2 py-1 flex-1"
+              style={Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined}
               onPress={onModelSelect}
               disabled={isLoading}
             >
-              <Text style={styles.sparkle}>✦</Text>
-              <Text style={styles.modelText}>{selectedModel}</Text>
+              <Text className="text-sm text-zinc-500">✦</Text>
+              <Text className="text-sm text-zinc-500">{selectedModel}</Text>
             </TouchableOpacity>
 
             {isLoading ? (
               <TouchableOpacity
-                style={[
-                  styles.stopButton,
-                  Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
-                ]}
+                className="size-9 rounded-full bg-red-500 justify-center items-center"
+                style={Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined}
                 onPress={onStop}
                 accessibilityLabel="Stop generating"
                 accessibilityRole="button"
               >
-                <Feather name="square" size={16} color={colors.text.primary} />
+                <Feather name="square" size={16} color="#fafafa" />
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                style={[
-                  styles.sendButton,
-                  !canSend && styles.sendButtonDisabled,
-                  Platform.OS === 'web' &&
-                    ({ cursor: canSend ? 'pointer' : 'default' } as any),
-                ]}
+                className={`size-9 rounded-full justify-center items-center ${
+                  canSend ? 'bg-zinc-100' : 'bg-zinc-800'
+                }`}
+                style={Platform.OS === 'web' ? ({ cursor: canSend ? 'pointer' : 'default' } as any) : undefined}
                 onPress={onSend}
                 disabled={!canSend}
                 accessibilityLabel="Send message"
                 accessibilityRole="button"
               >
-                <Text style={styles.sendIcon}>↑</Text>
+                <Text className={`text-lg font-bold ${canSend ? 'text-zinc-900' : 'text-zinc-600'}`}>↑</Text>
               </TouchableOpacity>
             )}
           </View>
@@ -150,96 +148,3 @@ export function MessageInput({
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  wrapper: {
-    alignItems: 'center',
-    paddingBottom: spacing.lg,
-  },
-  innerWrapper: {
-    width: '100%',
-    maxWidth: 896, // max-w-4xl equivalent
-    paddingHorizontal: spacing.md,
-  },
-  container: {
-    backgroundColor: colors.background.tertiary,
-    borderRadius: borderRadius.xl,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    overflow: 'hidden',
-  },
-  attachmentsScroll: {
-    maxHeight: 100,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.default,
-  },
-  attachmentsContainer: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-  },
-  input: {
-    minHeight: 44,
-    maxHeight: 120,
-    paddingHorizontal: spacing.lg,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xs,
-    fontSize: fontSize.base,
-    color: colors.text.primary,
-  },
-  toolbar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingBottom: INPUT_TOOLBAR_PADDING_BOTTOM,
-    gap: spacing.xs,
-  },
-  toolbarButton: {
-    width: TOOLBAR_BUTTON_SIZE,
-    height: TOOLBAR_BUTTON_SIZE,
-    borderRadius: TOOLBAR_BUTTON_SIZE / 2,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  modelSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    flex: 1,
-  },
-  sparkle: {
-    fontSize: 14,
-    color: colors.text.secondary,
-  },
-  modelText: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-  },
-  sendButton: {
-    width: SEND_BUTTON_HEIGHT,
-    height: SEND_BUTTON_HEIGHT,
-    borderRadius: SEND_BUTTON_HEIGHT / 2,
-    backgroundColor: colors.accent.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sendButtonDisabled: {
-    backgroundColor: colors.background.secondary,
-  },
-  sendIcon: {
-    fontSize: 18,
-    color: colors.text.primary,
-    fontWeight: fontWeight.bold,
-  },
-  stopButton: {
-    width: SEND_BUTTON_HEIGHT,
-    height: SEND_BUTTON_HEIGHT,
-    borderRadius: SEND_BUTTON_HEIGHT / 2,
-    backgroundColor: colors.accent.error,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-});

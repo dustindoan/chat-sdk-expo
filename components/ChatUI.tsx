@@ -15,7 +15,7 @@ import { MessageList, MessageInput, ModelSelector } from './chat';
 import { useToast } from './toast';
 import { useClipboard } from '../hooks/useClipboard';
 import { useAttachments } from '../hooks/useAttachments';
-import { chatModels, DEFAULT_MODEL_ID, getModelName } from '../lib/ai/models';
+import { chatModels, DEFAULT_MODEL_ID, getModelName, modelSupportsReasoning } from '../lib/ai/models';
 import { useArtifact } from '../contexts/ArtifactContext';
 
 // Generate a random UUID
@@ -80,6 +80,13 @@ export function ChatUI({
   const selectedModelIdRef = useRef(selectedModelId);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
 
+  // Reasoning toggle state (extended thinking)
+  const [reasoningEnabled, setReasoningEnabled] = useState(false);
+  const reasoningEnabledRef = useRef(reasoningEnabled);
+
+  // Check if current model supports reasoning
+  const supportsReasoning = modelSupportsReasoning(selectedModelId);
+
   // Track if we've notified about chat creation
   const hasNotifiedCreationRef = useRef(false);
 
@@ -87,6 +94,17 @@ export function ChatUI({
   useEffect(() => {
     selectedModelIdRef.current = selectedModelId;
   }, [selectedModelId]);
+
+  useEffect(() => {
+    reasoningEnabledRef.current = reasoningEnabled;
+  }, [reasoningEnabled]);
+
+  // Reset reasoning toggle when switching to a model that doesn't support it
+  useEffect(() => {
+    if (!supportsReasoning && reasoningEnabled) {
+      setReasoningEnabled(false);
+    }
+  }, [supportsReasoning, reasoningEnabled]);
 
   // Notify parent of chat ID
   useEffect(() => {
@@ -119,6 +137,7 @@ export function ChatUI({
             id: currentChatIdRef.current,
             message: lastMessage,
             model: selectedModelIdRef.current,
+            reasoning: reasoningEnabledRef.current,
             ...request.body,
           },
         };
@@ -216,6 +235,10 @@ export function ChatUI({
 
   const handleModelSelectorClose = useCallback(() => {
     setIsModelSelectorOpen(false);
+  }, []);
+
+  const handleToggleReasoning = useCallback(() => {
+    setReasoningEnabled((prev) => !prev);
   }, []);
 
   // Handle editing a user message
@@ -341,6 +364,9 @@ export function ChatUI({
           attachments={attachments}
           onAddAttachment={addAttachment}
           onRemoveAttachment={removeAttachment}
+          reasoningEnabled={reasoningEnabled}
+          onToggleReasoning={handleToggleReasoning}
+          supportsReasoning={supportsReasoning}
         />
       </View>
 

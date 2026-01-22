@@ -114,6 +114,17 @@ export interface MessageInputProps {
   attachments?: Attachment[];
   onAddAttachment?: () => void;
   onRemoveAttachment?: (id: string) => void;
+  // Reasoning toggle (extended thinking)
+  reasoningEnabled?: boolean;
+  onToggleReasoning?: () => void;
+  supportsReasoning?: boolean;
+}
+
+// Reasoning part from AI SDK (extended thinking)
+export interface ReasoningPart {
+  type: 'reasoning';
+  text: string;
+  state?: 'streaming' | 'done';
 }
 
 export interface AttachmentPreviewProps {

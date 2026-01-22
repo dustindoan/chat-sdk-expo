@@ -10,3 +10,5 @@ export { MessageList } from './MessageList';
 export { ModelSelector } from './ModelSelector';
 export { AttachmentPreview } from './AttachmentPreview';
 export { ImagePreview } from './ImagePreview';
+export { ReasoningToggle } from './ReasoningToggle';
+export { ReasoningSection } from './ReasoningSection';
