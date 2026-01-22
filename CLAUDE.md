@@ -9,14 +9,6 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 - `../chat-sdk` - Vercel's original chat-sdk (Next.js) - **PRIMARY REFERENCE**
 - `../previous-attempt` - Earlier implementation (different approaches, NOT to be followed)
 
-## Implementation Plans
-
-### Main Plan (Phases 1-4)
-`~/.claude/plans/jazzy-riding-kahn.md`
-
-### Tools & Artifacts Plan (Phases 5-7)
-`~/.claude/plans/tools-artifacts-plan.md`
-
 **Key principle:** Follow chat-sdk patterns, not previous-attempt patterns.
 
 ## Progress
@@ -31,92 +23,74 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 - **Phase 7:** Version history - Index-based version navigation, word-level diff view, restore functionality
 - **Phase 8:** File attachments - Image picker, base64 data URLs, attachment preview, tap-to-expand modal, Claude vision
 - **Phase 9:** Message editing/regeneration - Edit user messages, regenerate assistant responses, delete trailing messages
+- **Phase 10:** Reasoning display - Extended thinking toggle, collapsible thinking section with duration, NativeWind v5 + Tailwind v4
 
 ### Next Up
-- **Phase 10:** Reasoning display
+- **Phase 11:** Tool approval flow
+- **Phase 12:** Authentication
 
 ---
 
-## Resolved Issues (Phase 6)
+## Phase Implementation Details
 
-### Multi-Document Concurrent Streaming
+### Phase 10: Reasoning Display
 
-**Testing prompt:** "Can you generate two files for me (a jsx and a css), in an effort to create a complete React component for a todo list app."
+**Features implemented:**
+- `supportsReasoning` flag on Claude models (Haiku, Sonnet, Opus all support it)
+- ReasoningToggle component (icon-only button next to attachment)
+- ReasoningSection component (collapsible thinking display with duration tracking, auto-close)
+- Extended thinking via `providerOptions.anthropic.thinking`
+- AI SDK reasoning parts rendered in MessageBubble
 
-**Issues fixed:**
-1. **Content mixing** - Code handler uses `streamObject`, ArtifactContext replaces (not appends) content, compound data format `{ value, docId }` routes to correct doc
-2. **Inline card flickering** - `getStreamingDocument(idOrTitle)` provides per-document state
-3. **Panel flickering** - Panel opens only after streaming ends via `openFirstDocument()`
-4. **Error handling** - try/catch in handlers prevents stream crashes
+**NativeWind v5 + Tailwind v4 Setup:**
+- Installed `nativewind@5.0.0-preview.2` with `tailwindcss@^4.1.0`
+- Configuration files: `global.css`, `metro.config.js`, `postcss.config.mjs`, `nativewind-env.d.ts`
+- TypeScript types via `react-native-css/types`
+- Ported components to Tailwind: ReasoningSection, ReasoningToggle, MessageInput
+- Added responsive breakpoints (`max-w-3xl md:max-w-4xl`) instead of hardcoded pixel values
 
-**Key files:** `lib/artifacts/handlers/code.ts`, `contexts/ArtifactContext.tsx`, `components/chat/tools/DocumentTool.tsx`, `components/ChatUI.tsx`
-
-### updateDocument Tool
-
-**Problem:** AI couldn't use updateDocument - didn't see previous tool results.
-
-**Root cause:** API wasn't loading message history from database.
-
-**Fixed:**
-1. Load full history from DB using `getMessagesByChatId()`
-2. Use AI SDK's `convertToModelMessages()` for proper tool call/result formatting
-
-**Key file:** `app/api/chat+api.ts`
-
-### Future Phases
-- Phase 10: Reasoning display
-- Phase 11: Tool approval flow
-- Phase 12: Authentication
+**Key files:**
+- `lib/ai/models.ts` - `supportsReasoning` flag, `modelSupportsReasoning()` helper
+- `components/chat/ReasoningToggle.tsx` - Icon-only toggle button
+- `components/chat/ReasoningSection.tsx` - Collapsible thinking display
+- `components/chat/MessageInput.tsx` - Reasoning toggle integration
+- `app/api/chat+api.ts` - Extended thinking configuration
 
 ---
 
-## Resolved Issues (Phase 7)
+### Phase 9: Message Editing/Regeneration
 
-### Version History Implementation
+**Pattern from chat-sdk reference:**
+1. User clicks edit on message → MessageEditor appears
+2. On save: call API to delete trailing messages from DB
+3. Update client state with `setMessages()`
+4. Call `reload()` to regenerate response
 
 **Testing prompts:**
-1. Create: "Write a haiku about mountains"
-2. Update: "Make the haiku about the ocean instead"
-3. Open panel → "Version 2 of 2"
-4. Navigate prev → Version 1 shows, footer appears
-5. Toggle diff → Word-level red/green diff
-6. Restore → Deletes newer versions
+1. Send a message: "Hello, my name is Alice"
+2. Click edit (pencil) icon on user message
+3. Change to "Hello, my name is Bob"
+4. Click Send → Previous response deleted, new response generated
+5. Click regenerate (refresh) icon on assistant message → Same message regenerated
 
 **Key implementation details:**
-- Database queries: `getDocumentsById()`, `deleteDocumentsByIdAfterTimestamp()`
-- API endpoint: `GET/DELETE /api/documents?id=X`
-- Word diff: `diff` npm package with `diffWords()`
-- Context extended with: `versionState`, `fetchVersions`, `handleVersionChange`, `restoreVersion`
+- Database query: `getMessageById()`, `deleteMessagesByChatIdAfterTimestamp()` (uses `gte` to delete target message + all after)
+- API endpoint: `DELETE /api/messages/:id` - deletes message and all trailing messages
+- useChat hook: `setMessages()` for client state, `reload()` for regeneration
+- MessageEditor: Inline textarea with Cancel/Send buttons
+- MessageActions: Edit button for user messages, Regenerate button for assistant messages
 
-**Key files:** `lib/db/queries.ts`, `app/api/documents/index+api.ts`, `contexts/ArtifactContext.tsx`, `components/artifacts/DiffView.tsx`, `components/artifacts/VersionNavigation.tsx`, `components/artifacts/VersionFooter.tsx`
-
-### Post-Phase 7 Bug Fixes
-
-**1. Completed cards showing streaming content (commit 3c7259a)**
-
-**Problem:** When updateDocument ran, the original createDocument card would show the streaming preview instead of staying as a compact completed card.
-
-**Root cause:** Both cards share the same document ID, so both found the streaming doc.
-
-**Fix in `DocumentTool.tsx`:**
-- Added type guards `isCreateDocumentArgs()` and `isUpdateDocumentArgs()` to distinguish tool types
-- createDocument looks up streaming doc by title, updateDocument by ID
-- Key change: `if (!hasResult && (isStreamingThisDocument || isToolLoading))` - completed cards never show streaming preview
-
-**2. Panel not refreshing when document updated (commit 54d791e)**
-
-**Problem:** When updateDocument completed while the panel was open, the panel didn't refresh its version count or content.
-
-**Fix in `ArtifactContext.tsx`:**
-- In `data-finish` handler, check if panel is showing the updated document
-- If so, call `fetchVersions(targetId)` to refresh version list
-- Update content immediately in artifact state
+**Key files:**
+- `lib/db/queries.ts` - `getMessageById()` query
+- `app/api/messages/[id]+api.ts` - DELETE endpoint
+- `components/chat/MessageEditor.tsx` - Edit UI component
+- `components/chat/MessageActions.tsx` - Edit/Regenerate buttons
+- `components/chat/MessageBubble.tsx` - Edit mode state management
+- `components/ChatUI.tsx` - `handleEdit()`, `handleRegenerate()` handlers
 
 ---
 
-## Resolved Issues (Phase 8)
-
-### File Attachments Implementation
+### Phase 8: File Attachments
 
 **Architecture Decision:** Data URLs (base64) instead of cloud blob storage
 - Simpler implementation, no external dependencies
@@ -152,37 +126,73 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 
 ---
 
-## Resolved Issues (Phase 9)
-
-### Message Editing/Regeneration Implementation
-
-**Pattern from chat-sdk reference:**
-1. User clicks edit on message → MessageEditor appears
-2. On save: call API to delete trailing messages from DB
-3. Update client state with `setMessages()`
-4. Call `reload()` to regenerate response
+### Phase 7: Version History
 
 **Testing prompts:**
-1. Send a message: "Hello, my name is Alice"
-2. Click edit (pencil) icon on user message
-3. Change to "Hello, my name is Bob"
-4. Click Send → Previous response deleted, new response generated
-5. Click regenerate (refresh) icon on assistant message → Same message regenerated
+1. Create: "Write a haiku about mountains"
+2. Update: "Make the haiku about the ocean instead"
+3. Open panel → "Version 2 of 2"
+4. Navigate prev → Version 1 shows, footer appears
+5. Toggle diff → Word-level red/green diff
+6. Restore → Deletes newer versions
 
 **Key implementation details:**
-- Database query: `getMessageById()`, `deleteMessagesByChatIdAfterTimestamp()` (uses `gte` to delete target message + all after)
-- API endpoint: `DELETE /api/messages/:id` - deletes message and all trailing messages
-- useChat hook: `setMessages()` for client state, `reload()` for regeneration
-- MessageEditor: Inline textarea with Cancel/Send buttons
-- MessageActions: Edit button for user messages, Regenerate button for assistant messages
+- Database queries: `getDocumentsById()`, `deleteDocumentsByIdAfterTimestamp()`
+- API endpoint: `GET/DELETE /api/documents?id=X`
+- Word diff: `diff` npm package with `diffWords()`
+- Context extended with: `versionState`, `fetchVersions`, `handleVersionChange`, `restoreVersion`
 
-**Key files:**
-- `lib/db/queries.ts` - `getMessageById()` query
-- `app/api/messages/[id]+api.ts` - DELETE endpoint
-- `components/chat/MessageEditor.tsx` - Edit UI component
-- `components/chat/MessageActions.tsx` - Edit/Regenerate buttons
-- `components/chat/MessageBubble.tsx` - Edit mode state management
-- `components/ChatUI.tsx` - `handleEdit()`, `handleRegenerate()` handlers
+**Key files:** `lib/db/queries.ts`, `app/api/documents/index+api.ts`, `contexts/ArtifactContext.tsx`, `components/artifacts/DiffView.tsx`, `components/artifacts/VersionNavigation.tsx`, `components/artifacts/VersionFooter.tsx`
+
+---
+
+### Phase 6: Artifacts System
+
+**Testing prompt:** "Can you generate two files for me (a jsx and a css), in an effort to create a complete React component for a todo list app."
+
+**Issues fixed:**
+1. **Content mixing** - Code handler uses `streamObject`, ArtifactContext replaces (not appends) content, compound data format `{ value, docId }` routes to correct doc
+2. **Inline card flickering** - `getStreamingDocument(idOrTitle)` provides per-document state
+3. **Panel flickering** - Panel opens only after streaming ends via `openFirstDocument()`
+4. **Error handling** - try/catch in handlers prevents stream crashes
+
+**Key files:** `lib/artifacts/handlers/code.ts`, `contexts/ArtifactContext.tsx`, `components/chat/tools/DocumentTool.tsx`, `components/ChatUI.tsx`
+
+### updateDocument Tool Fix
+
+**Problem:** AI couldn't use updateDocument - didn't see previous tool results.
+
+**Root cause:** API wasn't loading message history from database.
+
+**Fixed:**
+1. Load full history from DB using `getMessagesByChatId()`
+2. Use AI SDK's `convertToModelMessages()` for proper tool call/result formatting
+
+**Key file:** `app/api/chat+api.ts`
+
+---
+
+### Post-Phase 7 Bug Fixes
+
+**1. Completed cards showing streaming content (commit 3c7259a)**
+
+**Problem:** When updateDocument ran, the original createDocument card would show the streaming preview instead of staying as a compact completed card.
+
+**Root cause:** Both cards share the same document ID, so both found the streaming doc.
+
+**Fix in `DocumentTool.tsx`:**
+- Added type guards `isCreateDocumentArgs()` and `isUpdateDocumentArgs()` to distinguish tool types
+- createDocument looks up streaming doc by title, updateDocument by ID
+- Key change: `if (!hasResult && (isStreamingThisDocument || isToolLoading))` - completed cards never show streaming preview
+
+**2. Panel not refreshing when document updated (commit 54d791e)**
+
+**Problem:** When updateDocument completed while the panel was open, the panel didn't refresh its version count or content.
+
+**Fix in `ArtifactContext.tsx`:**
+- In `data-finish` handler, check if panel is showing the updated document
+- If so, call `fetchVersions(targetId)` to refresh version list
+- Update content immediately in artifact state
 
 ---
 
@@ -215,7 +225,7 @@ components/
 │   ├── MessageList.tsx
 │   ├── MessageBubble.tsx     # Supports view/edit modes
 │   ├── MessageEditor.tsx     # Inline message editing
-│   ├── MessageInput.tsx
+│   ├── MessageInput.tsx      # Tailwind classes, responsive max-width
 │   ├── MessageActions.tsx    # Copy, edit, regenerate, vote buttons
 │   ├── SimpleMarkdown.tsx    # Custom streaming-optimized renderer
 │   ├── ModelSelector.tsx
@@ -223,6 +233,8 @@ components/
 │   ├── WelcomeMessage.tsx
 │   ├── AttachmentPreview.tsx # Pending attachment thumbnail
 │   ├── ImagePreview.tsx      # Image display with tap-to-expand
+│   ├── ReasoningToggle.tsx   # Extended thinking toggle button
+│   ├── ReasoningSection.tsx  # Collapsible thinking display
 │   └── tools/                # Tool-specific UI components
 │       ├── index.ts        # Tool registry
 │       ├── types.ts        # ToolUIProps, ToolState types
@@ -249,7 +261,7 @@ hooks/
 
 lib/
 ├── ai/
-│   ├── models.ts           # Claude model definitions
+│   ├── models.ts           # Claude model definitions with supportsReasoning
 │   └── tools/              # AI SDK tool definitions
 │       ├── index.ts        # Barrel exports
 │       ├── weather.ts      # Weather tool (Open-Meteo API)
@@ -267,7 +279,7 @@ lib/
 ├── files/
 │   └── index.ts            # File utilities (fileToBase64, validation)
 └── db/
-    ├── schema.ts           # Drizzle schema (Chat, Message)
+    ├── schema.ts           # Drizzle schema (Chat, Message, Document)
     ├── client.ts           # PostgreSQL connection
     ├── queries.ts          # CRUD operations
     └── index.ts            # Barrel exports
@@ -318,6 +330,7 @@ Uses **Drizzle ORM** with **PostgreSQL** (Docker) for persistence.
 ### Schema
 - `Chat`: id, title, model, createdAt, updatedAt
 - `Message`: id, chatId, role, parts (JSON), createdAt
+- `Document`: id, title, kind, content, createdAt (versions share same id, different timestamps)
 
 ### Commands
 ```bash
@@ -339,6 +352,8 @@ npm run db:studio       # Open Drizzle Studio
 - **React 19.1.0** pinned for Expo compatibility (use `--legacy-peer-deps` for installs)
 - **Artifact streaming** - Uses `onData` callback in useChat to process custom data parts (`data-textDelta`, etc.)
 - **ArtifactContext** - React Context instead of SWR for global artifact state (Expo-compatible)
+- **NativeWind v5** - Preview version with Tailwind v4 for styling (aligns with chat-sdk)
+- **Extended thinking** - Uses `providerOptions.anthropic.thinking` with toggle control
 
 ## Development
 
@@ -365,7 +380,36 @@ ANTHROPIC_API_KEY=sk-ant-...
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/chat
 ```
 
-## AI SDK Version
+## Dependencies
+
+### AI SDK
 - `ai@6.0.39`
 - `@ai-sdk/anthropic@3.0.15`
 - `@ai-sdk/react@3.0.41`
+
+### Styling (NativeWind v5 + Tailwind v4)
+- `nativewind@5.0.0-preview.2`
+- `react-native-css` (peer dependency)
+- `tailwindcss@^4.1.0`
+- `@tailwindcss/postcss`
+- `postcss`
+
+### Configuration Files
+- `global.css` - Tailwind v4 imports
+- `metro.config.js` - `withNativeWind(config)`
+- `postcss.config.mjs` - `@tailwindcss/postcss` plugin
+- `nativewind-env.d.ts` - TypeScript types via `react-native-css/types`
+
+---
+
+## Future Phase Plans
+
+### Phase 11: Tool Approval Flow
+- Require user confirmation before executing certain tools
+- Approval UI component in message bubble
+- Tool execution states: pending-approval, approved, rejected
+
+### Phase 12: Authentication
+- Clerk or Supabase integration
+- User-scoped chat history
+- Protected API routes
