@@ -36,46 +36,11 @@
 
 ---
 
-## Open Issues
+## Planned Features
 
-📊 **[Project Board](https://github.com/users/dustindoan/projects/1)** - Prioritized view with custom fields
+📊 **[Project Board](https://github.com/users/dustindoan/projects/1)** - View all issues with Priority, Complexity, and Value fields
 
 📋 **[All Issues](https://github.com/dustindoan/chat-sdk-expo/issues)** - Full issue list
-
-### High Priority
-
-| Issue | Feature | Complexity | Value |
-|-------|---------|------------|-------|
-| [#1](https://github.com/dustindoan/chat-sdk-expo/issues/1) | Message Voting | Medium | High |
-| [#2](https://github.com/dustindoan/chat-sdk-expo/issues/2) | Spreadsheet Artifacts | Medium | High |
-| [#4](https://github.com/dustindoan/chat-sdk-expo/issues/4) | In-Browser Code Execution | High | High |
-| [#14](https://github.com/dustindoan/chat-sdk-expo/issues/14) | Local LLM (Mobile-Only) | High | High |
-
-### Medium Priority
-
-| Issue | Feature | Complexity | Value |
-|-------|---------|------------|-------|
-| [#3](https://github.com/dustindoan/chat-sdk-expo/issues/3) | Image Artifacts | Medium | Medium |
-| [#5](https://github.com/dustindoan/chat-sdk-expo/issues/5) | Resumable Streams | Medium | Medium |
-| [#6](https://github.com/dustindoan/chat-sdk-expo/issues/6) | Request Suggestions | Medium | Medium |
-| [#8](https://github.com/dustindoan/chat-sdk-expo/issues/8) | CodeMirror Editor | Medium | Medium |
-| [#11](https://github.com/dustindoan/chat-sdk-expo/issues/11) | Chat Search & Export | Medium | Medium |
-
-### Lower Priority
-
-| Issue | Feature | Complexity | Value |
-|-------|---------|------------|-------|
-| [#7](https://github.com/dustindoan/chat-sdk-expo/issues/7) | Advanced Visualization | Medium | Low |
-| [#9](https://github.com/dustindoan/chat-sdk-expo/issues/9) | Math Rendering | Low | Low |
-| [#10](https://github.com/dustindoan/chat-sdk-expo/issues/10) | Cursor Pagination | Low | Low |
-| [#12](https://github.com/dustindoan/chat-sdk-expo/issues/12) | Cloud File Storage | Medium | Low |
-| [#13](https://github.com/dustindoan/chat-sdk-expo/issues/13) | Telemetry & Monitoring | Low | Low |
-
-### Deferred
-
-| Issue | Feature | Reason |
-|-------|---------|--------|
-| [#15](https://github.com/dustindoan/chat-sdk-expo/issues/15) | Suggested Actions | Industry moved away from this UX |
 
 ---
 
@@ -121,15 +86,6 @@ The chat-sdk markets "Generative UI" but actually uses **tool-based UI rendering
 
 This is exactly what we've implemented with our tool registry pattern.
 
-### Priority Guidelines
-
-When selecting next feature to implement:
-1. **User value** - Does it improve daily UX?
-2. **Parity impact** - Is it a key chat-sdk feature?
-3. **Dependencies** - Are prerequisites complete?
-4. **Complexity** - Can it be done in reasonable time?
-5. **Industry trends** - Is this still a relevant UX pattern?
-
 ### Deferring Features
 
 Features can be closed as "not planned" when:
@@ -138,4 +94,4 @@ Features can be closed as "not planned" when:
 - Better alternatives exist
 - User research indicates low demand
 
-When deferring, close the issue with a comment explaining why.
+When deferring, close the GitHub issue with a comment explaining why.
