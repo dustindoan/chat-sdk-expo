@@ -38,7 +38,9 @@
 
 ## Open Issues
 
-Track progress at: **[GitHub Issues](https://github.com/dustindoan/chat-sdk-expo/issues)**
+📊 **[Project Board](https://github.com/users/dustindoan/projects/1)** - Prioritized view with custom fields
+
+📋 **[All Issues](https://github.com/dustindoan/chat-sdk-expo/issues)** - Full issue list
 
 ### High Priority
 
