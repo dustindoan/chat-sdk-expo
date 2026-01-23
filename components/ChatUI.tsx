@@ -12,6 +12,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { colors } from './theme';
 import { MessageList, MessageInput, ModelSelector } from './chat';
+import type { VoteMap } from './chat/types';
 import { useToast } from './toast';
 import { useClipboard } from '../hooks/useClipboard';
 import { useAttachments } from '../hooks/useAttachments';
@@ -76,6 +77,9 @@ export function ChatUI({
   const [currentChatId] = useState(() => initialChatId || generateUUID());
   const currentChatIdRef = useRef(currentChatId);
 
+  // Vote state - map of messageId to vote state
+  const [votes, setVotes] = useState<VoteMap>({});
+
   // Model selection state
   const [selectedModelId, setSelectedModelId] = useState(DEFAULT_MODEL_ID);
   const selectedModelIdRef = useRef(selectedModelId);
@@ -111,6 +115,24 @@ export function ChatUI({
   useEffect(() => {
     onChatIdChange?.(currentChatId);
   }, [currentChatId, onChatIdChange]);
+
+  // Fetch votes when loading an existing chat
+  useEffect(() => {
+    if (initialChatId && initialMessages.length > 0) {
+      authFetch(`/api/vote?chatId=${initialChatId}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (Array.isArray(data)) {
+            const voteMap: VoteMap = {};
+            data.forEach((v: { messageId: string; isUpvoted: boolean }) => {
+              voteMap[v.messageId] = v.isUpvoted ? 'up' : 'down';
+            });
+            setVotes(voteMap);
+          }
+        })
+        .catch((err) => console.error('Error fetching votes:', err));
+    }
+  }, [initialChatId, initialMessages.length]);
 
   // Set body background color on web
   useEffect(() => {
@@ -329,6 +351,43 @@ export function ChatUI({
     [addToolApprovalResponse]
   );
 
+  // Handle voting on a message
+  const handleVote = useCallback(
+    async (messageId: string, type: 'up' | 'down') => {
+      // Optimistic update
+      setVotes((prev) => ({
+        ...prev,
+        [messageId]: type,
+      }));
+
+      try {
+        const response = await authFetch('/api/vote', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            chatId: currentChatId,
+            messageId,
+            type,
+          }),
+        });
+
+        if (!response.ok) {
+          throw new Error('Failed to record vote');
+        }
+      } catch (err) {
+        console.error('Error recording vote:', err);
+        // Revert optimistic update on error
+        setVotes((prev) => {
+          const newVotes = { ...prev };
+          delete newVotes[messageId];
+          return newVotes;
+        });
+        showToast('Failed to record vote', 'error');
+      }
+    },
+    [currentChatId, showToast]
+  );
+
   // Handle regenerating an assistant response
   const handleRegenerate = useCallback(
     async (messageId: string) => {
@@ -397,6 +456,8 @@ export function ChatUI({
           onEdit={handleEdit}
           onRegenerate={handleRegenerate}
           onApprovalResponse={handleApprovalResponse}
+          votes={votes}
+          onVote={handleVote}
         />
 
         <MessageInput

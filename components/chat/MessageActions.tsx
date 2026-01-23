@@ -11,6 +11,8 @@ export function MessageActions({
   onCopy,
   onEdit,
   onRegenerate,
+  voteState,
+  onVote,
 }: MessageActionsProps) {
   const handleCopy = () => {
     onCopy?.(content);
@@ -81,18 +83,28 @@ export function MessageActions({
           styles.button,
           Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
         ]}
+        onPress={() => onVote?.('up')}
         accessibilityLabel="Good response"
       >
-        <Feather name="thumbs-up" size={16} color={colors.text.tertiary} />
+        <Feather
+          name="thumbs-up"
+          size={16}
+          color={voteState === 'up' ? colors.accent.success : colors.text.tertiary}
+        />
       </TouchableOpacity>
       <TouchableOpacity
         style={[
           styles.button,
           Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
         ]}
+        onPress={() => onVote?.('down')}
         accessibilityLabel="Bad response"
       >
-        <Feather name="thumbs-down" size={16} color={colors.text.tertiary} />
+        <Feather
+          name="thumbs-down"
+          size={16}
+          color={voteState === 'down' ? colors.accent.error : colors.text.tertiary}
+        />
       </TouchableOpacity>
     </View>
   );

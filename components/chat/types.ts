@@ -76,7 +76,13 @@ export interface MessageBubbleProps {
   onEdit?: (messageId: string, newContent: string) => void;
   onRegenerate?: (messageId: string) => void;
   onApprovalResponse?: ToolApprovalResponseFn;
+  // Voting props
+  voteState?: VoteState;
+  onVote?: (messageId: string, type: 'up' | 'down') => void;
 }
+
+// Vote state for a message
+export type VoteState = 'up' | 'down' | null;
 
 export interface MessageActionsProps {
   content: string;
@@ -86,6 +92,9 @@ export interface MessageActionsProps {
   onStopStreaming?: () => void;
   onEdit?: () => void;
   onRegenerate?: () => void;
+  // Voting props (assistant messages only)
+  voteState?: VoteState;
+  onVote?: (type: 'up' | 'down') => void;
 }
 
 export interface MessageEditorProps {
@@ -111,6 +120,9 @@ export interface WelcomeMessageProps {
   subtitle: string;
 }
 
+// Map of messageId to vote state
+export type VoteMap = Record<string, VoteState>;
+
 export interface MessageListProps {
   messages: Message[];
   isLoading: boolean;
@@ -122,6 +134,9 @@ export interface MessageListProps {
   onEdit?: (messageId: string, newContent: string) => void;
   onRegenerate?: (messageId: string) => void;
   onApprovalResponse?: ToolApprovalResponseFn;
+  // Voting props
+  votes?: VoteMap;
+  onVote?: (messageId: string, type: 'up' | 'down') => void;
 }
 
 export interface MessageInputProps {
