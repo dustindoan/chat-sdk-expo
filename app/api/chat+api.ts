@@ -25,6 +25,7 @@ import {
   convertTemperatureTool,
   createDocumentTool,
   updateDocumentTool,
+  executeCodeTool,
 } from '../../lib/ai/tools';
 import { modelSupportsReasoning } from '../../lib/ai/models';
 import type { DataStreamWriter } from '../../lib/artifacts/types';
@@ -247,6 +248,7 @@ Do not update document right after creating it. Wait for user feedback or reques
 ## Additional Tools:
 - **weather**: Get current weather for a location
 - **convertTemperature**: Convert between Fahrenheit and Celsius
+- **executeCode**: Execute Python or JavaScript code in a sandboxed environment. Use this to run code, perform calculations, or demonstrate algorithms. Output is captured from print/console.log statements.
 `;
 
       // Convert UI messages to model format using AI SDK's built-in converter
@@ -262,6 +264,7 @@ Do not update document right after creating it. Wait for user feedback or reques
           convertTemperature: convertTemperatureTool,
           createDocument,
           updateDocument,
+          executeCode: executeCodeTool,
         },
         stopWhen: stepCountIs(5),
         // Enable extended thinking when reasoning toggle is on

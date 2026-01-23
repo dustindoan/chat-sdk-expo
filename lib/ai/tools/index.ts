@@ -16,6 +16,11 @@ export type { CreateDocumentResult } from './createDocument';
 export { updateDocumentTool } from './updateDocument';
 export type { UpdateDocumentResult } from './updateDocument';
 
+// Code execution tool
+export { executeCodeTool } from './executeCode';
+export type { ExecuteCodeInput, ExecuteCodeResult } from './executeCode';
+
 // All tools object for use in streamText
 export { weatherTool as weather } from './weather';
 export { convertTemperatureTool as convertTemperature } from './temperature';
+export { executeCodeTool as executeCode } from './executeCode';
