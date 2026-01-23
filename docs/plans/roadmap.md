@@ -11,8 +11,19 @@
 | Metric | Value |
 |--------|-------|
 | Completed Phases | 1-12 |
+| Deferred Phases | 1 |
 | Feature Parity | ~45% |
 | Reference | [github.com/vercel/ai-chatbot](https://github.com/vercel/ai-chatbot) |
+
+---
+
+## Phase Status Legend
+
+| Status | Meaning |
+|--------|---------|
+| ✅ | Completed |
+| 📋 | Planned - will implement |
+| ⏸️ | Deferred - documented but intentionally not implementing |
 
 ---
 
@@ -35,31 +46,32 @@
 
 ---
 
-## Planned Phases (13-27)
+## Deferred Phases
 
-### Phase 13: Suggested Actions
-**Complexity:** Low | **Value:** High | **Dependencies:** None
+Features that were evaluated and documented but intentionally not implemented.
 
-Clickable prompt suggestions shown on empty chat state for better onboarding UX.
+### Phase 13: Suggested Actions ⏸️
+**Status:** Deferred | **Original Complexity:** Low | **Original Value:** High
+
+Clickable prompt suggestions shown on empty chat state.
+
+**Why Deferred:**
+> Leading AI chat tools (ChatGPT, Claude.ai, etc.) have moved away from this UX paradigm. The empty state with suggested prompts feels dated and doesn't reflect how users actually interact with AI assistants. Users prefer a clean input area and know what they want to ask.
 
 **Reference:** `/home/user/chat-sdk/components/suggested-actions.tsx`
 
-**Implementation:**
+**Original Implementation (preserved for reference):**
 - Create `SuggestedActions.tsx` component
 - Grid of 4 clickable suggestion cards
 - Suggestions: weather, haiku, code help, document creation
 - Animated entrance (React Native Animated API)
 - On click: call `sendMessage()` with suggestion text
 
-**Files to create:**
-- `components/chat/SuggestedActions.tsx`
-
-**Files to modify:**
-- `components/ChatUI.tsx` - Show when messages empty
-
 ---
 
-### Phase 14: Message Voting
+## Planned Phases (14-27)
+
+### Phase 14: Message Voting 📋
 **Complexity:** Medium | **Value:** High | **Dependencies:** Phase 12 (auth)
 
 Thumbs up/down feedback on assistant messages with database persistence.
@@ -82,7 +94,7 @@ Thumbs up/down feedback on assistant messages with database persistence.
 
 ---
 
-### Phase 15: Spreadsheet Artifacts
+### Phase 15: Spreadsheet Artifacts 📋
 **Complexity:** Medium | **Value:** High | **Dependencies:** Phase 6 (artifacts)
 
 CSV-based spreadsheet documents with data grid UI.
@@ -106,7 +118,7 @@ CSV-based spreadsheet documents with data grid UI.
 
 ---
 
-### Phase 16: Image Artifacts
+### Phase 16: Image Artifacts 📋
 **Complexity:** Medium | **Value:** Medium | **Dependencies:** Phase 6 (artifacts)
 
 AI-generated image display with streaming support.
@@ -126,7 +138,7 @@ AI-generated image display with streaming support.
 
 ---
 
-### Phase 17: In-Browser Code Execution
+### Phase 17: In-Browser Code Execution 📋
 **Complexity:** High | **Value:** High | **Dependencies:** Phase 6 (artifacts)
 
 Execute Python/JavaScript code in browser using WASM/pyodide.
@@ -146,7 +158,7 @@ Execute Python/JavaScript code in browser using WASM/pyodide.
 
 ---
 
-### Phase 18: Resumable Streams
+### Phase 18: Resumable Streams 📋
 **Complexity:** Medium | **Value:** Medium | **Dependencies:** None
 
 Redis-backed stream recovery for handling disconnections gracefully.
@@ -165,7 +177,7 @@ Redis-backed stream recovery for handling disconnections gracefully.
 
 ---
 
-### Phase 19: Request Suggestions
+### Phase 19: Request Suggestions 📋
 **Complexity:** Medium | **Value:** Medium | **Dependencies:** Phase 12 (auth)
 
 AI-powered writing suggestions for documents.
@@ -180,7 +192,7 @@ AI-powered writing suggestions for documents.
 
 ---
 
-### Phase 20: Advanced Visualization Components
+### Phase 20: Advanced Visualization Components 📋
 **Complexity:** Medium | **Value:** Low | **Dependencies:** None
 
 Rich components for displaying AI reasoning and task planning.
@@ -196,7 +208,7 @@ Rich components for displaying AI reasoning and task planning.
 
 ---
 
-### Phase 21: CodeMirror Editor
+### Phase 21: CodeMirror Editor 📋
 **Complexity:** Medium | **Value:** Medium | **Dependencies:** Phase 6 (artifacts)
 
 Rich code editing with syntax highlighting for 10+ languages.
@@ -211,7 +223,7 @@ Rich code editing with syntax highlighting for 10+ languages.
 
 ---
 
-### Phase 22: Math Rendering
+### Phase 22: Math Rendering 📋
 **Complexity:** Low | **Value:** Low | **Dependencies:** None
 
 KaTeX integration for rendering mathematical equations.
@@ -223,7 +235,7 @@ KaTeX integration for rendering mathematical equations.
 
 ---
 
-### Phase 23: Cursor Pagination
+### Phase 23: Cursor Pagination 📋
 **Complexity:** Low | **Value:** Low | **Dependencies:** None
 
 Efficient chat history loading with cursor-based pagination.
@@ -237,7 +249,7 @@ Efficient chat history loading with cursor-based pagination.
 
 ---
 
-### Phase 24: Chat Search & Export
+### Phase 24: Chat Search & Export 📋
 **Complexity:** Medium | **Value:** Medium | **Dependencies:** None
 
 Full-text search across messages and export functionality.
@@ -249,7 +261,7 @@ Full-text search across messages and export functionality.
 
 ---
 
-### Phase 25: Cloud File Storage
+### Phase 25: Cloud File Storage 📋
 **Complexity:** Medium | **Value:** Low | **Dependencies:** None
 
 Replace base64 data URLs with cloud storage for large files.
@@ -266,7 +278,7 @@ Replace base64 data URLs with cloud storage for large files.
 
 ---
 
-### Phase 26: Telemetry & Monitoring
+### Phase 26: Telemetry & Monitoring 📋
 **Complexity:** Low | **Value:** Low | **Dependencies:** None
 
 Production monitoring and observability.
@@ -279,7 +291,7 @@ Production monitoring and observability.
 
 ---
 
-### Phase 27: Local LLM (Mobile-Only)
+### Phase 27: Local LLM (Mobile-Only) 📋
 **Complexity:** High | **Value:** High | **Dependencies:** None | **Platform:** iOS/Android only
 
 On-device LLM inference with FunctionGemma 270M for offline AI chat with tool calling.
@@ -360,9 +372,23 @@ When selecting next phase to implement:
 2. **Parity impact** - Is it a key chat-sdk feature?
 3. **Dependencies** - Are prerequisites complete?
 4. **Complexity** - Can it be done in reasonable time?
+5. **Industry trends** - Is this still a relevant UX pattern?
 
 Recommended order for maximum impact:
-1. Phase 13 (Suggested Actions) - Quick win, great UX
-2. Phase 14 (Message Voting) - Completes existing UI
-3. Phase 15 (Spreadsheet Artifacts) - New capability
-4. Phase 17 (Code Execution) - Key differentiator
+1. Phase 14 (Message Voting) - Completes existing UI
+2. Phase 15 (Spreadsheet Artifacts) - New capability
+3. Phase 17 (Code Execution) - Key differentiator
+4. Phase 27 (Local LLM) - Unique mobile differentiator
+
+### Deferring Features
+
+Features can be moved to "Deferred" status when:
+- Industry has moved away from the UX pattern
+- Implementation cost exceeds value
+- Better alternatives exist
+- User research indicates low demand
+
+When deferring, always document:
+- **Why** the feature was deferred (rationale)
+- **Original implementation plan** (preserved for reference)
+- **Conditions for reconsideration** (optional)
