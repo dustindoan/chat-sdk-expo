@@ -27,6 +27,13 @@ export const authClient = createAuthClient({
       storage: SecureStore,
     }),
   ],
+  // Session refresh options
+  sessionOptions: {
+    // Refresh session when window regains focus (default: true)
+    refetchOnWindowFocus: true,
+    // Proactively refresh session every 4 minutes to stay ahead of 5-minute cookie cache
+    refetchInterval: 240,
+  },
 });
 
 export const { signIn, signUp, signOut, useSession, getSession } = authClient;

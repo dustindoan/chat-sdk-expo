@@ -19,6 +19,8 @@ import { useAttachments } from '../hooks/useAttachments';
 import { chatModels, DEFAULT_MODEL_ID, getModelName, modelSupportsReasoning } from '../lib/ai/models';
 import { useArtifact } from '../contexts/ArtifactContext';
 import { getAuthCookie, authFetch } from '../lib/auth/client';
+import { useAuth } from '../contexts/AuthContext';
+import { generateAPIUrl } from '../utils';
 
 // Generate a random UUID
 function generateUUID(): string {
@@ -63,6 +65,7 @@ export function ChatUI({
   const { showToast } = useToast();
   const { copyToClipboard } = useClipboard();
   const { processStreamPart, openFirstDocument } = useArtifact();
+  const { refreshSession } = useAuth();
 
   // File attachments
   const {
@@ -145,6 +148,34 @@ export function ChatUI({
   // Local state for input (works better with RN TextInput than useChat's input)
   const [localInput, setLocalInput] = useState('');
 
+  // Helper to make authenticated fetch with auto-retry on 401
+  const authFetchWithRetry = useCallback(async (url: RequestInfo | URL, options?: RequestInit): Promise<Response> => {
+    const urlString = typeof url === 'string' ? url : url.toString();
+    const makeRequest = async () => {
+      const cookie = await getAuthCookie();
+      return expoFetch(urlString, {
+        ...options,
+        credentials: Platform.OS === 'web' ? 'include' : 'omit',
+        headers: {
+          ...options?.headers,
+          ...(cookie ? { Cookie: cookie } : {}),
+        },
+      } as RequestInit);
+    };
+
+    // First attempt
+    const response = await makeRequest();
+
+    // If unauthorized, refresh session and retry once
+    if (response.status === 401) {
+      console.log('Auth expired, refreshing session...');
+      await refreshSession();
+      return makeRequest();
+    }
+
+    return response;
+  }, [refreshSession]);
+
   // Chat state using @ai-sdk/react
   const { messages, sendMessage, setMessages, regenerate, status, error, stop, addToolApprovalResponse } = useChat({
     id: currentChatId,
@@ -152,18 +183,7 @@ export function ChatUI({
     generateId: generateUUID,
     transport: new DefaultChatTransport({
       api,
-      fetch: async (url, options) => {
-        // Add auth cookie for native platforms
-        const cookie = await getAuthCookie();
-        return expoFetch(url, {
-          ...options,
-          credentials: Platform.OS === 'web' ? 'include' : 'omit',
-          headers: {
-            ...options?.headers,
-            ...(cookie ? { Cookie: cookie } : {}),
-          },
-        } as RequestInit);
-      },
+      fetch: authFetchWithRetry,
       prepareSendMessagesRequest(request) {
         const lastMessage = request.messages.at(-1);
 

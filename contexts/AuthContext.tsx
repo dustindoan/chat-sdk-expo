@@ -4,11 +4,12 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from 'react';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { authClient } from '../lib/auth/client';
+import { authClient, useSession } from '../lib/auth/client';
 import { generateAPIUrl } from '../utils';
 
 export type UserType = 'regular' | 'guest';
@@ -41,8 +42,38 @@ const SESSION_TOKEN_KEY = 'ai-chat-app.better-auth.session_token';
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const hasInitialized = useRef(false);
 
-  // Check session on mount and auto-create guest if needed
+  // Use Better Auth's useSession hook for automatic refresh
+  // This handles refetchOnWindowFocus and refetchInterval automatically
+  const { data: sessionData, isPending: sessionPending, refetch: refetchSession } = useSession();
+
+  // Sync session data to user state
+  useEffect(() => {
+    if (sessionPending) return;
+
+    if (sessionData?.user) {
+      const userData = sessionData.user as any;
+      setUser({
+        id: userData.id,
+        name: userData.name,
+        email: userData.email,
+        image: userData.image,
+        type: userData.type || 'regular',
+      });
+      setIsLoading(false);
+      hasInitialized.current = true;
+    } else if (hasInitialized.current) {
+      // Session was lost (expired/cleared) - create new guest session
+      createGuestSession().catch(console.error);
+    } else {
+      // Initial load with no session - create guest
+      hasInitialized.current = true;
+      createGuestSession().catch(console.error);
+    }
+  }, [sessionData, sessionPending]);
+
+  // Legacy checkSession for backward compatibility
   const checkSession = useCallback(async () => {
     try {
       const session = await authClient.getSession();
@@ -100,9 +131,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   };
 
-  useEffect(() => {
-    checkSession();
-  }, [checkSession]);
+  // Note: useSession hook now handles automatic session checking and refresh
+  // The old useEffect that called checkSession is no longer needed
 
   const handleSignIn = useCallback(async (email: string, password: string) => {
     const result = await authClient.signIn.email({ email, password });
@@ -165,8 +195,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const refreshSession = useCallback(async () => {
-    await checkSession();
-  }, [checkSession]);
+    // Use Better Auth's refetch which triggers the session refresh manager
+    await refetchSession();
+  }, [refetchSession]);
 
   return (
     <AuthContext.Provider
