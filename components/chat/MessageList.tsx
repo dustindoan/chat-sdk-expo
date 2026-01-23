@@ -16,6 +16,8 @@ export const MessageList = memo(function MessageList({
   onEdit,
   onRegenerate,
   onApprovalResponse,
+  votes,
+  onVote,
 }: MessageListProps) {
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -53,6 +55,8 @@ export const MessageList = memo(function MessageList({
               onEdit={onEdit}
               onRegenerate={onRegenerate}
               onApprovalResponse={onApprovalResponse}
+              voteState={votes?.[message.id]}
+              onVote={onVote}
             />
           ))
         )}

@@ -4,10 +4,12 @@ import {
   chat,
   message,
   document,
+  vote,
   type Chat,
   type DBMessage,
   type MessagePartDB,
   type Document,
+  type Vote,
 } from './schema';
 
 // ============================================================================
@@ -303,4 +305,38 @@ export async function getMessageCountByUserId(options: {
     );
 
   return result[0]?.count ?? 0;
+}
+
+// ============================================================================
+// VOTE QUERIES
+// ============================================================================
+
+/**
+ * Get all votes for a chat
+ */
+export async function getVotesByChatId(chatId: string): Promise<Vote[]> {
+  return db.select().from(vote).where(eq(vote.chatId, chatId));
+}
+
+/**
+ * Create or update a vote on a message
+ */
+export async function voteMessage(params: {
+  chatId: string;
+  messageId: string;
+  type: 'up' | 'down';
+}): Promise<Vote> {
+  const { chatId, messageId, type } = params;
+  const isUpvoted = type === 'up';
+
+  const [result] = await db
+    .insert(vote)
+    .values({ chatId, messageId, isUpvoted })
+    .onConflictDoUpdate({
+      target: [vote.chatId, vote.messageId],
+      set: { isUpvoted },
+    })
+    .returning();
+
+  return result;
 }

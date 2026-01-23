@@ -18,6 +18,8 @@ export const MessageBubble = memo(function MessageBubble({
   onEdit,
   onRegenerate,
   onApprovalResponse,
+  voteState,
+  onVote,
 }: MessageBubbleProps) {
   const isUser = message.role === 'user';
   const [mode, setMode] = useState<MessageMode>('view');
@@ -72,6 +74,13 @@ export const MessageBubble = memo(function MessageBubble({
       onRegenerate(message.id);
     }
   }, [message.id, onRegenerate]);
+
+  // Handle vote
+  const handleVote = useCallback((type: 'up' | 'down') => {
+    if (onVote) {
+      onVote(message.id, type);
+    }
+  }, [message.id, onVote]);
 
   if (isUser) {
     // Edit mode for user messages
@@ -156,6 +165,8 @@ export const MessageBubble = memo(function MessageBubble({
           onCopy={onCopy}
           onStopStreaming={onStopStreaming}
           onRegenerate={onRegenerate ? handleRegenerate : undefined}
+          voteState={voteState}
+          onVote={onVote ? handleVote : undefined}
         />
       </View>
     </View>
