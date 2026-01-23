@@ -26,10 +26,10 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 - **Phase 10:** Reasoning display - Extended thinking toggle, collapsible thinking section with duration, NativeWind v5 + Tailwind v4
 - **Phase 11:** Tool approval flow - Human-in-the-loop tool confirmation, Allow/Deny buttons, automatic continuation after approval
 - **Phase 12:** Authentication - Better Auth with email/password, guest users, user-scoped data, rate limiting, redirect-after-login
+- **Phase 14:** Message Voting - Thumbs up/down feedback on assistant messages with database persistence
 
 ### Next Up
 - **Phase 13:** Suggested Actions - Clickable prompt suggestions on empty chat
-- **Phase 14:** Message Voting - Thumbs up/down with persistence
 
 See [Feature Parity Roadmap](#feature-parity-roadmap) for complete plan.
 
@@ -86,6 +86,48 @@ account: id, providerId, accountId, userId, tokens...
 verification: id, identifier, value, expiresAt, createdAt, updatedAt
 chat.userId, document.userId - Foreign keys to user table
 ```
+
+---
+
+### Phase 14: Message Voting
+
+**Features implemented:**
+- Thumbs up/down voting on assistant messages
+- Vote persistence in PostgreSQL database
+- Optimistic UI updates for instant feedback
+- Visual state indication (green for upvote, red for downvote)
+- Votes loaded when opening existing chats
+
+**Testing flow:**
+1. Send a message to get an assistant response
+2. Click thumbs up → Icon turns green, vote saved
+3. Click thumbs down → Icon turns red, vote changes
+4. Reload page → Vote state persists
+5. Open existing chat → Previous votes displayed
+
+**Key implementation details:**
+- Vote table with composite primary key (chatId, messageId)
+- `voteMessage` query uses upsert pattern (insert or update on conflict)
+- API endpoint validates chat ownership before recording votes
+- Client-side optimistic updates with rollback on error
+
+**Key files:**
+- `lib/db/schema.ts` - Vote table definition
+- `lib/db/queries.ts` - `getVotesByChatId()`, `voteMessage()` queries
+- `app/api/vote+api.ts` - GET (fetch votes) and PATCH (record vote) endpoints
+- `components/chat/MessageActions.tsx` - Vote button UI with state colors
+- `components/chat/types.ts` - VoteState, VoteMap type definitions
+- `components/ChatUI.tsx` - Vote state management and API calls
+
+**Database schema:**
+```
+Vote: chatId (uuid, FK to Chat), messageId (uuid, FK to Message), isUpvoted (boolean)
+Primary key: (chatId, messageId)
+```
+
+**API endpoints:**
+- `GET /api/vote?chatId=X` - Returns array of votes for a chat
+- `PATCH /api/vote` - Body: `{ chatId, messageId, type: 'up' | 'down' }`
 
 ---
 
@@ -553,7 +595,7 @@ Based on comprehensive analysis of Vercel's chat-sdk, here are the remaining fea
 
 ### Current Feature Parity Status
 
-**Implemented (Phases 1-12):**
+**Implemented (Phases 1-12, 14):**
 - ✅ Message streaming & persistence
 - ✅ Model selector (Claude variants)
 - ✅ Tool system with custom UI (weather, temperature, documents)
@@ -563,10 +605,10 @@ Based on comprehensive analysis of Vercel's chat-sdk, here are the remaining fea
 - ✅ Extended thinking display
 - ✅ Tool approval flow (human-in-the-loop)
 - ✅ Authentication with user-scoped data
+- ✅ Message voting (thumbs up/down)
 
 **Not Yet Implemented:**
 - ❌ Suggested actions (empty state prompts)
-- ❌ Message voting
 - ❌ Spreadsheet/image artifact types
 - ❌ In-browser code execution
 - ❌ Resumable streams
@@ -575,7 +617,7 @@ Based on comprehensive analysis of Vercel's chat-sdk, here are the remaining fea
 - ❌ CodeMirror/KaTeX
 - ❌ Chat search
 
-**Estimated Parity: ~45%** (12 of 26 feature areas)
+**Estimated Parity: ~50%** (13 of 26 feature areas)
 
 ### Phase Priority Recommendations
 
@@ -584,7 +626,6 @@ Based on comprehensive analysis of Vercel's chat-sdk, here are the remaining fea
 - Phase 22: Math Rendering - Small addition, good for technical users
 
 **High Value (3-5 days each):**
-- Phase 14: Message Voting - Completes existing UI, adds feedback loop
 - Phase 15: Spreadsheet Artifacts - New content type, high utility
 
 **Major Features (1-2 weeks each):**
