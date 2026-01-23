@@ -26,10 +26,10 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 - **Phase 10:** Reasoning display - Extended thinking toggle, collapsible thinking section with duration, NativeWind v5 + Tailwind v4
 - **Phase 11:** Tool approval flow - Human-in-the-loop tool confirmation, Allow/Deny buttons, automatic continuation after approval
 - **Phase 12:** Authentication - Better Auth with email/password, guest users, user-scoped data, rate limiting, redirect-after-login
-- **Phase 14:** Message Voting - Thumbs up/down feedback on assistant messages with database persistence
+- **[#1](https://github.com/dustindoan/chat-sdk-expo/issues/1):** Message Voting - Thumbs up/down feedback on assistant messages with database persistence
 
 ### Next Up
-- **Phase 13:** Suggested Actions - Clickable prompt suggestions on empty chat
+See [GitHub Issues](https://github.com/dustindoan/chat-sdk-expo/issues) for planned features.
 
 See [Feature Parity Roadmap](#feature-parity-roadmap) for complete plan.
 
@@ -89,7 +89,7 @@ chat.userId, document.userId - Foreign keys to user table
 
 ---
 
-### Phase 14: Message Voting
+### Issue #1: Message Voting
 
 **Features implemented:**
 - Thumbs up/down voting on assistant messages
@@ -595,7 +595,7 @@ Based on comprehensive analysis of Vercel's chat-sdk, here are the remaining fea
 
 ### Current Feature Parity Status
 
-**Implemented (Phases 1-12, 14):**
+**Implemented (Phases 1-12, Issue #1):**
 - ✅ Message streaming & persistence
 - ✅ Model selector (Claude variants)
 - ✅ Tool system with custom UI (weather, temperature, documents)
