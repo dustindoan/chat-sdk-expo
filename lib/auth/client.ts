@@ -87,3 +87,28 @@ export async function authFetch(
     },
   });
 }
+
+/**
+ * Authenticated fetch with automatic retry on 401.
+ * Use this for critical requests where session expiration should trigger refresh.
+ *
+ * @param url - URL to fetch
+ * @param options - Fetch options
+ * @param onUnauthorized - Optional callback to refresh session before retry
+ */
+export async function authFetchWithRetry(
+  url: string,
+  options: RequestInit = {},
+  onUnauthorized?: () => Promise<void>
+): Promise<Response> {
+  const response = await authFetch(url, options);
+
+  // If unauthorized and we have a refresh callback, retry once
+  if (response.status === 401 && onUnauthorized) {
+    console.log('Auth expired, refreshing session...');
+    await onUnauthorized();
+    return authFetch(url, options);
+  }
+
+  return response;
+}

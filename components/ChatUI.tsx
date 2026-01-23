@@ -18,7 +18,7 @@ import { useClipboard } from '../hooks/useClipboard';
 import { useAttachments } from '../hooks/useAttachments';
 import { chatModels, DEFAULT_MODEL_ID, getModelName, modelSupportsReasoning } from '../lib/ai/models';
 import { useArtifact } from '../contexts/ArtifactContext';
-import { getAuthCookie, authFetch } from '../lib/auth/client';
+import { getAuthCookie, authFetch, authFetchWithRetry } from '../lib/auth/client';
 import { useAuth } from '../contexts/AuthContext';
 import { generateAPIUrl } from '../utils';
 
@@ -122,7 +122,7 @@ export function ChatUI({
   // Fetch votes when loading an existing chat
   useEffect(() => {
     if (initialChatId && initialMessages.length > 0) {
-      authFetch(`/api/vote?chatId=${initialChatId}`)
+      authFetchWithRetry(`/api/vote?chatId=${initialChatId}`, {}, refreshSession)
         .then((res) => res.json())
         .then((data) => {
           if (Array.isArray(data)) {
@@ -135,7 +135,7 @@ export function ChatUI({
         })
         .catch((err) => console.error('Error fetching votes:', err));
     }
-  }, [initialChatId, initialMessages.length]);
+  }, [initialChatId, initialMessages.length, refreshSession]);
 
   // Set body background color on web
   useEffect(() => {
@@ -148,22 +148,20 @@ export function ChatUI({
   // Local state for input (works better with RN TextInput than useChat's input)
   const [localInput, setLocalInput] = useState('');
 
-  // Helper to make authenticated fetch with auto-retry on 401
-  const authFetchWithRetry = useCallback(async (url: RequestInfo | URL, options?: RequestInit): Promise<Response> => {
+  // Wrapper for transport fetch that uses expo/fetch with auth and 401 retry
+  const transportFetch = useCallback(async (url: RequestInfo | URL, options?: RequestInit): Promise<Response> => {
     const urlString = typeof url === 'string' ? url : url.toString();
-    const makeRequest = async () => {
-      const cookie = await getAuthCookie();
-      return expoFetch(urlString, {
-        ...options,
-        credentials: Platform.OS === 'web' ? 'include' : 'omit',
-        headers: {
-          ...options?.headers,
-          ...(cookie ? { Cookie: cookie } : {}),
-        },
-      } as RequestInit);
-    };
+    const cookie = await getAuthCookie();
 
-    // First attempt
+    const makeRequest = () => expoFetch(urlString, {
+      ...options,
+      credentials: Platform.OS === 'web' ? 'include' : 'omit',
+      headers: {
+        ...options?.headers,
+        ...(cookie ? { Cookie: cookie } : {}),
+      },
+    } as RequestInit);
+
     const response = await makeRequest();
 
     // If unauthorized, refresh session and retry once
@@ -183,7 +181,7 @@ export function ChatUI({
     generateId: generateUUID,
     transport: new DefaultChatTransport({
       api,
-      fetch: authFetchWithRetry,
+      fetch: transportFetch,
       prepareSendMessagesRequest(request) {
         const lastMessage = request.messages.at(-1);
 
@@ -328,9 +326,11 @@ export function ChatUI({
 
       try {
         // 1. Delete trailing messages from database
-        const response = await authFetch(`/api/messages/${messageId}`, {
-          method: 'DELETE',
-        });
+        const response = await authFetchWithRetry(
+          `/api/messages/${messageId}`,
+          { method: 'DELETE' },
+          refreshSession
+        );
 
         if (!response.ok) {
           throw new Error('Failed to delete trailing messages');
@@ -381,15 +381,19 @@ export function ChatUI({
       }));
 
       try {
-        const response = await authFetch('/api/vote', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            chatId: currentChatId,
-            messageId,
-            type,
-          }),
-        });
+        const response = await authFetchWithRetry(
+          '/api/vote',
+          {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              chatId: currentChatId,
+              messageId,
+              type,
+            }),
+          },
+          refreshSession
+        );
 
         if (!response.ok) {
           throw new Error('Failed to record vote');
@@ -433,9 +437,11 @@ export function ChatUI({
         const userMessage = messages[userMessageIndex];
 
         // 1. Delete the assistant message and all following messages from database
-        const response = await authFetch(`/api/messages/${messageId}`, {
-          method: 'DELETE',
-        });
+        const response = await authFetchWithRetry(
+          `/api/messages/${messageId}`,
+          { method: 'DELETE' },
+          refreshSession
+        );
 
         if (!response.ok) {
           throw new Error('Failed to delete messages');

@@ -9,7 +9,7 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
-import { authFetch } from '../lib/auth/client';
+import { authFetchWithRetry } from '../lib/auth/client';
 
 // ============================================================================
 // TYPES
@@ -47,6 +47,8 @@ export interface UseChatHistoryOptions {
   onDeleteChat?: (chatId: string) => void;
   /** Called on error */
   onError?: (error: Error) => void;
+  /** Called on 401 to refresh session (enables auto-retry) */
+  onUnauthorized?: () => Promise<void>;
 }
 
 export interface UseChatHistoryResult {
@@ -146,6 +148,7 @@ export function useChatHistory(
     onSelectChat,
     onDeleteChat,
     onError,
+    onUnauthorized,
   } = options;
 
   const [chats, setChats] = useState<Chat[]>([]);
@@ -166,7 +169,11 @@ export function useChatHistory(
         params.set('ending_before', cursor);
       }
 
-      const response = await authFetch(`${api}/history?${params}`);
+      const response = await authFetchWithRetry(
+        `${api}/history?${params}`,
+        {},
+        onUnauthorized
+      );
       if (!response.ok) {
         if (response.status === 401) {
           throw new Error('Unauthorized');
@@ -176,7 +183,7 @@ export function useChatHistory(
 
       return response.json();
     },
-    [api, pageSize]
+    [api, pageSize, onUnauthorized]
   );
 
   // Initial load
@@ -221,9 +228,11 @@ export function useChatHistory(
   const deleteChat = useCallback(
     async (chatId: string) => {
       try {
-        const response = await authFetch(`${api}/chats/${chatId}`, {
-          method: 'DELETE',
-        });
+        const response = await authFetchWithRetry(
+          `${api}/chats/${chatId}`,
+          { method: 'DELETE' },
+          onUnauthorized
+        );
 
         if (!response.ok) {
           throw new Error(`Failed to delete chat: ${response.statusText}`);
@@ -245,15 +254,17 @@ export function useChatHistory(
         throw error;
       }
     },
-    [api, onDeleteChat, onError, selectedChatId]
+    [api, onDeleteChat, onError, onUnauthorized, selectedChatId]
   );
 
   // Delete all chats
   const deleteAllChats = useCallback(async () => {
     try {
-      const response = await authFetch(`${api}/history`, {
-        method: 'DELETE',
-      });
+      const response = await authFetchWithRetry(
+        `${api}/history`,
+        { method: 'DELETE' },
+        onUnauthorized
+      );
 
       if (!response.ok) {
         throw new Error(`Failed to delete all chats: ${response.statusText}`);
@@ -269,7 +280,7 @@ export function useChatHistory(
       onError?.(error);
       throw error;
     }
-  }, [api, onError]);
+  }, [api, onError, onUnauthorized]);
 
   // Select a chat
   const selectChat = useCallback(

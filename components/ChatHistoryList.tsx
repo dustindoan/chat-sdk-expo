@@ -57,10 +57,11 @@ export function ChatHistoryList({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const { user, isGuest, signOut } = useAuth();
+  const { user, isGuest, signOut, refreshSession } = useAuth();
   const history = useChatHistory({
     api,
     onSelectChat,
+    onUnauthorized: refreshSession,
   });
 
   const handleLogout = useCallback(async () => {
