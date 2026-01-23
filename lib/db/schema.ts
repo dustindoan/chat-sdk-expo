@@ -140,3 +140,25 @@ export const document = pgTable(
 );
 
 export type Document = InferSelectModel<typeof document>;
+
+// ============================================================================
+// VOTE
+// ============================================================================
+
+export const vote = pgTable(
+  'Vote',
+  {
+    chatId: uuid('chatId')
+      .notNull()
+      .references(() => chat.id, { onDelete: 'cascade' }),
+    messageId: uuid('messageId')
+      .notNull()
+      .references(() => message.id, { onDelete: 'cascade' }),
+    isUpvoted: boolean('isUpvoted').notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.chatId, table.messageId] }),
+  })
+);
+
+export type Vote = InferSelectModel<typeof vote>;
