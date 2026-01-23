@@ -9,8 +9,12 @@ import {
   getDocumentsById,
   deleteDocumentsByIdAfterTimestamp,
 } from '../../../lib/db/queries';
+import { requireAuth } from '../../../lib/auth/api';
 
 export async function GET(request: Request): Promise<Response> {
+  const { user, error } = await requireAuth(request);
+  if (error) return error;
+
   try {
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
@@ -22,11 +26,11 @@ export async function GET(request: Request): Promise<Response> {
       );
     }
 
-    const documents = await getDocumentsById(id);
+    const documents = await getDocumentsById(id, user.id);
 
     return Response.json(documents);
-  } catch (error) {
-    console.error('Failed to get document versions:', error);
+  } catch (err) {
+    console.error('Failed to get document versions:', err);
     return Response.json(
       { error: 'Failed to get document versions' },
       { status: 500 }
@@ -35,6 +39,9 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function DELETE(request: Request): Promise<Response> {
+  const { user, error } = await requireAuth(request);
+  if (error) return error;
+
   try {
     const url = new URL(request.url);
     const id = url.searchParams.get('id');
@@ -56,6 +63,7 @@ export async function DELETE(request: Request): Promise<Response> {
 
     const deletedDocuments = await deleteDocumentsByIdAfterTimestamp(
       id,
+      user.id,
       new Date(timestamp)
     );
 
@@ -63,8 +71,8 @@ export async function DELETE(request: Request): Promise<Response> {
       deleted: deletedDocuments.length,
       documents: deletedDocuments,
     });
-  } catch (error) {
-    console.error('Failed to delete document versions:', error);
+  } catch (err) {
+    console.error('Failed to delete document versions:', err);
     return Response.json(
       { error: 'Failed to delete document versions' },
       { status: 500 }

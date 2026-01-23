@@ -17,7 +17,9 @@ import {
   Modal,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useRouter, usePathname } from 'expo-router';
 import { useChatHistory, type Chat, type GroupedChats } from '../hooks/useChatHistory';
+import { useAuth } from '../contexts/AuthContext';
 import { colors } from './theme';
 
 // ============================================================================
@@ -48,14 +50,27 @@ export function ChatHistoryList({
   activeChatId,
   onRefreshReady,
 }: ChatHistoryListProps) {
+  const router = useRouter();
+  const pathname = usePathname();
   const [showDeleteAllConfirm, setShowDeleteAllConfirm] = useState(false);
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
+  const { user, isGuest, signOut } = useAuth();
   const history = useChatHistory({
     api,
     onSelectChat,
   });
+
+  const handleLogout = useCallback(async () => {
+    setIsLoggingOut(true);
+    try {
+      await signOut();
+    } finally {
+      setIsLoggingOut(false);
+    }
+  }, [signOut]);
 
   // Expose refresh to parent
   React.useEffect(() => {
@@ -152,6 +167,43 @@ export function ChatHistoryList({
           <Text style={styles.endOfList}>End of chat history</Text>
         )}
       </ScrollView>
+
+      {/* User section - consistent layout for both guest and regular users */}
+      {user && (
+        <View style={styles.userSection}>
+          <View style={styles.userInfo} accessibilityLabel={isGuest ? 'Guest user' : `Signed in as ${user.name || user.email}`}>
+            <View style={styles.userAvatar}>
+              <Text style={styles.userAvatarText}>
+                {isGuest ? 'G' : (user.name?.charAt(0).toUpperCase() || user.email.charAt(0).toUpperCase())}
+              </Text>
+            </View>
+            <Text style={styles.userDisplayName} numberOfLines={1}>
+              {isGuest ? 'Guest' : user.email}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.userActionButton}
+            onPress={
+              isGuest
+                ? () => router.push(`/login?redirect=${encodeURIComponent(pathname)}`)
+                : handleLogout
+            }
+            disabled={isLoggingOut}
+            accessibilityLabel={isGuest ? 'Login to your account' : 'Sign out of your account'}
+            accessibilityRole="button"
+          >
+            {isLoggingOut ? (
+              <ActivityIndicator size="small" color={colors.text.secondary} />
+            ) : (
+              <Feather
+                name={isGuest ? 'log-in' : 'log-out'}
+                size={18}
+                color={colors.text.secondary}
+              />
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Delete all confirmation modal */}
       <Modal
@@ -579,6 +631,45 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.text.secondary,
     textAlign: 'center',
+  },
+
+  // User section
+  userSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: colors.border.subtle,
+    backgroundColor: colors.background.secondary,
+  },
+  userInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+  },
+  userAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: colors.background.tertiary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userAvatarText: {
+    color: colors.text.secondary,
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  userDisplayName: {
+    fontSize: 14,
+    color: colors.text.primary,
+    flex: 1,
+  },
+  userActionButton: {
+    padding: 8,
   },
 
   // Modal

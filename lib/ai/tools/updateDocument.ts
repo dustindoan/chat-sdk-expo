@@ -19,13 +19,15 @@ interface UpdateDocumentToolProps {
   dataStream: DataStreamWriter;
   /** API key for model access */
   apiKey: string;
+  /** User ID for document ownership */
+  userId: string;
 }
 
 /**
  * Create the updateDocument tool
  * Factory function that takes dataStream context
  */
-export function updateDocumentTool({ dataStream, apiKey }: UpdateDocumentToolProps) {
+export function updateDocumentTool({ dataStream, apiKey, userId }: UpdateDocumentToolProps) {
   return tool({
     description: `Update an existing document with new content based on user instructions.
 Use this tool when the user asks you to:
@@ -49,8 +51,8 @@ You need the document ID from a previous createDocument call.`,
       id: string;
       description: string;
     }) => {
-      // Fetch document from database
-      const existingDoc = await getDocumentById(id);
+      // Fetch document from database (scoped by userId)
+      const existingDoc = await getDocumentById(id, userId);
       if (!existingDoc) {
         return {
           id,
@@ -131,6 +133,7 @@ You need the document ID from a previous createDocument call.`,
       try {
         await saveDocument({
           id,
+          userId,
           title,
           content: updatedContent,
           kind,

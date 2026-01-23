@@ -9,6 +9,7 @@
  */
 
 import { useState, useCallback, useEffect, useMemo } from 'react';
+import { authFetch } from '../lib/auth/client';
 
 // ============================================================================
 // TYPES
@@ -165,8 +166,11 @@ export function useChatHistory(
         params.set('ending_before', cursor);
       }
 
-      const response = await fetch(`${api}/history?${params}`);
+      const response = await authFetch(`${api}/history?${params}`);
       if (!response.ok) {
+        if (response.status === 401) {
+          throw new Error('Unauthorized');
+        }
         throw new Error(`Failed to fetch history: ${response.statusText}`);
       }
 
@@ -217,7 +221,7 @@ export function useChatHistory(
   const deleteChat = useCallback(
     async (chatId: string) => {
       try {
-        const response = await fetch(`${api}/chats/${chatId}`, {
+        const response = await authFetch(`${api}/chats/${chatId}`, {
           method: 'DELETE',
         });
 
@@ -247,7 +251,7 @@ export function useChatHistory(
   // Delete all chats
   const deleteAllChats = useCallback(async () => {
     try {
-      const response = await fetch(`${api}/history`, {
+      const response = await authFetch(`${api}/history`, {
         method: 'DELETE',
       });
 

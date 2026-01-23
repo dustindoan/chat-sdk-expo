@@ -13,8 +13,13 @@ import {
   getMessagesByChatId,
   saveChat,
   saveMessages,
-  updateChatTitle,
+  getMessageCountByUserId,
+  getUserById,
 } from '../../lib/db';
+import {
+  entitlementsByUserType,
+  type UserType,
+} from '../../lib/ai/entitlements';
 import {
   weatherTool,
   convertTemperatureTool,
@@ -23,6 +28,7 @@ import {
 } from '../../lib/ai/tools';
 import { modelSupportsReasoning } from '../../lib/ai/models';
 import type { DataStreamWriter } from '../../lib/artifacts/types';
+import { requireAuth } from '../../lib/auth/api';
 
 // Load API key from .env file
 function getApiKey(): string {
@@ -43,7 +49,6 @@ const anthropic = createAnthropic({
   apiKey: getApiKey(),
   baseURL: 'https://api.anthropic.com/v1',
 });
-
 
 // Generate a title from the first user message
 function generateTitleFromMessage(message: any): string {
@@ -70,8 +75,45 @@ function generateUUID(): string {
 }
 
 export async function POST(request: Request) {
+  const { user, error } = await requireAuth(request);
+  if (error) return error;
+
+  // Get user type for rate limiting
+  const dbUser = await getUserById(user.id);
+  const userType: UserType = (dbUser?.type as UserType) || 'regular';
+  const entitlements = entitlementsByUserType[userType];
+
+  // Check rate limit - count messages in last 24 hours
+  const messageCount = await getMessageCountByUserId({
+    userId: user.id,
+    differenceInHours: 24,
+  });
+
+  if (messageCount >= entitlements.maxMessagesPerDay) {
+    return Response.json(
+      {
+        error: 'Rate limit exceeded',
+        message: `You have reached the daily message limit of ${entitlements.maxMessagesPerDay} messages. ${
+          userType === 'guest'
+            ? 'Sign up for a free account to get more messages!'
+            : 'Please try again tomorrow.'
+        }`,
+        limit: entitlements.maxMessagesPerDay,
+        used: messageCount,
+        userType,
+      },
+      { status: 429 }
+    );
+  }
+
   const body = await request.json();
-  const { id: chatId, message, messages, model: modelId, reasoning: reasoningEnabled } = body;
+  const {
+    id: chatId,
+    message,
+    messages,
+    model: modelId,
+    reasoning: reasoningEnabled,
+  } = body;
 
   const modelName = modelId || 'claude-haiku-4-5-20251001';
 
@@ -83,7 +125,7 @@ export async function POST(request: Request) {
   const isToolApprovalFlow = Boolean(messages);
 
   // Check if chat exists, create if not
-  let chat = chatId ? await getChatById(chatId) : null;
+  let chat = chatId ? await getChatById(chatId, user.id) : null;
   let isNewChat = false;
 
   if (!chat && message?.role === 'user') {
@@ -91,10 +133,16 @@ export async function POST(request: Request) {
     const title = generateTitleFromMessage(message);
     chat = await saveChat({
       id: chatId,
+      userId: user.id,
       title,
       model: modelName,
     });
     isNewChat = true;
+  }
+
+  // If chat exists but doesn't belong to this user, return 403
+  if (chatId && !chat) {
+    return Response.json({ error: 'Chat not found' }, { status: 404 });
   }
 
   // Save user message if provided (before loading history so it's included)
@@ -145,10 +193,18 @@ export async function POST(request: Request) {
         },
       };
 
-      // Create artifact tools with dataStream context and API key
+      // Create artifact tools with dataStream context, API key, and userId
       const artifactApiKey = getApiKey();
-      const createDocument = createDocumentTool({ dataStream, apiKey: artifactApiKey });
-      const updateDocument = updateDocumentTool({ dataStream, apiKey: artifactApiKey });
+      const createDocument = createDocumentTool({
+        dataStream,
+        apiKey: artifactApiKey,
+        userId: user.id,
+      });
+      const updateDocument = updateDocumentTool({
+        dataStream,
+        apiKey: artifactApiKey,
+        userId: user.id,
+      });
 
       // System prompt following chat-sdk's pattern
       const regularPrompt = `You are a friendly assistant! Keep your responses concise and helpful.

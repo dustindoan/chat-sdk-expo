@@ -17,6 +17,7 @@ import { useClipboard } from '../hooks/useClipboard';
 import { useAttachments } from '../hooks/useAttachments';
 import { chatModels, DEFAULT_MODEL_ID, getModelName, modelSupportsReasoning } from '../lib/ai/models';
 import { useArtifact } from '../contexts/ArtifactContext';
+import { getAuthCookie, authFetch } from '../lib/auth/client';
 
 // Generate a random UUID
 function generateUUID(): string {
@@ -129,7 +130,18 @@ export function ChatUI({
     generateId: generateUUID,
     transport: new DefaultChatTransport({
       api,
-      fetch: expoFetch as unknown as typeof globalThis.fetch,
+      fetch: async (url, options) => {
+        // Add auth cookie for native platforms
+        const cookie = await getAuthCookie();
+        return expoFetch(url, {
+          ...options,
+          credentials: Platform.OS === 'web' ? 'include' : 'omit',
+          headers: {
+            ...options?.headers,
+            ...(cookie ? { Cookie: cookie } : {}),
+          },
+        } as RequestInit);
+      },
       prepareSendMessagesRequest(request) {
         const lastMessage = request.messages.at(-1);
 
@@ -274,7 +286,7 @@ export function ChatUI({
 
       try {
         // 1. Delete trailing messages from database
-        const response = await expoFetch(`/api/messages/${messageId}`, {
+        const response = await authFetch(`/api/messages/${messageId}`, {
           method: 'DELETE',
         });
 
@@ -342,7 +354,7 @@ export function ChatUI({
         const userMessage = messages[userMessageIndex];
 
         // 1. Delete the assistant message and all following messages from database
-        const response = await expoFetch(`/api/messages/${messageId}`, {
+        const response = await authFetch(`/api/messages/${messageId}`, {
           method: 'DELETE',
         });
 

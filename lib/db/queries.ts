@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, lt } from 'drizzle-orm';
+import { and, asc, desc, eq, lt, gte, count, sql } from 'drizzle-orm';
 import { db } from './client';
 import {
   chat,
@@ -14,16 +14,23 @@ import {
 // CHAT QUERIES
 // ============================================================================
 
-export async function getChatById(id: string): Promise<Chat | undefined> {
-  const [result] = await db.select().from(chat).where(eq(chat.id, id));
+export async function getChatById(
+  id: string,
+  userId: string
+): Promise<Chat | undefined> {
+  const [result] = await db
+    .select()
+    .from(chat)
+    .where(and(eq(chat.id, id), eq(chat.userId, userId)));
   return result;
 }
 
-export async function getChats(options?: {
+export async function getChats(options: {
+  userId: string;
   limit?: number;
   cursor?: string;
 }): Promise<{ chats: Chat[]; hasMore: boolean }> {
-  const { limit = 20, cursor } = options ?? {};
+  const { userId, limit = 20, cursor } = options;
 
   // If we have a cursor, get the createdAt of that chat
   let cursorDate: Date | null = null;
@@ -31,7 +38,7 @@ export async function getChats(options?: {
     const [cursorChat] = await db
       .select({ createdAt: chat.createdAt })
       .from(chat)
-      .where(eq(chat.id, cursor))
+      .where(and(eq(chat.id, cursor), eq(chat.userId, userId)))
       .limit(1);
 
     if (cursorChat) {
@@ -39,14 +46,17 @@ export async function getChats(options?: {
     }
   }
 
-  // Build query with cursor-based pagination
-  const conditions = cursorDate ? [lt(chat.createdAt, cursorDate)] : [];
+  // Build query with cursor-based pagination - always filter by userId
+  const conditions = [eq(chat.userId, userId)];
+  if (cursorDate) {
+    conditions.push(lt(chat.createdAt, cursorDate));
+  }
 
   // Fetch one extra to determine hasMore
   const chats = await db
     .select()
     .from(chat)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .where(and(...conditions))
     .orderBy(desc(chat.createdAt))
     .limit(limit + 1);
 
@@ -58,6 +68,7 @@ export async function getChats(options?: {
 
 export async function saveChat(data: {
   id?: string;
+  userId: string;
   title?: string;
   model?: string;
 }): Promise<Chat> {
@@ -65,6 +76,7 @@ export async function saveChat(data: {
     .insert(chat)
     .values({
       id: data.id,
+      userId: data.userId,
       title: data.title ?? 'New Chat',
       model: data.model,
     })
@@ -74,23 +86,31 @@ export async function saveChat(data: {
 
 export async function updateChatTitle(
   chatId: string,
+  userId: string,
   title: string
 ): Promise<void> {
   await db
     .update(chat)
     .set({ title, updatedAt: new Date() })
-    .where(eq(chat.id, chatId));
+    .where(and(eq(chat.id, chatId), eq(chat.userId, userId)));
 }
 
-export async function deleteChatById(id: string): Promise<void> {
+export async function deleteChatById(id: string, userId: string): Promise<void> {
   // Messages will cascade delete due to foreign key constraint
-  await db.delete(chat).where(eq(chat.id, id));
+  await db.delete(chat).where(and(eq(chat.id, id), eq(chat.userId, userId)));
 }
 
-export async function deleteAllChats(): Promise<{ deletedCount: number }> {
-  const chats = await db.select({ id: chat.id }).from(chat);
+export async function deleteAllChats(
+  userId: string
+): Promise<{ deletedCount: number }> {
+  const chats = await db
+    .select({ id: chat.id })
+    .from(chat)
+    .where(eq(chat.userId, userId));
   const deletedCount = chats.length;
-  await db.delete(chat);
+  if (deletedCount > 0) {
+    await db.delete(chat).where(eq(chat.userId, userId));
+  }
   return { deletedCount };
 }
 
@@ -158,12 +178,15 @@ export async function getMessageById(id: string): Promise<DBMessage | undefined>
 // DOCUMENT QUERIES
 // ============================================================================
 
-export async function getDocumentById(id: string): Promise<Document | undefined> {
+export async function getDocumentById(
+  id: string,
+  userId: string
+): Promise<Document | undefined> {
   // Get the most recent version of the document
   const [result] = await db
     .select()
     .from(document)
-    .where(eq(document.id, id))
+    .where(and(eq(document.id, id), eq(document.userId, userId)))
     .orderBy(desc(document.createdAt))
     .limit(1);
   return result;
@@ -171,6 +194,7 @@ export async function getDocumentById(id: string): Promise<Document | undefined>
 
 export async function saveDocument(data: {
   id: string;
+  userId: string;
   title: string;
   content: string;
   kind: 'text' | 'code';
@@ -180,6 +204,7 @@ export async function saveDocument(data: {
     .insert(document)
     .values({
       id: data.id,
+      userId: data.userId,
       title: data.title,
       content: data.content,
       kind: data.kind,
@@ -189,17 +214,21 @@ export async function saveDocument(data: {
   return result;
 }
 
-export async function getDocumentsById(id: string): Promise<Document[]> {
+export async function getDocumentsById(
+  id: string,
+  userId: string
+): Promise<Document[]> {
   // Get all versions of a document, sorted by creation date ascending
   return db
     .select()
     .from(document)
-    .where(eq(document.id, id))
+    .where(and(eq(document.id, id), eq(document.userId, userId)))
     .orderBy(asc(document.createdAt));
 }
 
 export async function deleteDocumentsByIdAfterTimestamp(
   id: string,
+  userId: string,
   timestamp: Date
 ): Promise<Document[]> {
   const { gt } = await import('drizzle-orm');
@@ -208,13 +237,70 @@ export async function deleteDocumentsByIdAfterTimestamp(
   const toDelete = await db
     .select()
     .from(document)
-    .where(and(eq(document.id, id), gt(document.createdAt, timestamp)));
+    .where(
+      and(
+        eq(document.id, id),
+        eq(document.userId, userId),
+        gt(document.createdAt, timestamp)
+      )
+    );
 
   if (toDelete.length > 0) {
     await db
       .delete(document)
-      .where(and(eq(document.id, id), gt(document.createdAt, timestamp)));
+      .where(
+        and(
+          eq(document.id, id),
+          eq(document.userId, userId),
+          gt(document.createdAt, timestamp)
+        )
+      );
   }
 
   return toDelete;
+}
+
+// ============================================================================
+// USER QUERIES
+// ============================================================================
+
+export async function getUserById(id: string) {
+  const { user } = await import('./schema');
+  const [result] = await db.select().from(user).where(eq(user.id, id));
+  return result;
+}
+
+// ============================================================================
+// RATE LIMITING QUERIES
+// ============================================================================
+
+/**
+ * Get count of user messages in the last N hours
+ * Used for rate limiting
+ */
+export async function getMessageCountByUserId(options: {
+  userId: string;
+  differenceInHours: number;
+}): Promise<number> {
+  const { userId, differenceInHours } = options;
+
+  // Calculate the cutoff time
+  const cutoffTime = new Date();
+  cutoffTime.setHours(cutoffTime.getHours() - differenceInHours);
+
+  // Count user messages from their chats in the time window
+  // We need to join message -> chat to filter by userId
+  const result = await db
+    .select({ count: count() })
+    .from(message)
+    .innerJoin(chat, eq(message.chatId, chat.id))
+    .where(
+      and(
+        eq(chat.userId, userId),
+        eq(message.role, 'user'),
+        gte(message.createdAt, cutoffTime)
+      )
+    );
+
+  return result[0]?.count ?? 0;
 }

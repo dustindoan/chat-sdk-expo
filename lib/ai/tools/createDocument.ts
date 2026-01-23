@@ -35,13 +35,15 @@ interface CreateDocumentToolProps {
   dataStream: DataStreamWriter;
   /** API key for model access */
   apiKey: string;
+  /** User ID for document ownership */
+  userId: string;
 }
 
 /**
  * Create the createDocument tool
  * Factory function that takes dataStream context
  */
-export function createDocumentTool({ dataStream, apiKey }: CreateDocumentToolProps) {
+export function createDocumentTool({ dataStream, apiKey, userId }: CreateDocumentToolProps) {
   return tool({
     description: `Create a document with auto-generated content based on the title.
 IMPORTANT: Call this tool only ONCE per request. The content is automatically generated - do not call again to "add" content.
@@ -133,6 +135,7 @@ The document displays in a dedicated panel. After calling, briefly describe what
       try {
         await saveDocument({
           id,
+          userId,
           title,
           content,
           kind,

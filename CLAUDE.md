@@ -25,13 +25,66 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 - **Phase 9:** Message editing/regeneration - Edit user messages, regenerate assistant responses, delete trailing messages
 - **Phase 10:** Reasoning display - Extended thinking toggle, collapsible thinking section with duration, NativeWind v5 + Tailwind v4
 - **Phase 11:** Tool approval flow - Human-in-the-loop tool confirmation, Allow/Deny buttons, automatic continuation after approval
+- **Phase 12:** Authentication - Better Auth with email/password, guest users, user-scoped data, rate limiting, redirect-after-login
 
 ### Next Up
-- **Phase 12:** Authentication
+- **Phase 13:** TBD (suggestions: real-time collaboration, search, export, themes)
 
 ---
 
 ## Phase Implementation Details
+
+### Phase 12: Authentication
+
+**Features implemented:**
+- Better Auth with email/password authentication
+- Guest user support (auto-created anonymous sessions)
+- User-scoped data (chats, documents isolated per user)
+- Protected API routes with `requireAuth()` middleware
+- Login/Register screens matching dark theme
+- Sidebar user section (email display, login/logout buttons)
+- Redirect-after-login (preserves destination URL through auth flow)
+- Rate limiting by user type (guest: 20/day, regular: 100/day)
+
+**Testing flow:**
+1. Visit app as guest → Can chat with 20 messages/day limit
+2. Click "Login" in sidebar → Redirected to login page
+3. Register new account or sign in
+4. After auth → Redirected back to original page
+5. User's chats are isolated from other users
+6. Logout → Becomes guest again
+
+**Key implementation details:**
+- Better Auth server config with Drizzle adapter (`lib/auth/index.ts`)
+- Better Auth client with expo plugin (`lib/auth/client.ts`)
+- API auth helper `requireAuth()` returns user or 401 (`lib/auth/api.ts`)
+- Auth context provides `user`, `isAuthenticated`, `isGuest`, `signIn`, `signUp`, `signOut`
+- Entitlements system defines rate limits per user type (`lib/ai/entitlements.ts`)
+- Login/Register screens read `redirect` query param for post-auth navigation
+
+**Key files:**
+- `lib/auth/index.ts` - Better Auth server configuration
+- `lib/auth/client.ts` - Better Auth client with expo plugin
+- `lib/auth/api.ts` - `requireAuth()` middleware
+- `lib/ai/entitlements.ts` - User type rate limits
+- `lib/db/schema.ts` - User, Session, Account, Verification tables + userId columns
+- `lib/db/queries.ts` - `getUserById()`, `getMessageCountByUserId()` for rate limiting
+- `contexts/AuthContext.tsx` - React auth context
+- `app/(auth)/login.tsx` - Login screen with redirect support
+- `app/(auth)/register.tsx` - Register screen with redirect support
+- `app/api/auth/[...all]+api.ts` - Auth API catch-all route
+- `components/ChatHistoryList.tsx` - User section in sidebar
+
+**Database schema additions:**
+```
+user: id, name, email, emailVerified, image, type, createdAt, updatedAt
+session: id, token, expiresAt, ipAddress, userAgent, userId
+account: id, providerId, accountId, userId, tokens...
+verification: id, identifier, value, expiresAt, createdAt, updatedAt
+chat.userId, document.userId - Foreign keys to user table
+```
+
+---
 
 ### Phase 11: Tool Approval Flow
 
@@ -250,19 +303,28 @@ ChatUI
 
 ```
 app/
-├── _layout.tsx             # Root layout (Stack wrapping drawer)
+├── _layout.tsx             # Root layout with AuthProvider, AuthGate
+├── (auth)/
+│   ├── _layout.tsx         # Auth screens stack layout
+│   ├── login.tsx           # Login screen with redirect support
+│   └── register.tsx        # Register screen with redirect support
 ├── (drawer)/
 │   ├── _layout.tsx         # Drawer layout with ChatHistoryList
 │   ├── index.tsx           # New chat screen
 │   └── chat/
 │       └── [id].tsx        # Load existing chat by ID
 └── api/
-    ├── chat+api.ts         # Chat streaming with persistence
-    ├── history+api.ts      # Chat list pagination
+    ├── auth/
+    │   └── [...all]+api.ts # Better Auth catch-all route
+    ├── chat+api.ts         # Chat streaming with persistence + rate limiting
+    ├── history+api.ts      # Chat list pagination (user-scoped)
     ├── messages/
     │   └── [id]+api.ts     # Delete trailing messages (for edit/regenerate)
+    ├── documents/
+    │   ├── index+api.ts    # Document CRUD (user-scoped)
+    │   └── [id]+api.ts     # Document by ID
     └── chats/
-        ├── index+api.ts    # Create new chat
+        ├── index+api.ts    # Create new chat (user-scoped)
         ├── [id]+api.ts     # Get/update/delete chat
         └── [id]/
             └── messages+api.ts  # Save messages
@@ -313,12 +375,17 @@ hooks/
 lib/
 ├── ai/
 │   ├── models.ts           # Claude model definitions with supportsReasoning
+│   ├── entitlements.ts     # User type rate limits (guest/regular)
 │   └── tools/              # AI SDK tool definitions
 │       ├── index.ts        # Barrel exports
 │       ├── weather.ts      # Weather tool (Open-Meteo API)
 │       ├── temperature.ts  # Temperature conversion tool
 │       ├── createDocument.ts   # Artifact creation tool
 │       └── updateDocument.ts   # Artifact update tool
+├── auth/
+│   ├── index.ts            # Better Auth server configuration
+│   ├── client.ts           # Better Auth client with expo plugin
+│   └── api.ts              # requireAuth() middleware
 ├── artifacts/              # Artifact system
 │   ├── index.ts            # Barrel exports
 │   ├── types.ts            # UIArtifact, ArtifactDefinition types
@@ -330,12 +397,13 @@ lib/
 ├── files/
 │   └── index.ts            # File utilities (fileToBase64, validation)
 └── db/
-    ├── schema.ts           # Drizzle schema (Chat, Message, Document)
+    ├── schema.ts           # Drizzle schema (User, Session, Chat, Message, Document)
     ├── client.ts           # PostgreSQL connection
-    ├── queries.ts          # CRUD operations
+    ├── queries.ts          # CRUD operations + rate limiting queries
     └── index.ts            # Barrel exports
 
 contexts/
+├── AuthContext.tsx         # Auth state (user, signIn, signUp, signOut)
 ├── ChatHistoryContext.tsx  # Cross-component chat state
 └── ArtifactContext.tsx     # Global artifact state (like useArtifact)
 ```
@@ -379,9 +447,13 @@ dataStream.write({ type: 'data-finish', data: null, transient: true });
 Uses **Drizzle ORM** with **PostgreSQL** (Docker) for persistence.
 
 ### Schema
-- `Chat`: id, title, model, createdAt, updatedAt
+- `User`: id, name, email, emailVerified, image, type (guest/regular), timestamps
+- `Session`: id, token, expiresAt, ipAddress, userAgent, userId
+- `Account`: id, providerId, accountId, userId, tokens...
+- `Verification`: id, identifier, value, expiresAt, timestamps
+- `Chat`: id, title, model, userId, createdAt, updatedAt
 - `Message`: id, chatId, role, parts (JSON), createdAt
-- `Document`: id, title, kind, content, createdAt (versions share same id, different timestamps)
+- `Document`: id, title, kind, content, userId, createdAt (versions share same id, different timestamps)
 
 ### Commands
 ```bash
@@ -455,10 +527,13 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/chat
 
 ## Future Phase Plans
 
-### Phase 12: Authentication
-- Clerk or Supabase integration (or custom JWT with AsyncStorage)
-- User table in database (id, email, password hash)
-- User-scoped chat history (associate chats with user IDs)
-- Protected API routes with session validation
-- Login/signup screens
-- Guest user support
+### Phase 13+: Ideas
+- Real-time collaboration (multiple users editing same document)
+- Chat search (full-text search across messages)
+- Export functionality (PDF, markdown, JSON)
+- Custom themes / light mode
+- Keyboard shortcuts
+- Voice input/output
+- Mobile-specific optimizations (haptics, gestures)
+- Push notifications
+- Offline support with sync
