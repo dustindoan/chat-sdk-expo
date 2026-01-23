@@ -90,6 +90,55 @@ chat.userId, document.userId - Foreign keys to user table
 
 ---
 
+### SWR Integration for Data Fetching
+
+**Features implemented:**
+- SWR for chat history with `useSWRInfinite` (paginated data)
+- Authenticated fetcher (`authFetcher`) for web cookies and native SecureStore tokens
+- Optimistic updates for mutations (delete chat, etc.)
+- React Native-specific revalidation via `@nandorojo/swr-react-native`
+
+**Why `authFetch` is needed:**
+Better Auth doesn't provide a built-in fetch wrapper for custom API endpoints. Their docs state: "To make authenticated requests to your server, you have to retrieve the session cookie from SecureStore and manually add it to your request headers." So `authFetch` is the expected pattern.
+
+**Why `swr-react-native`:**
+Standard SWR's `revalidateOnFocus` and `revalidateOnReconnect` don't work in React Native. The `@nandorojo/swr-react-native` library provides:
+- React Navigation screen focus revalidation
+- AppState (foreground/background) revalidation
+- NetInfo (network reconnect) revalidation
+
+**Pattern (matches chat-sdk):**
+1. SWR for reads (`useSWR`, `useSWRInfinite`)
+2. Direct `fetch()` for mutations (POST/PATCH/DELETE)
+3. SWR `mutate()` for cache updates after mutations
+
+**Key files:**
+- `lib/swr/index.ts` - `authFetcher`, `APIError` class
+- `hooks/useChatHistory.ts` - SWR-based chat history with `useSWRNativeRevalidate`
+- `app/_layout.tsx` - SWRConfig provider
+
+**Mutation pattern:**
+```typescript
+// 1. Optimistic update
+mutate(
+  (currentPages) => currentPages.map(page => ({
+    ...page,
+    chats: page.chats.filter(c => c.id !== chatId),
+  })),
+  { revalidate: false }
+);
+
+// 2. Actual mutation
+const response = await authFetch(`/api/chats/${chatId}`, { method: 'DELETE' });
+
+// 3. Revert on error
+if (!response.ok) {
+  await mutate(); // Re-fetch actual data
+}
+```
+
+---
+
 ### Issue #1: Message Voting
 
 **Features implemented:**
