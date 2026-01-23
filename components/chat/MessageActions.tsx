@@ -85,6 +85,7 @@ export function MessageActions({
         ]}
         onPress={() => onVote?.('up')}
         accessibilityLabel="Good response"
+        accessibilityRole="button"
       >
         <Feather
           name="thumbs-up"
@@ -99,6 +100,7 @@ export function MessageActions({
         ]}
         onPress={() => onVote?.('down')}
         accessibilityLabel="Bad response"
+        accessibilityRole="button"
       >
         <Feather
           name="thumbs-down"
