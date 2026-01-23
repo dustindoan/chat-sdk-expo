@@ -35,7 +35,7 @@
 
 ---
 
-## Planned Phases (13-26)
+## Planned Phases (13-27)
 
 ### Phase 13: Suggested Actions
 **Complexity:** Low | **Value:** High | **Dependencies:** None
@@ -279,6 +279,41 @@ Production monitoring and observability.
 
 ---
 
+### Phase 27: Local LLM (Mobile-Only)
+**Complexity:** High | **Value:** High | **Dependencies:** None | **Platform:** iOS/Android only
+
+On-device LLM inference with FunctionGemma 270M for offline AI chat with tool calling.
+
+📄 **Detailed Plan:** [`docs/plans/local-llm.md`](./local-llm.md)
+
+**Technical Decisions:**
+- **Runtime:** llama.rn (llama.cpp binding, MIT license, tool calling support)
+- **Model:** FunctionGemma 270M (~172MB, built-in tool calling tokens)
+- **Integration:** Proper `LanguageModelV1` provider (not AI SDK bypass)
+
+**Implementation Phases:**
+| Sub-Phase | Description | Days |
+|-----------|-------------|------|
+| A | Foundation: llama.rn, model types, LocalLLMContext | 2-3 |
+| B | AI SDK Provider: LanguageModelV1, token streaming, tool parsing | 2-3 |
+| C | Download Management: Progress UI, storage utilities | 1-2 |
+| D | Integration: Unified chat hook, model selector, offline indicator | 2-3 |
+
+**Key Features:**
+- Model download on demand (~172MB)
+- Streaming inference via native bridge
+- Tool calling with FunctionGemma format
+- Offline indicator and graceful fallback
+- ~550MB RAM during inference, 16-20 tok/s on mid-range devices
+
+**Limitations:**
+- Requires Expo dev build (no Expo Go)
+- Text-only (no vision)
+- No extended thinking
+- Local chats don't sync to server
+
+---
+
 ## Platform Considerations
 
 ### Web vs Mobile Differences
@@ -290,6 +325,7 @@ Production monitoring and observability.
 | KaTeX | Native support | WebView |
 | File picker | Native APIs | expo-image-picker |
 | Keyboard shortcuts | Full support | Limited |
+| Local LLM | Not supported | llama.rn via native bridge |
 
 ### React Native Limitations
 
