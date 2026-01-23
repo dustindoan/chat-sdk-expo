@@ -5,7 +5,7 @@
  * Used as drawer content on mobile and sidebar on web.
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -57,12 +57,26 @@ export function ChatHistoryList({
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const { user, isGuest, signOut, refreshSession } = useAuth();
+  const { user, isGuest, signOut } = useAuth();
   const history = useChatHistory({
     api,
     onSelectChat,
-    onUnauthorized: refreshSession,
   });
+
+  // Track previous user ID to detect user changes
+  const prevUserIdRef = useRef<string | null>(null);
+
+  // Refresh chat history when user changes (login/logout)
+  useEffect(() => {
+    const currentUserId = user?.id ?? null;
+
+    // If user changed (not initial load), refresh the history
+    if (prevUserIdRef.current !== null && prevUserIdRef.current !== currentUserId) {
+      history.refresh();
+    }
+
+    prevUserIdRef.current = currentUserId;
+  }, [user?.id, history]);
 
   const handleLogout = useCallback(async () => {
     setIsLoggingOut(true);
@@ -74,7 +88,7 @@ export function ChatHistoryList({
   }, [signOut]);
 
   // Expose refresh to parent
-  React.useEffect(() => {
+  useEffect(() => {
     onRefreshReady?.(history.refresh);
   }, [history.refresh, onRefreshReady]);
 

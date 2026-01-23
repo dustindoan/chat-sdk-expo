@@ -11,6 +11,7 @@ import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { authClient, useSession } from '../lib/auth/client';
 import { generateAPIUrl } from '../utils';
+import { isGuestEmail } from '../lib/constants';
 
 export type UserType = 'regular' | 'guest';
 
@@ -190,7 +191,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Ignore errors when clearing token
       }
     }
-    // After sign out, create a new guest session
+    // After sign out, create a new guest session immediately
+    // This ensures the UI updates right away without waiting for useEffect
     await createGuestSession();
   }, []);
 
@@ -205,7 +207,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         user,
         isLoading,
         isAuthenticated: !!user,
-        isGuest: user?.type === 'guest',
+        // Use email pattern to detect guest (following chat-sdk pattern)
+        isGuest: isGuestEmail(user?.email),
         signIn: handleSignIn,
         signUp: handleSignUp,
         signInAsGuest: handleSignInAsGuest,
