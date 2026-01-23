@@ -27,6 +27,7 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 - **Phase 11:** Tool approval flow - Human-in-the-loop tool confirmation, Allow/Deny buttons, automatic continuation after approval
 - **Phase 12:** Authentication - Better Auth with email/password, guest users, user-scoped data, rate limiting, redirect-after-login
 - **[#1](https://github.com/dustindoan/chat-sdk-expo/issues/1):** Message Voting - Thumbs up/down feedback on assistant messages with database persistence
+- **Phase 17:** In-Browser Code Execution - Pyodide for Python, sandboxed iframe for JavaScript, server fallback for mobile
 
 ### Next Up
 See [GitHub Issues](https://github.com/dustindoan/chat-sdk-expo/issues) for planned features.
@@ -128,6 +129,48 @@ Primary key: (chatId, messageId)
 **API endpoints:**
 - `GET /api/vote?chatId=X` - Returns array of votes for a chat
 - `PATCH /api/vote` - Body: `{ chatId, messageId, type: 'up' | 'down' }`
+
+---
+
+### Phase 17: In-Browser Code Execution
+
+**Features implemented:**
+- `executeCode` tool for Python and JavaScript code execution
+- Pyodide integration for Python execution (web only)
+- Sandboxed iframe execution for JavaScript (web only)
+- Server-side execution fallback for mobile platforms
+- Tool approval required before execution (security)
+- CodeExecutionTool UI component with code preview, status, and output display
+
+**Testing prompts:**
+1. Ask "Can you calculate the first 10 Fibonacci numbers using Python?"
+2. Tool approval card appears showing the code
+3. Click "Allow" → Code executes, output shows the result
+4. Try JavaScript: "Write JavaScript to sort an array [3,1,4,1,5,9,2,6]"
+
+**Platform support:**
+- **Web:** Full support - Python via Pyodide CDN, JavaScript in sandboxed iframe
+- **Mobile:** JavaScript via server-side VM, Python not supported (requires Pyodide)
+
+**Key implementation details:**
+- Web JavaScript uses sandboxed iframe with postMessage for output capture
+- Web Python uses Pyodide loaded from CDN (lazy loaded on first use)
+- Console output (print/console.log) is captured and displayed
+- Execution timeout of 10 seconds prevents infinite loops
+- Tool requires approval before execution for security
+
+**Key files:**
+- `lib/code-execution/index.ts` - Platform-aware execution service
+- `lib/ai/tools/executeCode.ts` - AI SDK tool definition
+- `app/api/execute-code+api.ts` - Server-side execution endpoint
+- `components/chat/tools/CodeExecutionTool.tsx` - Execution UI component
+
+**Security considerations:**
+- All execution is sandboxed (iframe sandbox, Node.js vm module)
+- No filesystem or network access from executed code
+- Execution timeout prevents resource exhaustion
+- Tool approval required (user must explicitly allow execution)
+- Server-side Python disabled (requires proper containerization for production)
 
 ---
 
@@ -398,6 +441,7 @@ components/
 │       ├── WeatherTool.tsx # Weather card with SVG icons, day/night theming
 │       ├── TemperatureTool.tsx  # F° to C° conversion display
 │       ├── DocumentTool.tsx    # Artifact preview card
+│       ├── CodeExecutionTool.tsx # Code execution UI with output display
 │       ├── ToolApprovalCard.tsx # Tool approval UI (Allow/Deny)
 │       └── DefaultTool.tsx # Fallback for unknown tools
 ├── artifacts/              # Artifact system components
@@ -426,7 +470,10 @@ lib/
 │       ├── weather.ts      # Weather tool (Open-Meteo API)
 │       ├── temperature.ts  # Temperature conversion tool
 │       ├── createDocument.ts   # Artifact creation tool
-│       └── updateDocument.ts   # Artifact update tool
+│       ├── updateDocument.ts   # Artifact update tool
+│       └── executeCode.ts  # Code execution tool (Python/JavaScript)
+├── code-execution/
+│   └── index.ts            # Platform-aware code execution service (Pyodide, iframe sandbox)
 ├── auth/
 │   ├── index.ts            # Better Auth server configuration
 │   ├── client.ts           # Better Auth client with expo plugin
@@ -582,7 +629,7 @@ Based on comprehensive analysis of Vercel's chat-sdk, here are the remaining fea
 | **14** | Message Voting | Thumbs up/down feedback with database persistence | Medium | High |
 | **15** | Spreadsheet Artifacts | CSV-based sheet documents with data grid UI | Medium | High |
 | **16** | Image Artifacts | AI image generation display and streaming | Medium | Medium |
-| **17** | In-Browser Code Execution | WASM/pyodide sandbox for running code | High | High |
+| **17** | In-Browser Code Execution | WASM/pyodide sandbox for running code | High | High | ✅ |
 | **18** | Resumable Streams | Redis-backed stream recovery on disconnect | Medium | Medium |
 | **19** | Request Suggestions | AI writing suggestions for documents (collaborative editing) | Medium | Medium |
 | **20** | Advanced Visualization | ChainOfThought, Plan, Queue, Task components | Medium | Low |
@@ -595,10 +642,10 @@ Based on comprehensive analysis of Vercel's chat-sdk, here are the remaining fea
 
 ### Current Feature Parity Status
 
-**Implemented (Phases 1-12, Issue #1):**
+**Implemented (Phases 1-12, Issue #1, Phase 17):**
 - ✅ Message streaming & persistence
 - ✅ Model selector (Claude variants)
-- ✅ Tool system with custom UI (weather, temperature, documents)
+- ✅ Tool system with custom UI (weather, temperature, documents, code execution)
 - ✅ Artifacts (text/code) with version history
 - ✅ File attachments with vision
 - ✅ Message editing & regeneration
@@ -606,11 +653,11 @@ Based on comprehensive analysis of Vercel's chat-sdk, here are the remaining fea
 - ✅ Tool approval flow (human-in-the-loop)
 - ✅ Authentication with user-scoped data
 - ✅ Message voting (thumbs up/down)
+- ✅ In-browser code execution (Python/JavaScript)
 
 **Not Yet Implemented:**
 - ❌ Suggested actions (empty state prompts)
 - ❌ Spreadsheet/image artifact types
-- ❌ In-browser code execution
 - ❌ Resumable streams
 - ❌ Request suggestions (collaborative editing)
 - ❌ Advanced visualization components
