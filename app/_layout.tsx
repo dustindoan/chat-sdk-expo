@@ -4,11 +4,13 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SWRConfig } from 'swr';
 import { ToastProvider } from '../components/toast';
 import { ArtifactProvider } from '../contexts/ArtifactContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { SideBySideLayout } from '../components/SideBySideLayout';
 import { colors } from '../components/theme';
+import { authFetcher } from '../lib/swr';
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { isLoading } = useAuth();
@@ -27,30 +29,41 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// SWR configuration
+// React Native-specific revalidation (AppState, NetInfo, React Navigation focus)
+// is handled by useSWRNativeRevalidate in individual hooks
+const swrConfig = {
+  fetcher: authFetcher,
+  dedupingInterval: 5000,
+  errorRetryCount: 3,
+};
+
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
         <AuthProvider>
-          <ToastProvider>
-            <ArtifactProvider>
-              <AuthGate>
-                <SideBySideLayout>
-                  <Stack
-                    screenOptions={{
-                      headerShown: false,
-                      contentStyle: {
-                        backgroundColor: colors.background.primary,
-                      },
-                    }}
-                  >
-                    <Stack.Screen name="(auth)" />
-                    <Stack.Screen name="(drawer)" />
-                  </Stack>
-                </SideBySideLayout>
-              </AuthGate>
-            </ArtifactProvider>
-          </ToastProvider>
+          <SWRConfig value={swrConfig}>
+            <ToastProvider>
+              <ArtifactProvider>
+                <AuthGate>
+                  <SideBySideLayout>
+                    <Stack
+                      screenOptions={{
+                        headerShown: false,
+                        contentStyle: {
+                          backgroundColor: colors.background.primary,
+                        },
+                      }}
+                    >
+                      <Stack.Screen name="(auth)" />
+                      <Stack.Screen name="(drawer)" />
+                    </Stack>
+                  </SideBySideLayout>
+                </AuthGate>
+              </ArtifactProvider>
+            </ToastProvider>
+          </SWRConfig>
         </AuthProvider>
       </KeyboardProvider>
     </GestureHandlerRootView>

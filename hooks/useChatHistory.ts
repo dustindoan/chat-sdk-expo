@@ -1,15 +1,19 @@
 /**
- * useChatHistory - Hook for managing chat history state
+ * useChatHistory - Hook for managing chat history state with SWR
  *
  * Provides:
- * - Paginated chat list with infinite scroll
- * - Delete chat functionality
- * - Chat selection for loading
+ * - Paginated chat list with infinite scroll via useSWRInfinite
+ * - Automatic caching and revalidation
+ * - Delete chat functionality with optimistic updates
  * - Grouping by date (Today, Yesterday, Last 7 days, etc.)
  */
 
-import { useState, useCallback, useEffect, useMemo } from 'react';
-import { authFetchWithRetry } from '../lib/auth/client';
+import { useCallback, useMemo } from 'react';
+import useSWRInfinite from 'swr/infinite';
+import { useSWRConfig } from 'swr';
+import { useSWRNativeRevalidate } from '@nandorojo/swr-react-native';
+import { authFetcher, APIError } from '../lib/swr';
+import { authFetch } from '../lib/auth/client';
 
 // ============================================================================
 // TYPES
@@ -47,8 +51,6 @@ export interface UseChatHistoryOptions {
   onDeleteChat?: (chatId: string) => void;
   /** Called on error */
   onError?: (error: Error) => void;
-  /** Called on 401 to refresh session (enables auto-retry) */
-  onUnauthorized?: () => Promise<void>;
 }
 
 export interface UseChatHistoryResult {
@@ -72,9 +74,7 @@ export interface UseChatHistoryResult {
   deleteChat: (chatId: string) => Promise<void>;
   /** Delete all chats */
   deleteAllChats: () => Promise<void>;
-  /** Currently selected chat ID */
-  selectedChatId: string | null;
-  /** Select a chat */
+  /** Select a chat (for callbacks) */
   selectChat: (chatId: string | null) => void;
 }
 
@@ -136,6 +136,38 @@ function groupChatsByDate(chats: Chat[]): GroupedChats {
 }
 
 // ============================================================================
+// SWR KEY GENERATOR
+// ============================================================================
+
+const PAGE_SIZE = 20;
+
+/**
+ * Generates the SWR key for pagination.
+ * Returns null when there's no more data to fetch.
+ */
+function getChatHistoryKey(api: string, pageSize: number) {
+  return (pageIndex: number, previousPageData: ChatHistoryPage | null) => {
+    // No more pages
+    if (previousPageData && !previousPageData.hasMore) {
+      return null;
+    }
+
+    // First page
+    if (pageIndex === 0) {
+      return `${api}/history?limit=${pageSize}`;
+    }
+
+    // Get cursor from last item of previous page
+    const lastChat = previousPageData?.chats.at(-1);
+    if (!lastChat) {
+      return null;
+    }
+
+    return `${api}/history?ending_before=${lastChat.id}&limit=${pageSize}`;
+  };
+}
+
+// ============================================================================
 // HOOK
 // ============================================================================
 
@@ -144,148 +176,134 @@ export function useChatHistory(
 ): UseChatHistoryResult {
   const {
     api = '/api',
-    pageSize = 20,
+    pageSize = PAGE_SIZE,
     onSelectChat,
     onDeleteChat,
     onError,
-    onUnauthorized,
   } = options;
 
-  const [chats, setChats] = useState<Chat[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
-  const [error, setError] = useState<Error | null>(null);
-  const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
+  const { mutate: globalMutate } = useSWRConfig();
+
+  // SWR Infinite for paginated data
+  const {
+    data: pages,
+    error,
+    isLoading,
+    isValidating,
+    size,
+    setSize,
+    mutate,
+  } = useSWRInfinite<ChatHistoryPage>(
+    getChatHistoryKey(api, pageSize),
+    authFetcher,
+    {
+      revalidateFirstPage: true,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      onError: (err) => {
+        onError?.(err instanceof Error ? err : new Error(String(err)));
+      },
+    }
+  );
+
+  // React Native-specific revalidation (screen focus, app foreground, reconnect)
+  // Cast to any because useSWRInfinite's mutate type is slightly different
+  useSWRNativeRevalidate({
+    mutate: mutate as any,
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+  });
+
+  // Flatten all pages into a single chats array
+  const chats = useMemo(() => {
+    if (!pages) return [];
+    return pages.flatMap((page) => page.chats);
+  }, [pages]);
 
   // Memoized grouped chats
   const groupedChats = useMemo(() => groupChatsByDate(chats), [chats]);
 
-  // Fetch a page of chats
-  const fetchPage = useCallback(
-    async (cursor?: string): Promise<ChatHistoryPage> => {
-      const params = new URLSearchParams({ limit: String(pageSize) });
-      if (cursor) {
-        params.set('ending_before', cursor);
-      }
+  // Check if there are more pages to load
+  const hasMore = useMemo(() => {
+    if (!pages || pages.length === 0) return true;
+    return pages[pages.length - 1]?.hasMore ?? false;
+  }, [pages]);
 
-      const response = await authFetchWithRetry(
-        `${api}/history?${params}`,
-        {},
-        onUnauthorized
-      );
-      if (!response.ok) {
-        if (response.status === 401) {
-          throw new Error('Unauthorized');
-        }
-        throw new Error(`Failed to fetch history: ${response.statusText}`);
-      }
-
-      return response.json();
-    },
-    [api, pageSize, onUnauthorized]
-  );
-
-  // Initial load
-  const refresh = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const page = await fetchPage();
-      setChats(page.chats);
-      setHasMore(page.hasMore);
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      setError(error);
-      onError?.(error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchPage, onError]);
+  // Loading more = we've set size but validation is still in progress
+  const isLoadingMore = isValidating && size > 1 && pages && pages.length < size;
 
   // Load more (infinite scroll)
   const loadMore = useCallback(async () => {
-    if (isLoadingMore || !hasMore || chats.length === 0) return;
+    if (isValidating || !hasMore) return;
+    await setSize(size + 1);
+  }, [hasMore, isValidating, setSize, size]);
 
-    setIsLoadingMore(true);
+  // Refresh the entire list
+  const refresh = useCallback(async () => {
+    await mutate();
+  }, [mutate]);
 
-    try {
-      const lastChat = chats[chats.length - 1];
-      const page = await fetchPage(lastChat.id);
-      setChats((prev) => [...prev, ...page.chats]);
-      setHasMore(page.hasMore);
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      setError(error);
-      onError?.(error);
-    } finally {
-      setIsLoadingMore(false);
-    }
-  }, [chats, fetchPage, hasMore, isLoadingMore, onError]);
-
-  // Delete a chat
+  // Delete a chat with optimistic update
   const deleteChat = useCallback(
     async (chatId: string) => {
+      // Optimistically remove the chat from the cache
+      await mutate(
+        (currentPages) => {
+          if (!currentPages) return currentPages;
+          return currentPages.map((page) => ({
+            ...page,
+            chats: page.chats.filter((c) => c.id !== chatId),
+          }));
+        },
+        { revalidate: false }
+      );
+
       try {
-        const response = await authFetchWithRetry(
-          `${api}/chats/${chatId}`,
-          { method: 'DELETE' },
-          onUnauthorized
-        );
+        const response = await authFetch(`${api}/chats/${chatId}`, {
+          method: 'DELETE',
+        });
 
         if (!response.ok) {
           throw new Error(`Failed to delete chat: ${response.statusText}`);
         }
 
-        // Remove from local state
-        setChats((prev) => prev.filter((c) => c.id !== chatId));
-
-        // Clear selection if deleted chat was selected
-        if (selectedChatId === chatId) {
-          setSelectedChatId(null);
-        }
-
         onDeleteChat?.(chatId);
       } catch (err) {
+        // Revert on error
+        await mutate();
         const error = err instanceof Error ? err : new Error(String(err));
-        setError(error);
         onError?.(error);
         throw error;
       }
     },
-    [api, onDeleteChat, onError, onUnauthorized, selectedChatId]
+    [api, mutate, onDeleteChat, onError]
   );
 
   // Delete all chats
   const deleteAllChats = useCallback(async () => {
+    // Optimistically clear all
+    await mutate([], { revalidate: false });
+
     try {
-      const response = await authFetchWithRetry(
-        `${api}/history`,
-        { method: 'DELETE' },
-        onUnauthorized
-      );
+      const response = await authFetch(`${api}/history`, {
+        method: 'DELETE',
+      });
 
       if (!response.ok) {
         throw new Error(`Failed to delete all chats: ${response.statusText}`);
       }
-
-      // Clear local state
-      setChats([]);
-      setSelectedChatId(null);
-      setHasMore(false);
     } catch (err) {
+      // Revert on error
+      await mutate();
       const error = err instanceof Error ? err : new Error(String(err));
-      setError(error);
       onError?.(error);
       throw error;
     }
-  }, [api, onError, onUnauthorized]);
+  }, [api, mutate, onError]);
 
-  // Select a chat
+  // Select a chat (just triggers callback)
   const selectChat = useCallback(
     (chatId: string | null) => {
-      setSelectedChatId(chatId);
       if (chatId) {
         const chat = chats.find((c) => c.id === chatId);
         if (chat) {
@@ -296,23 +314,17 @@ export function useChatHistory(
     [chats, onSelectChat]
   );
 
-  // Initial load on mount
-  useEffect(() => {
-    refresh();
-  }, [refresh]);
-
   return {
     chats,
     groupedChats,
     isLoading,
-    isLoadingMore,
+    isLoadingMore: isLoadingMore ?? false,
     hasMore,
-    error,
+    error: error || null,
     loadMore,
     refresh,
     deleteChat,
     deleteAllChats,
-    selectedChatId,
     selectChat,
   };
 }
