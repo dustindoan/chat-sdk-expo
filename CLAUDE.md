@@ -28,7 +28,10 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 - **Phase 12:** Authentication - Better Auth with email/password, guest users, user-scoped data, rate limiting, redirect-after-login
 
 ### Next Up
-- **Phase 13:** TBD (suggestions: real-time collaboration, search, export, themes)
+- **Phase 13:** Suggested Actions - Clickable prompt suggestions on empty chat
+- **Phase 14:** Message Voting - Thumbs up/down with persistence
+
+See [Feature Parity Roadmap](#feature-parity-roadmap) for complete plan.
 
 ---
 
@@ -527,13 +530,83 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/chat
 
 ## Future Phase Plans
 
-### Phase 13+: Ideas
+### Feature Parity Roadmap
+
+Based on comprehensive analysis of Vercel's chat-sdk, here are the remaining features needed for full parity:
+
+| Phase | Feature | Description | Complexity | Parity Impact |
+|-------|---------|-------------|------------|---------------|
+| **13** | Suggested Actions | Clickable prompt suggestions on empty chat state | Low | High |
+| **14** | Message Voting | Thumbs up/down feedback with database persistence | Medium | High |
+| **15** | Spreadsheet Artifacts | CSV-based sheet documents with data grid UI | Medium | High |
+| **16** | Image Artifacts | AI image generation display and streaming | Medium | Medium |
+| **17** | In-Browser Code Execution | WASM/pyodide sandbox for running code | High | High |
+| **18** | Resumable Streams | Redis-backed stream recovery on disconnect | Medium | Medium |
+| **19** | Request Suggestions | AI writing suggestions for documents (collaborative editing) | Medium | Medium |
+| **20** | Advanced Visualization | ChainOfThought, Plan, Queue, Task components | Medium | Low |
+| **21** | CodeMirror Editor | Rich code editing with 10+ language syntax highlighting | Medium | Medium |
+| **22** | Math Rendering | KaTeX integration for equations | Low | Low |
+| **23** | Cursor Pagination | Efficient chat history loading with startingAfter/endingBefore | Low | Low |
+| **24** | Chat Search & Export | Full-text search, export to PDF/markdown/JSON | Medium | Medium |
+| **25** | Cloud File Storage | Vercel Blob equivalent for large file uploads | Medium | Low |
+| **26** | Telemetry & Monitoring | OpenTelemetry integration for production | Low | Low |
+
+### Current Feature Parity Status
+
+**Implemented (Phases 1-12):**
+- ✅ Message streaming & persistence
+- ✅ Model selector (Claude variants)
+- ✅ Tool system with custom UI (weather, temperature, documents)
+- ✅ Artifacts (text/code) with version history
+- ✅ File attachments with vision
+- ✅ Message editing & regeneration
+- ✅ Extended thinking display
+- ✅ Tool approval flow (human-in-the-loop)
+- ✅ Authentication with user-scoped data
+
+**Not Yet Implemented:**
+- ❌ Suggested actions (empty state prompts)
+- ❌ Message voting
+- ❌ Spreadsheet/image artifact types
+- ❌ In-browser code execution
+- ❌ Resumable streams
+- ❌ Request suggestions (collaborative editing)
+- ❌ Advanced visualization components
+- ❌ CodeMirror/KaTeX
+- ❌ Chat search
+
+**Estimated Parity: ~45%** (12 of 26 feature areas)
+
+### Phase Priority Recommendations
+
+**Quick Wins (1-2 days each):**
+- Phase 13: Suggested Actions - Great UX improvement, no backend changes
+- Phase 22: Math Rendering - Small addition, good for technical users
+
+**High Value (3-5 days each):**
+- Phase 14: Message Voting - Completes existing UI, adds feedback loop
+- Phase 15: Spreadsheet Artifacts - New content type, high utility
+
+**Major Features (1-2 weeks each):**
+- Phase 17: In-Browser Code Execution - Key differentiator
+- Phase 18: Resumable Streams - Production reliability
+
+### Notes on Feature Differences
+
+**Generative UI:** The chat-sdk markets "Generative UI" but actually uses the same tool-based pattern we have (tools return JSON → client renders components). The RSC-based `streamUI` approach is experimental, paused, and Next.js-only. Our tool registry pattern is the correct approach for React Native.
+
+**Platform Limitations:** Some chat-sdk features are web-only:
+- CodeMirror (web editor, needs RN alternative)
+- In-browser WASM execution (limited mobile support)
+- Resumable streams (Redis typically server-side)
+
+### Additional Ideas (Beyond Parity)
+
 - Real-time collaboration (multiple users editing same document)
-- Chat search (full-text search across messages)
-- Export functionality (PDF, markdown, JSON)
-- Custom themes / light mode
-- Keyboard shortcuts
+- Custom themes / light mode toggle
+- Keyboard shortcuts panel
 - Voice input/output
 - Mobile-specific optimizations (haptics, gestures)
 - Push notifications
 - Offline support with sync
+- Chat sharing (public links)
