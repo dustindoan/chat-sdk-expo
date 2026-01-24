@@ -158,6 +158,12 @@ export interface MessageInputProps {
   supportsReasoning?: boolean;
 }
 
+// Ref handle for MessageInput to allow imperative control
+export interface MessageInputHandle {
+  /** Clear the input and dismiss any pending iOS autocorrect */
+  clear: () => void;
+}
+
 // Reasoning part from AI SDK (extended thinking)
 export interface ReasoningPart {
   type: 'reasoning';

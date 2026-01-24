@@ -2,6 +2,11 @@ import { createAuthClient } from 'better-auth/react';
 import { expoClient } from '@better-auth/expo/client';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import Constants from 'expo-constants';
+
+// Storage prefix for Better Auth expo client
+// Used to construct storage keys: `${AUTH_STORAGE_PREFIX}_cookie`, etc.
+export const AUTH_STORAGE_PREFIX = 'ai-chat-app';
 
 // Get base URL for auth client
 // Better-auth requires a full URL, not a relative path
@@ -14,7 +19,24 @@ function getAuthBaseURL(): string {
     // Fallback for SSR or when window is not available
     return 'http://localhost:8081/api/auth';
   }
-  // On native, we need full URL to the expo dev server
+
+  // On native, use the Expo dev server URL
+  // Constants.experienceUrl looks like: exp://192.168.4.127:8081
+  const experienceUrl = Constants.experienceUrl;
+  if (experienceUrl) {
+    // Extract host and port, convert to http URL
+    const match = experienceUrl.match(/exp:\/\/([^:]+):(\d+)/);
+    if (match) {
+      const [, host, port] = match;
+      return `http://${host}:8081/api/auth`;
+    }
+    // Try simpler replacement
+    const origin = experienceUrl.replace('exp://', 'http://');
+    return `${origin.replace(/:\d+$/, ':8081')}/api/auth`;
+  }
+
+  // Fallback for production or when experienceUrl is not available
+  // Use localhost - this works when running on same machine
   return 'http://localhost:8081/api/auth';
 }
 
@@ -22,8 +44,8 @@ export const authClient = createAuthClient({
   baseURL: getAuthBaseURL(),
   plugins: [
     expoClient({
-      scheme: 'ai-chat-app',
-      storagePrefix: 'ai-chat-app',
+      scheme: AUTH_STORAGE_PREFIX,
+      storagePrefix: AUTH_STORAGE_PREFIX,
       storage: SecureStore,
     }),
   ],
@@ -40,8 +62,8 @@ export const { signIn, signUp, signOut, useSession, getSession } = authClient;
 
 /**
  * Get the auth cookie for manual fetch requests.
- * On native, this retrieves the session token from SecureStore.
- * On web, cookies are handled automatically.
+ * On native, uses authClient.getCookie() as recommended by Better Auth docs.
+ * On web, cookies are handled automatically by the browser.
  */
 export async function getAuthCookie(): Promise<string | null> {
   if (Platform.OS === 'web') {
@@ -50,12 +72,10 @@ export async function getAuthCookie(): Promise<string | null> {
   }
 
   try {
-    // The expoClient stores the session with this key pattern
-    const token = await SecureStore.getItemAsync('ai-chat-app.better-auth.session_token');
-    if (token) {
-      return `better-auth.session_token=${token}`;
-    }
-    return null;
+    // Use the official Better Auth method to get cookies
+    // This handles the internal storage key format correctly
+    const cookie = await authClient.getCookie();
+    return cookie || null;
   } catch {
     return null;
   }

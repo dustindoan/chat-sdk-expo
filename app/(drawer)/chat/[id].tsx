@@ -1,9 +1,10 @@
 import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useEffect, useState, useCallback } from 'react';
 import { ChatUI } from '../../../components/ChatUI';
 import { generateAPIUrl } from '../../../utils';
 import { colors } from '../../../components/theme';
+import { useChatHistoryContext } from '../../../contexts/ChatHistoryContext';
 import type { UIMessage } from '@ai-sdk/react';
 
 interface ChatData {
@@ -22,9 +23,17 @@ interface ChatData {
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const router = useRouter();
+  const { requestNewChat } = useChatHistoryContext();
   const [chatData, setChatData] = useState<ChatData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // When model type changes, navigate to home to start a new chat with the new model
+  const handleRequestNewChat = useCallback((modelId: string) => {
+    requestNewChat(modelId);
+    router.replace('/');
+  }, [router, requestNewChat]);
 
   useEffect(() => {
     async function loadChat() {
@@ -83,6 +92,7 @@ export default function ChatScreen() {
         welcomeMessage="Hello there!"
         welcomeSubtitle="How can I help you today?"
         placeholder="Send a message..."
+        onRequestNewChat={handleRequestNewChat}
       />
     </View>
   );

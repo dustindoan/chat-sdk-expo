@@ -1,14 +1,31 @@
 import Constants from 'expo-constants';
+import { Platform } from 'react-native';
 
 export function generateAPIUrl(relativePath: string) {
-  const origin =
-    Constants.experienceUrl?.replace('exp://', 'http://') ??
-    (typeof window !== 'undefined' ? window.location.origin : '');
+  let origin = '';
+
+  if (Platform.OS === 'web') {
+    origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8081';
+  } else {
+    // On native, use experienceUrl or fallback to localhost
+    const expUrl = Constants.experienceUrl;
+    if (expUrl) {
+      origin = expUrl.replace('exp://', 'http://');
+    } else {
+      // Fallback - try to get from manifest
+      const hostUri = Constants.expoConfig?.hostUri;
+      if (hostUri) {
+        origin = `http://${hostUri}`;
+      } else {
+        origin = 'http://localhost:8081';
+      }
+    }
+  }
 
   const path = relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
 
   if (process.env.NODE_ENV === 'development') {
-    // In development, use the Expo dev server
+    // In development, use the Expo dev server on port 8081
     return origin.replace(/:\d+/, ':8081') + path;
   }
 

@@ -18,6 +18,7 @@ import {
   Platform,
   useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useArtifact } from '../../contexts/ArtifactContext';
 import { ArtifactHeader } from './ArtifactHeader';
@@ -52,6 +53,7 @@ export const ArtifactPanel = memo(function ArtifactPanel({
     isCurrentVersion,
   } = useArtifact();
   const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const [isRestoring, setIsRestoring] = useState(false);
 
   // Fetch versions when panel opens with a document
@@ -246,6 +248,8 @@ export const ArtifactPanel = memo(function ArtifactPanel({
           {
             width: panelWidth,
             height: windowHeight,
+            paddingTop: insets.top,
+            paddingBottom: insets.bottom,
             transform: [{ translateX: slideAnim }],
           },
         ]}

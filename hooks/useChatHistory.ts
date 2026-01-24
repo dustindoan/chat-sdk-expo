@@ -2,17 +2,16 @@
  * useChatHistory - Hook for managing chat history state with SWR
  *
  * Provides:
- * - Paginated chat list with infinite scroll via useSWRInfinite
+ * - Simple fetch of recent chats (last 20)
  * - Automatic caching and revalidation
  * - Delete chat functionality with optimistic updates
  * - Grouping by date (Today, Yesterday, Last 7 days, etc.)
  */
 
 import { useCallback, useMemo } from 'react';
-import useSWRInfinite from 'swr/infinite';
-import { useSWRConfig } from 'swr';
+import useSWR from 'swr';
 import { useSWRNativeRevalidate } from '@nandorojo/swr-react-native';
-import { authFetcher, APIError } from '../lib/swr';
+import { authFetcher } from '../lib/swr';
 import { authFetch } from '../lib/auth/client';
 
 // ============================================================================
@@ -27,7 +26,7 @@ export interface Chat {
   updatedAt: Date | string;
 }
 
-export interface ChatHistoryPage {
+export interface ChatHistoryResponse {
   chats: Chat[];
   hasMore: boolean;
 }
@@ -43,8 +42,8 @@ export interface GroupedChats {
 export interface UseChatHistoryOptions {
   /** API base URL for history endpoints */
   api?: string;
-  /** Page size for pagination */
-  pageSize?: number;
+  /** Number of chats to fetch */
+  limit?: number;
   /** Called when a chat is selected */
   onSelectChat?: (chat: Chat) => void;
   /** Called when chat is deleted */
@@ -60,13 +59,13 @@ export interface UseChatHistoryResult {
   groupedChats: GroupedChats;
   /** Whether initial load is in progress */
   isLoading: boolean;
-  /** Whether more pages are being loaded */
+  /** Whether more pages are being loaded (kept for API compatibility) */
   isLoadingMore: boolean;
-  /** Whether there are more pages to load */
+  /** Whether there are more chats available (kept for API compatibility) */
   hasMore: boolean;
   /** Error if any */
   error: Error | null;
-  /** Load more chats (for infinite scroll) */
+  /** Load more chats (no-op, kept for API compatibility) */
   loadMore: () => Promise<void>;
   /** Refresh the chat list */
   refresh: () => Promise<void>;
@@ -136,68 +135,33 @@ function groupChatsByDate(chats: Chat[]): GroupedChats {
 }
 
 // ============================================================================
-// SWR KEY GENERATOR
-// ============================================================================
-
-const PAGE_SIZE = 20;
-
-/**
- * Generates the SWR key for pagination.
- * Returns null when there's no more data to fetch.
- */
-function getChatHistoryKey(api: string, pageSize: number) {
-  return (pageIndex: number, previousPageData: ChatHistoryPage | null) => {
-    // No more pages
-    if (previousPageData && !previousPageData.hasMore) {
-      return null;
-    }
-
-    // First page
-    if (pageIndex === 0) {
-      return `${api}/history?limit=${pageSize}`;
-    }
-
-    // Get cursor from last item of previous page
-    const lastChat = previousPageData?.chats.at(-1);
-    if (!lastChat) {
-      return null;
-    }
-
-    return `${api}/history?ending_before=${lastChat.id}&limit=${pageSize}`;
-  };
-}
-
-// ============================================================================
 // HOOK
 // ============================================================================
+
+const DEFAULT_LIMIT = 20;
 
 export function useChatHistory(
   options: UseChatHistoryOptions = {}
 ): UseChatHistoryResult {
   const {
     api = '/api',
-    pageSize = PAGE_SIZE,
+    limit = DEFAULT_LIMIT,
     onSelectChat,
     onDeleteChat,
     onError,
   } = options;
 
-  const { mutate: globalMutate } = useSWRConfig();
-
-  // SWR Infinite for paginated data
+  // Simple SWR fetch for recent chats
   const {
-    data: pages,
+    data,
     error,
     isLoading,
     isValidating,
-    size,
-    setSize,
     mutate,
-  } = useSWRInfinite<ChatHistoryPage>(
-    getChatHistoryKey(api, pageSize),
+  } = useSWR<ChatHistoryResponse>(
+    `${api}/history?limit=${limit}`,
     authFetcher,
     {
-      revalidateFirstPage: true,
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
       onError: (err) => {
@@ -207,38 +171,27 @@ export function useChatHistory(
   );
 
   // React Native-specific revalidation (screen focus, app foreground, reconnect)
-  // Cast to any because useSWRInfinite's mutate type is slightly different
   useSWRNativeRevalidate({
-    mutate: mutate as any,
+    mutate,
     revalidateOnFocus: true,
     revalidateOnReconnect: true,
   });
 
-  // Flatten all pages into a single chats array
-  const chats = useMemo(() => {
-    if (!pages) return [];
-    return pages.flatMap((page) => page.chats);
-  }, [pages]);
+  // Extract chats from response
+  const chats = useMemo(() => data?.chats ?? [], [data]);
 
   // Memoized grouped chats
   const groupedChats = useMemo(() => groupChatsByDate(chats), [chats]);
 
-  // Check if there are more pages to load
-  const hasMore = useMemo(() => {
-    if (!pages || pages.length === 0) return true;
-    return pages[pages.length - 1]?.hasMore ?? false;
-  }, [pages]);
+  // Check if there are more chats available
+  const hasMore = data?.hasMore ?? false;
 
-  // Loading more = we've set size but validation is still in progress
-  const isLoadingMore = isValidating && size > 1 && pages && pages.length < size;
-
-  // Load more (infinite scroll)
+  // Load more - no-op for simple implementation (kept for API compatibility)
   const loadMore = useCallback(async () => {
-    if (isValidating || !hasMore) return;
-    await setSize(size + 1);
-  }, [hasMore, isValidating, setSize, size]);
+    // No pagination in simplified version
+  }, []);
 
-  // Refresh the entire list
+  // Refresh the list
   const refresh = useCallback(async () => {
     await mutate();
   }, [mutate]);
@@ -248,12 +201,12 @@ export function useChatHistory(
     async (chatId: string) => {
       // Optimistically remove the chat from the cache
       await mutate(
-        (currentPages) => {
-          if (!currentPages) return currentPages;
-          return currentPages.map((page) => ({
-            ...page,
-            chats: page.chats.filter((c) => c.id !== chatId),
-          }));
+        (current) => {
+          if (!current) return current;
+          return {
+            ...current,
+            chats: current.chats.filter((c) => c.id !== chatId),
+          };
         },
         { revalidate: false }
       );
@@ -282,7 +235,7 @@ export function useChatHistory(
   // Delete all chats
   const deleteAllChats = useCallback(async () => {
     // Optimistically clear all
-    await mutate([], { revalidate: false });
+    await mutate({ chats: [], hasMore: false }, { revalidate: false });
 
     try {
       const response = await authFetch(`${api}/history`, {
@@ -318,7 +271,7 @@ export function useChatHistory(
     chats,
     groupedChats,
     isLoading,
-    isLoadingMore: isLoadingMore ?? false,
+    isLoadingMore: false, // No pagination
     hasMore,
     error: error || null,
     loadMore,

@@ -64,19 +64,23 @@ export function ChatHistoryList({
   });
 
   // Track previous user ID to detect user changes
-  const prevUserIdRef = useRef<string | null>(null);
+  const prevUserIdRef = useRef<string | undefined>(undefined);
 
   // Refresh chat history when user changes (login/logout)
   useEffect(() => {
-    const currentUserId = user?.id ?? null;
+    const currentUserId = user?.id;
 
-    // If user changed (not initial load), refresh the history
-    if (prevUserIdRef.current !== null && prevUserIdRef.current !== currentUserId) {
-      history.refresh();
+    // If user changed (not just initial load), refresh the history
+    if (prevUserIdRef.current !== undefined && prevUserIdRef.current !== currentUserId) {
+      // Use a small delay to ensure the new session is fully established
+      const timeoutId = setTimeout(() => {
+        history.refresh();
+      }, 100);
+      return () => clearTimeout(timeoutId);
     }
 
     prevUserIdRef.current = currentUserId;
-  }, [user?.id, history]);
+  }, [user?.id, history.refresh]); // Use history.refresh directly for stable reference
 
   const handleLogout = useCallback(async () => {
     setIsLoggingOut(true);
@@ -145,15 +149,6 @@ export function ChatHistoryList({
       <ScrollView
         style={styles.listContainer}
         contentContainerStyle={styles.listContent}
-        onScroll={({ nativeEvent }) => {
-          const { layoutMeasurement, contentOffset, contentSize } = nativeEvent;
-          const isNearBottom =
-            layoutMeasurement.height + contentOffset.y >= contentSize.height - 100;
-          if (isNearBottom && !history.isLoadingMore && history.hasMore) {
-            history.loadMore();
-          }
-        }}
-        scrollEventThrottle={400}
       >
         {history.isLoading ? (
           <LoadingSkeleton />
@@ -169,17 +164,6 @@ export function ChatHistoryList({
             onRefresh={handlePullToRefresh}
             isRefreshing={isRefreshing}
           />
-        )}
-
-        {history.isLoadingMore && (
-          <View style={styles.loadingMore}>
-            <ActivityIndicator size="small" color={colors.accent.primary} />
-            <Text style={styles.loadingMoreText}>Loading...</Text>
-          </View>
-        )}
-
-        {!history.hasMore && history.chats.length > 0 && (
-          <Text style={styles.endOfList}>End of chat history</Text>
         )}
       </ScrollView>
 
@@ -594,25 +578,6 @@ const styles = StyleSheet.create({
   dropdownItemText: {
     fontSize: 14,
     color: colors.accent.error,
-  },
-
-  // Loading
-  loadingMore: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 20,
-  },
-  loadingMoreText: {
-    fontSize: 14,
-    color: colors.text.secondary,
-  },
-  endOfList: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: colors.text.tertiary,
-    paddingVertical: 20,
   },
 
   // Skeleton

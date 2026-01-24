@@ -1,11 +1,20 @@
 import { View, StyleSheet, Platform } from 'react-native';
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { ChatUI } from '../../components/ChatUI';
 import { useChatHistoryContext } from '../../contexts/ChatHistoryContext';
 import { generateAPIUrl } from '../../utils';
 
 export default function NewChatScreen() {
-  const { refreshHistory, newChatKey } = useChatHistoryContext();
+  const { refreshHistory, newChatKey, requestNewChat, pendingModelId, clearPendingModelId } = useChatHistoryContext();
+
+  // Clear pending model ID after it's been used
+  useEffect(() => {
+    if (pendingModelId) {
+      // Clear it after a short delay to ensure ChatUI has read it
+      const timer = setTimeout(clearPendingModelId, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [pendingModelId, clearPendingModelId]);
 
   // When the first message is sent and chat is created in DB
   const handleChatCreated = useCallback(
@@ -30,6 +39,8 @@ export default function NewChatScreen() {
         welcomeSubtitle="How can I help you today?"
         placeholder="Send a message..."
         onChatCreated={handleChatCreated}
+        onRequestNewChat={requestNewChat}
+        initialModelId={pendingModelId || undefined}
       />
     </View>
   );

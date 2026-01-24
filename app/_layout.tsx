@@ -8,6 +8,7 @@ import { SWRConfig } from 'swr';
 import { ToastProvider } from '../components/toast';
 import { ArtifactProvider } from '../contexts/ArtifactContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { LocalLLMProvider } from '../contexts/LocalLLMContext';
 import { SideBySideLayout } from '../components/SideBySideLayout';
 import { colors } from '../components/theme';
 import { authFetcher } from '../lib/swr';
@@ -43,9 +44,10 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
         <AuthProvider>
-          <SWRConfig value={swrConfig}>
-            <ToastProvider>
-              <ArtifactProvider>
+          <LocalLLMProvider>
+            <SWRConfig value={swrConfig}>
+              <ToastProvider>
+                <ArtifactProvider>
                 <AuthGate>
                   <SideBySideLayout>
                     <Stack
@@ -61,9 +63,10 @@ export default function RootLayout() {
                     </Stack>
                   </SideBySideLayout>
                 </AuthGate>
-              </ArtifactProvider>
-            </ToastProvider>
-          </SWRConfig>
+                </ArtifactProvider>
+              </ToastProvider>
+            </SWRConfig>
+          </LocalLLMProvider>
         </AuthProvider>
       </KeyboardProvider>
     </GestureHandlerRootView>

@@ -9,7 +9,8 @@ import React, {
 } from 'react';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
-import { authClient, useSession } from '../lib/auth/client';
+import { useSWRConfig } from 'swr';
+import { authClient, useSession, AUTH_STORAGE_PREFIX } from '../lib/auth/client';
 import { generateAPIUrl } from '../utils';
 import { isGuestEmail } from '../lib/constants';
 
@@ -37,21 +38,86 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// Storage key for session token on native
-const SESSION_TOKEN_KEY = 'ai-chat-app.better-auth.session_token';
+// Storage key matching expo plugin format: {storagePrefix}_cookie
+// The expo plugin stores cookies in JSON format: { "cookie-name": { value, expires } }
+const EXPO_COOKIE_STORAGE_KEY = `${AUTH_STORAGE_PREFIX}_cookie`;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const hasInitialized = useRef(false);
 
+  // SWR cache mutate for invalidating chat history on auth changes
+  const { mutate: globalMutate } = useSWRConfig();
+
   // Use Better Auth's useSession hook for automatic refresh
-  // This handles refetchOnWindowFocus and refetchInterval automatically
   const { data: sessionData, isPending: sessionPending, refetch: refetchSession } = useSession();
 
-  // Sync session data to user state
+  // On React Native, useSession's isServer() check may incorrectly return true
+  // because `window` is undefined. We need to manually trigger a fetch on native.
+  // See: https://github.com/better-auth/better-auth/issues/4570
   useEffect(() => {
-    if (sessionPending) return;
+    if (hasInitialized.current) return;
+
+    const initAuth = async () => {
+      // On native platforms, useSession may not auto-fetch due to window check
+      // Force a session fetch to ensure we get the initial state
+      if (Platform.OS !== 'web') {
+        try {
+          const session = await authClient.getSession();
+          if (session?.data?.user) {
+            const userData = session.data.user as any;
+            setUser({
+              id: userData.id,
+              name: userData.name,
+              email: userData.email,
+              image: userData.image,
+              type: userData.type || 'regular',
+            });
+            setIsLoading(false);
+            hasInitialized.current = true;
+            return;
+          }
+        } catch (error) {
+          console.error('[Auth] Session fetch error:', error);
+        }
+      }
+
+      // Wait a bit for useSession to resolve on web, or fall through on native
+      // If no session data after a short delay, create guest session
+      setTimeout(async () => {
+        if (hasInitialized.current) return;
+        hasInitialized.current = true;
+
+        const currentSession = sessionData;
+        if (currentSession?.user) {
+          const userData = currentSession.user as any;
+          setUser({
+            id: userData.id,
+            name: userData.name,
+            email: userData.email,
+            image: userData.image,
+            type: userData.type || 'regular',
+          });
+        } else {
+          // No session - create guest
+          try {
+            await createGuestSession();
+          } catch (guestError) {
+            console.error('[Auth] Guest creation failed:', guestError);
+            setUser(null);
+          }
+        }
+        setIsLoading(false);
+      }, Platform.OS === 'web' ? 100 : 0);
+    };
+
+    initAuth();
+  }, []);
+
+  // Sync useSession updates to user state (for web and after sign-in/sign-out)
+  useEffect(() => {
+    if (!hasInitialized.current) return;
 
     if (sessionData?.user) {
       const userData = sessionData.user as any;
@@ -62,17 +128,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         image: userData.image,
         type: userData.type || 'regular',
       });
-      setIsLoading(false);
-      hasInitialized.current = true;
-    } else if (hasInitialized.current) {
-      // Session was lost (expired/cleared) - create new guest session
-      createGuestSession().catch(console.error);
-    } else {
-      // Initial load with no session - create guest
-      hasInitialized.current = true;
-      createGuestSession().catch(console.error);
     }
-  }, [sessionData, sessionPending]);
+  }, [sessionData]);
 
   // Legacy checkSession for backward compatibility
   const checkSession = useCallback(async () => {
@@ -119,9 +176,50 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const data = await response.json();
 
-    // Store session token on native platforms
-    if (Platform.OS !== 'web' && data.session?.token) {
-      await SecureStore.setItemAsync(SESSION_TOKEN_KEY, data.session.token);
+    // Store session token on native platforms in expo plugin format
+    // The expo plugin expects: { "cookie-name": { value: "...", expires: "..." } }
+    if (Platform.OS !== 'web') {
+      const setCookieHeader = response.headers.get('set-cookie');
+      if (setCookieHeader) {
+        // Parse cookies from Set-Cookie header and store in expo plugin format
+        const cookieStore: Record<string, { value: string; expires: string | null }> = {};
+
+        // Split multiple cookies (may be comma-separated)
+        const cookies = setCookieHeader.split(/,(?=\s*[^;=]+=[^;]*(?:;|$))/);
+        for (const cookie of cookies) {
+          const [nameValue, ...attrs] = cookie.split(';').map(s => s.trim());
+          const [name, ...valueParts] = (nameValue || '').split('=');
+          const value = valueParts.join('=');
+
+          if (name && value) {
+            // Find expires or max-age attribute
+            let expires: string | null = null;
+            for (const attr of attrs) {
+              const [attrName, ...attrValueParts] = attr.split('=');
+              const attrValue = attrValueParts.join('=');
+              const normalizedName = attrName?.trim().toLowerCase();
+
+              if (normalizedName === 'expires') {
+                expires = new Date(attrValue).toISOString();
+              } else if (normalizedName === 'max-age') {
+                expires = new Date(Date.now() + Number(attrValue) * 1000).toISOString();
+              }
+            }
+
+            // Normalize cookie name (expo plugin replaces : with _)
+            const normalizedCookieName = name.replace(/:/g, '_');
+            cookieStore[normalizedCookieName] = {
+              value: decodeURIComponent(value),
+              expires,
+            };
+          }
+        }
+
+        await SecureStore.setItemAsync(
+          EXPO_COOKIE_STORAGE_KEY,
+          JSON.stringify(cookieStore)
+        );
+      }
     }
 
     setUser({
@@ -136,6 +234,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // The old useEffect that called checkSession is no longer needed
 
   const handleSignIn = useCallback(async (email: string, password: string) => {
+    // Use Better Auth client - it handles token storage via expo plugin
     const result = await authClient.signIn.email({ email, password });
     if (result.error) {
       throw new Error(result.error.message || 'Sign in failed');
@@ -150,10 +249,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         type: userData.type || 'regular',
       });
     }
-  }, []);
+
+    // Small delay to ensure token is stored before SWR revalidation
+    await new Promise(resolve => setTimeout(resolve, 50));
+    // Invalidate all SWR cache to refresh data for new user
+    await globalMutate(() => true, undefined, { revalidate: true });
+  }, [globalMutate]);
 
   const handleSignUp = useCallback(
     async (name: string, email: string, password: string) => {
+      // Use Better Auth client - it handles token storage via expo plugin
       const result = await authClient.signUp.email({ name, email, password });
       if (result.error) {
         throw new Error(result.error.message || 'Sign up failed');
@@ -168,8 +273,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           type: userData.type || 'regular',
         });
       }
+
+      // Small delay to ensure token is stored before SWR revalidation
+      await new Promise(resolve => setTimeout(resolve, 50));
+      // Invalidate all SWR cache to refresh data for new user
+      await globalMutate(() => true, undefined, { revalidate: true });
     },
-    []
+    [globalMutate]
   );
 
   const handleSignInAsGuest = useCallback(async () => {
@@ -183,22 +293,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const handleSignOut = useCallback(async () => {
     await authClient.signOut();
-    // Clear native session token
-    if (Platform.OS !== 'web') {
-      try {
-        await SecureStore.deleteItemAsync(SESSION_TOKEN_KEY);
-      } catch {
-        // Ignore errors when clearing token
-      }
-    }
+    // Note: authClient.signOut() clears the cookie storage via expo plugin
     // After sign out, create a new guest session immediately
     // This ensures the UI updates right away without waiting for useEffect
     await createGuestSession();
-  }, []);
+    // Small delay to ensure the new guest session token is stored
+    await new Promise(resolve => setTimeout(resolve, 50));
+    // Invalidate all SWR cache to refresh data for new user
+    await globalMutate(() => true, undefined, { revalidate: true });
+  }, [globalMutate]);
 
   const refreshSession = useCallback(async () => {
-    // Use Better Auth's refetch which triggers the session refresh manager
-    await refetchSession();
+    // Use Better Auth's refetch to trigger the session refresh manager
+    // This also updates the useSession hook's state
+    try {
+      await refetchSession();
+    } catch (error) {
+      console.error('[Auth] Refresh failed:', error);
+    }
   }, [refetchSession]);
 
   return (

@@ -31,6 +31,7 @@ import {
   extractDataValue,
 } from '../lib/artifacts/types';
 import type { Document } from '../lib/db/schema';
+import { authFetch } from '../lib/auth/client';
 
 /**
  * Stored document data
@@ -171,7 +172,7 @@ export function ArtifactProvider({ children }: { children: ReactNode }) {
     setVersionState((prev) => ({ ...prev, isLoadingVersions: true }));
 
     try {
-      const response = await fetch(`/api/documents?id=${documentId}`);
+      const response = await authFetch(`/api/documents?id=${documentId}`);
       if (!response.ok) {
         throw new Error('Failed to fetch versions');
       }
@@ -237,7 +238,7 @@ export function ArtifactProvider({ children }: { children: ReactNode }) {
 
     try {
       const timestamp = currentVersion.createdAt;
-      const response = await fetch(
+      const response = await authFetch(
         `/api/documents?id=${currentVersion.id}&timestamp=${timestamp}`,
         { method: 'DELETE' }
       );

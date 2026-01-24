@@ -12,7 +12,11 @@ interface ChatHistoryContextValue {
   /** Key that changes when a new chat is requested (use as component key) */
   newChatKey: number;
   /** Request a new chat (increments key to force remount) */
-  requestNewChat: () => void;
+  requestNewChat: (modelId?: string) => void;
+  /** Model ID to use for the new chat (set by requestNewChat) */
+  pendingModelId: string | null;
+  /** Clear the pending model ID (called after ChatUI reads it) */
+  clearPendingModelId: () => void;
 }
 
 const ChatHistoryContext = createContext<ChatHistoryContextValue | null>(null);
@@ -20,6 +24,7 @@ const ChatHistoryContext = createContext<ChatHistoryContextValue | null>(null);
 export function ChatHistoryProvider({ children }: { children: ReactNode }) {
   const [refreshFn, setRefreshFnState] = useState<(() => Promise<void>) | null>(null);
   const [newChatKey, setNewChatKey] = useState(0);
+  const [pendingModelId, setPendingModelId] = useState<string | null>(null);
 
   const setRefreshFn = useCallback((fn: () => Promise<void>) => {
     setRefreshFnState(() => fn);
@@ -31,12 +36,19 @@ export function ChatHistoryProvider({ children }: { children: ReactNode }) {
     }
   }, [refreshFn]);
 
-  const requestNewChat = useCallback(() => {
+  const requestNewChat = useCallback((modelId?: string) => {
+    if (modelId) {
+      setPendingModelId(modelId);
+    }
     setNewChatKey((k) => k + 1);
   }, []);
 
+  const clearPendingModelId = useCallback(() => {
+    setPendingModelId(null);
+  }, []);
+
   return (
-    <ChatHistoryContext.Provider value={{ refreshHistory, setRefreshFn, newChatKey, requestNewChat }}>
+    <ChatHistoryContext.Provider value={{ refreshHistory, setRefreshFn, newChatKey, requestNewChat, pendingModelId, clearPendingModelId }}>
       {children}
     </ChatHistoryContext.Provider>
   );
