@@ -101,7 +101,16 @@ This tests at three levels:
 3. `model.doStream()` - AI SDK streaming
 
 ### Next Up
-See [GitHub Issues](https://github.com/dustindoan/chat-sdk-expo/issues) for planned features.
+
+**Roadmap:** [GitHub Project](https://github.com/users/dustindoan/projects/1)
+
+To pull the prioritized backlog (sorted by Start Date):
+```bash
+gh project item-list 1 --owner dustindoan --format json | \
+  jq -r '.items | sort_by(.["start Date"] // "9999") | .[] | select(.status == "Todo") | "\(.["start Date"]) | \(.title)"'
+```
+
+See [GitHub Issues](https://github.com/dustindoan/chat-sdk-expo/issues) for full issue details.
 
 ---
 
