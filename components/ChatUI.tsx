@@ -2,9 +2,9 @@
  * ChatUI - Pre-styled, dark-themed chat interface
  * Adapted from expo-gen-ui to work with @ai-sdk/react useChat hook
  */
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { View, Platform, StyleSheet, type ViewStyle } from 'react-native';
-import { useChat, type UIMessage } from '@ai-sdk/react';
+import { useChat, type UIMessage, type ChatTransport } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { fetch as expoFetch } from 'expo/fetch';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
@@ -12,15 +12,17 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
 import { colors } from './theme';
 import { MessageList, MessageInput, ModelSelector } from './chat';
-import type { VoteMap } from './chat/types';
+import type { VoteMap, MessageInputHandle } from './chat/types';
 import { useToast } from './toast';
 import { useClipboard } from '../hooks/useClipboard';
 import { useAttachments } from '../hooks/useAttachments';
-import { chatModels, DEFAULT_MODEL_ID, getModelName, modelSupportsReasoning } from '../lib/ai/models';
+import { DEFAULT_MODEL_ID, getModelById, getModelName, modelSupportsReasoning } from '../lib/ai/models';
 import { useArtifact } from '../contexts/ArtifactContext';
-import { getAuthCookie, authFetch, authFetchWithRetry } from '../lib/auth/client';
+import { getAuthCookie, authFetchWithRetry } from '../lib/auth/client';
 import { useAuth } from '../contexts/AuthContext';
 import { generateAPIUrl } from '../utils';
+import { useLocalLLM } from '../contexts/LocalLLMContext';
+import { LocalChatTransport } from '../lib/local-llm';
 
 // Generate a random UUID
 function generateUUID(): string {
@@ -48,6 +50,10 @@ export interface ChatUIProps {
   onChatIdChange?: (chatId: string) => void;
   /** Callback when the first message is sent (chat is created in DB) */
   onChatCreated?: (chatId: string) => void;
+  /** Callback when a new chat should be started (e.g., model type changed), receives the new model ID */
+  onRequestNewChat?: (modelId: string) => void;
+  /** Initial model ID to use (e.g., when switching to local model) */
+  initialModelId?: string;
 }
 
 export function ChatUI({
@@ -59,6 +65,8 @@ export function ChatUI({
   welcomeSubtitle = 'How can I help you today?',
   onChatIdChange,
   onChatCreated,
+  onRequestNewChat,
+  initialModelId,
 }: ChatUIProps) {
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
@@ -66,6 +74,7 @@ export function ChatUI({
   const { copyToClipboard } = useClipboard();
   const { processStreamPart, openFirstDocument } = useArtifact();
   const { refreshSession } = useAuth();
+  const { model: localModel, isPrepared: isLocalModelPrepared } = useLocalLLM();
 
   // File attachments
   const {
@@ -83,8 +92,8 @@ export function ChatUI({
   // Vote state - map of messageId to vote state
   const [votes, setVotes] = useState<VoteMap>({});
 
-  // Model selection state
-  const [selectedModelId, setSelectedModelId] = useState(DEFAULT_MODEL_ID);
+  // Model selection state - use initialModelId if provided
+  const [selectedModelId, setSelectedModelId] = useState(initialModelId || DEFAULT_MODEL_ID);
   const selectedModelIdRef = useRef(selectedModelId);
   const [isModelSelectorOpen, setIsModelSelectorOpen] = useState(false);
 
@@ -97,6 +106,9 @@ export function ChatUI({
 
   // Track if we've notified about chat creation
   const hasNotifiedCreationRef = useRef(false);
+
+  // Ref to MessageInput for clearing (handles iOS autocorrect race condition)
+  const messageInputRef = useRef<MessageInputHandle>(null);
 
   // Keep refs in sync
   useEffect(() => {
@@ -166,7 +178,6 @@ export function ChatUI({
 
     // If unauthorized, refresh session and retry once
     if (response.status === 401) {
-      console.log('Auth expired, refreshing session...');
       await refreshSession();
       return makeRequest();
     }
@@ -174,12 +185,31 @@ export function ChatUI({
     return response;
   }, [refreshSession]);
 
-  // Chat state using @ai-sdk/react
-  const { messages, sendMessage, setMessages, regenerate, status, error, stop, addToolApprovalResponse } = useChat({
-    id: currentChatId,
-    messages: initialMessages,
-    generateId: generateUUID,
-    transport: new DefaultChatTransport({
+  // Check if selected model is local and ready
+  const selectedModel = getModelById(selectedModelId);
+  const isUsingLocalModel = !!(selectedModel?.isLocal && isLocalModelPrepared && localModel);
+
+  // Debug logging
+  console.log('[ChatUI] Model state:', {
+    selectedModelId,
+    isLocal: selectedModel?.isLocal,
+    isLocalModelPrepared,
+    hasLocalModel: !!localModel,
+    isUsingLocalModel,
+  });
+
+  // Create transport based on model type
+  // Dependencies include selectedModelId to ensure transport updates when model changes
+  const transport: ChatTransport = useMemo(() => {
+    console.log('[ChatUI] Creating transport:', { isUsingLocalModel, selectedModelId, isLocalModelPrepared, hasLocalModel: !!localModel });
+
+    if (isUsingLocalModel && localModel) {
+      console.log('[ChatUI] Using LocalChatTransport');
+      return new LocalChatTransport(localModel);
+    }
+
+    console.log('[ChatUI] Using DefaultChatTransport');
+    return new DefaultChatTransport({
       api,
       fetch: transportFetch,
       prepareSendMessagesRequest(request) {
@@ -209,7 +239,15 @@ export function ChatUI({
           },
         };
       },
-    }),
+    });
+  }, [isUsingLocalModel, localModel, api, transportFetch, selectedModelId, isLocalModelPrepared]);
+
+  // Chat state using @ai-sdk/react
+  const { messages, sendMessage, setMessages, regenerate, status, error, stop, addToolApprovalResponse } = useChat({
+    id: currentChatId,
+    messages: initialMessages,
+    generateId: generateUUID,
+    transport,
     // Auto-send when user approves a tool
     sendAutomaticallyWhen: ({ messages: currentMessages }) => {
       const lastMessage = currentMessages.at(-1);
@@ -240,7 +278,8 @@ export function ChatUI({
   }, [status, openFirstDocument]);
 
   const handleSend = useCallback(() => {
-    const hasText = localInput?.trim();
+    const textToSend = localInput?.trim();
+    const hasText = !!textToSend;
     const hasAttachments = attachments.length > 0;
 
     if ((hasText || hasAttachments) && !isLoading) {
@@ -252,18 +291,20 @@ export function ChatUI({
       const parts: any[] = [...fileParts];
 
       if (hasText) {
-        parts.push({ type: 'text', text: localInput.trim() });
+        parts.push({ type: 'text', text: textToSend });
       }
 
+      // Clear input and attachments BEFORE sending to avoid race conditions
+      // Use the ref's clear() method to properly dismiss iOS autocorrect
+      messageInputRef.current?.clear();
+      clearAttachments();
+
       // Send message with parts
+      console.log('[ChatUI] Sending message with transport:', { isUsingLocalModel, selectedModelId });
       sendMessage({
         role: 'user',
         parts,
       });
-
-      // Clear input and attachments
-      setLocalInput('');
-      clearAttachments();
 
       // Notify about chat creation after a delay (to ensure it's saved)
       if (isNewChat && !hasNotifiedCreationRef.current && onChatCreated) {
@@ -308,8 +349,21 @@ export function ChatUI({
   }, []);
 
   const handleModelChange = useCallback((modelId: string) => {
+    const newModel = getModelById(modelId);
+    const currentModel = getModelById(selectedModelId);
+    const isCurrentLocal = currentModel?.isLocal;
+    const isNewLocal = newModel?.isLocal;
+
+    // If switching between local and cloud models, request a new chat
+    // This is needed because the transport is different and AI SDK caches it
+    if (isCurrentLocal !== isNewLocal && onRequestNewChat) {
+      // Pass the new model ID so the new chat can start with it selected
+      onRequestNewChat(modelId);
+      return; // Don't set state here - the new chat will start with the new model
+    }
+
     setSelectedModelId(modelId);
-  }, []);
+  }, [selectedModelId, onRequestNewChat]);
 
   const handleModelSelectorClose = useCallback(() => {
     setIsModelSelectorOpen(false);
@@ -487,6 +541,7 @@ export function ChatUI({
         />
 
         <MessageInput
+          ref={messageInputRef}
           value={localInput}
           onChangeText={setLocalInput}
           onSend={handleSend}

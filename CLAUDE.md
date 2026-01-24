@@ -28,11 +28,80 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 - **Phase 12:** Authentication - Better Auth with email/password, guest users, user-scoped data, rate limiting, redirect-after-login
 - **[#1](https://github.com/dustindoan/chat-sdk-expo/issues/1):** Message Voting - Thumbs up/down feedback on assistant messages with database persistence
 - **Phase 17:** In-Browser Code Execution - Pyodide for Python, sandboxed iframe for JavaScript, server fallback for mobile
+- **Local LLM Integration:** On-device inference with `@react-native-ai/llama`, FunctionGemma 270M model, streaming fix via patch
+
+### Local LLM Integration ✅
+
+**Goal:** Run small language models locally on iOS using `@react-native-ai/llama` and `llama.rn`.
+
+**Status:** Working with patch. Verified on iOS - first token displays correctly.
+
+**What's been done:**
+1. Installed `@react-native-ai/llama@0.10.0` and `llama.rn@0.10.0-rc.0`
+2. Created `LocalLLMContext` for model state management (download, prepare, inference)
+3. Created `LocalChatTransport` implementing AI SDK's `ChatTransport` interface
+4. Added FunctionGemma 270M model to model selector
+5. Fixed `useClipboard.ts` to use `expo-clipboard` instead of `@react-native-clipboard/clipboard` (native module error)
+6. Applied Callstack's streaming fix from PR #178
+
+**The Bug (FIXED):**
+- Model outputs "Hi! I hope you are doing well..."
+- App was displaying "! I hope you are doing well..." (missing "Hi")
+- Root cause: `text-start` and `text-delta` emitted synchronously, AI SDK missed the first delta
+
+**The Fix (from Callstack PR #178):**
+Emit `text-start` immediately after `stream-start`, BEFORE the completion callback starts. This creates an async boundary so AI SDK processes `text-start` before any `text-delta` arrives.
+
+```typescript
+// Before: state starts as 'none', text-start emitted with first token (too late)
+// After: state starts as 'text', text-start emitted before completion callback
+let state = 'text'
+controller.enqueue({ type: 'stream-start', warnings: [] })
+controller.enqueue({ type: 'text-start', id: textId })  // <- Emitted early!
+const result = await context.completion(...)  // <- Async boundary here
+```
+
+**Libraries & Version Issues:**
+- `@react-native-ai/llama@0.10.0` implements `LanguageModelV2` (not V3)
+- It depends on `@ai-sdk/provider@^2.0.0` but we have `@3.0.4` from AI SDK v6
+- Callstack has a fix branch (`feat/upgrade-to-latest-provider`) that upgrades to V3
+- Our patch matches their fix - remove when they release
+
+**⚠️ MONITOR:** Watch for `@react-native-ai/llama` release with PR #178 merged
+- Issue: https://github.com/callstackincubator/ai/issues/171
+- Fix PR: https://github.com/callstackincubator/ai/pull/178
+- When released: `npm update @react-native-ai/llama` and delete the patch
+
+**Key Files:**
+- `contexts/LocalLLMContext.tsx` - Model state management
+- `lib/local-llm/LocalChatTransport.ts` - AI SDK transport for local inference
+- `lib/local-llm/directTest.ts` - Direct testing bypassing all layers
+- `lib/local-llm/index.ts` - Barrel exports
+- `lib/ai/models.ts` - Added `isLocal` flag and FunctionGemma model
+- `components/ChatUI.tsx` - Switches transport based on model selection
+- `patches/@react-native-ai+llama+0.10.0.patch` - Callstack's streaming fix
+
+**To Test the Patch:**
+1. `npx expo run:ios` (requires dev build, not Expo Go)
+2. Select "FunctionGemma 270M (Local)" from model selector
+3. First use will download model (~270MB)
+4. Send a message and observe the response
+
+**To Test Directly (Bypass Abstraction):**
+```typescript
+import { testDirectInference, testTokenCallback } from '../lib/local-llm';
+
+// In a component or useEffect:
+await testDirectInference("Say hello"); // Full test with logging
+await testTokenCallback();               // Simple token test
+```
+This tests at three levels:
+1. `context.completion()` - Native callback directly
+2. `model.doGenerate()` - AI SDK non-streaming
+3. `model.doStream()` - AI SDK streaming
 
 ### Next Up
 See [GitHub Issues](https://github.com/dustindoan/chat-sdk-expo/issues) for planned features.
-
-See [Feature Parity Roadmap](#feature-parity-roadmap) for complete plan.
 
 ---
 
@@ -663,87 +732,3 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/chat
 - `metro.config.js` - `withNativeWind(config)`
 - `postcss.config.mjs` - `@tailwindcss/postcss` plugin
 - `nativewind-env.d.ts` - TypeScript types via `react-native-css/types`
-
----
-
-## Future Phase Plans
-
-### Feature Parity Roadmap
-
-Based on comprehensive analysis of Vercel's chat-sdk, here are the remaining features needed for full parity:
-
-| Phase | Feature | Description | Complexity | Parity Impact |
-|-------|---------|-------------|------------|---------------|
-| **13** | Suggested Actions | Clickable prompt suggestions on empty chat state | Low | High |
-| **14** | Message Voting | Thumbs up/down feedback with database persistence | Medium | High |
-| **15** | Spreadsheet Artifacts | CSV-based sheet documents with data grid UI | Medium | High |
-| **16** | Image Artifacts | AI image generation display and streaming | Medium | Medium |
-| **17** | In-Browser Code Execution | WASM/pyodide sandbox for running code | High | High | ✅ |
-| **18** | Resumable Streams | Redis-backed stream recovery on disconnect | Medium | Medium |
-| **19** | Request Suggestions | AI writing suggestions for documents (collaborative editing) | Medium | Medium |
-| **20** | Advanced Visualization | ChainOfThought, Plan, Queue, Task components | Medium | Low |
-| **21** | CodeMirror Editor | Rich code editing with 10+ language syntax highlighting | Medium | Medium |
-| **22** | Math Rendering | KaTeX integration for equations | Low | Low |
-| **23** | Cursor Pagination | Efficient chat history loading with startingAfter/endingBefore | Low | Low |
-| **24** | Chat Search & Export | Full-text search, export to PDF/markdown/JSON | Medium | Medium |
-| **25** | Cloud File Storage | Vercel Blob equivalent for large file uploads | Medium | Low |
-| **26** | Telemetry & Monitoring | OpenTelemetry integration for production | Low | Low |
-
-### Current Feature Parity Status
-
-**Implemented (Phases 1-12, Issue #1, Phase 17):**
-- ✅ Message streaming & persistence
-- ✅ Model selector (Claude variants)
-- ✅ Tool system with custom UI (weather, temperature, documents, code execution)
-- ✅ Artifacts (text/code) with version history
-- ✅ File attachments with vision
-- ✅ Message editing & regeneration
-- ✅ Extended thinking display
-- ✅ Tool approval flow (human-in-the-loop)
-- ✅ Authentication with user-scoped data
-- ✅ Message voting (thumbs up/down)
-- ✅ In-browser code execution (Python/JavaScript)
-
-**Not Yet Implemented:**
-- ❌ Suggested actions (empty state prompts)
-- ❌ Spreadsheet/image artifact types
-- ❌ Resumable streams
-- ❌ Request suggestions (collaborative editing)
-- ❌ Advanced visualization components
-- ❌ CodeMirror/KaTeX
-- ❌ Chat search
-
-**Estimated Parity: ~50%** (13 of 26 feature areas)
-
-### Phase Priority Recommendations
-
-**Quick Wins (1-2 days each):**
-- Phase 13: Suggested Actions - Great UX improvement, no backend changes
-- Phase 22: Math Rendering - Small addition, good for technical users
-
-**High Value (3-5 days each):**
-- Phase 15: Spreadsheet Artifacts - New content type, high utility
-
-**Major Features (1-2 weeks each):**
-- Phase 17: In-Browser Code Execution - Key differentiator
-- Phase 18: Resumable Streams - Production reliability
-
-### Notes on Feature Differences
-
-**Generative UI:** The chat-sdk markets "Generative UI" but actually uses the same tool-based pattern we have (tools return JSON → client renders components). The RSC-based `streamUI` approach is experimental, paused, and Next.js-only. Our tool registry pattern is the correct approach for React Native.
-
-**Platform Limitations:** Some chat-sdk features are web-only:
-- CodeMirror (web editor, needs RN alternative)
-- In-browser WASM execution (limited mobile support)
-- Resumable streams (Redis typically server-side)
-
-### Additional Ideas (Beyond Parity)
-
-- Real-time collaboration (multiple users editing same document)
-- Custom themes / light mode toggle
-- Keyboard shortcuts panel
-- Voice input/output
-- Mobile-specific optimizations (haptics, gestures)
-- Push notifications
-- Offline support with sync
-- Chat sharing (public links)
