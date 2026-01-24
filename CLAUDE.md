@@ -23,7 +23,8 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 - **Phase 7:** Version history - Index-based version navigation, word-level diff view, restore functionality
 - **Phase 8:** File attachments - Image picker, base64 data URLs, attachment preview, tap-to-expand modal, Claude vision
 - **Phase 9:** Message editing/regeneration - Edit user messages, regenerate assistant responses, delete trailing messages
-- **Phase 10:** Reasoning display - Extended thinking toggle, collapsible thinking section with duration, NativeWind v5 + Tailwind v4
+- **Phase 10:** Reasoning display - Extended thinking toggle, collapsible thinking section with duration
+- **[#21](https://github.com/dustindoan/chat-sdk-expo/issues/21):** Uniwind + React Native Reusables - Migrated from NativeWind v5 to Uniwind (Tailwind v4), added RN Reusables base components
 - **Phase 11:** Tool approval flow - Human-in-the-loop tool confirmation, Allow/Deny buttons, automatic continuation after approval
 - **Phase 12:** Authentication - Better Auth with email/password, guest users, user-scoped data, rate limiting, redirect-after-login
 - **[#1](https://github.com/dustindoan/chat-sdk-expo/issues/1):** Message Voting - Thumbs up/down feedback on assistant messages with database persistence
@@ -360,12 +361,12 @@ ChatUI
 - Extended thinking via `providerOptions.anthropic.thinking`
 - AI SDK reasoning parts rendered in MessageBubble
 
-**NativeWind v5 + Tailwind v4 Setup:**
-- Installed `nativewind@5.0.0-preview.2` with `tailwindcss@^4.1.0`
-- Configuration files: `global.css`, `metro.config.js`, `postcss.config.mjs`, `nativewind-env.d.ts`
-- TypeScript types via `react-native-css/types`
-- Ported components to Tailwind: ReasoningSection, ReasoningToggle, MessageInput
-- Added responsive breakpoints (`max-w-3xl md:max-w-4xl`) instead of hardcoded pixel values
+**Uniwind + React Native Reusables Setup:**
+- Migrated from NativeWind v5 to Uniwind (faster, Tailwind v4 native)
+- Added React Native Reusables base components (Text, Button, Card, Input)
+- CSS-first theming with `@theme` directive in `global.css`
+- No `tailwind.config.js` needed for runtime (stub file for CLI only)
+- Path aliases via `@/` in tsconfig.json
 
 **Key files:**
 - `lib/ai/models.ts` - `supportsReasoning` flag, `modelSupportsReasoning()` helper
@@ -694,7 +695,8 @@ npm run db:studio       # Open Drizzle Studio
 - **React 19.1.0** pinned for Expo compatibility (use `--legacy-peer-deps` for installs)
 - **Artifact streaming** - Uses `onData` callback in useChat to process custom data parts (`data-textDelta`, etc.)
 - **ArtifactContext** - React Context instead of SWR for global artifact state (Expo-compatible)
-- **NativeWind v5** - Preview version with Tailwind v4 for styling (aligns with chat-sdk)
+- **Uniwind** - Faster Tailwind v4 bindings for React Native (replaced NativeWind v5)
+- **React Native Reusables** - shadcn/ui-style components with CVA variants
 - **Extended thinking** - Uses `providerOptions.anthropic.thinking` with toggle control
 
 ## Development
@@ -729,15 +731,28 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/chat
 - `@ai-sdk/anthropic@3.0.15`
 - `@ai-sdk/react@3.0.41`
 
-### Styling (NativeWind v5 + Tailwind v4)
-- `nativewind@5.0.0-preview.2`
-- `react-native-css` (peer dependency)
+### Styling (Uniwind + Tailwind v4)
+- `uniwind` - Tailwind v4 bindings for React Native
 - `tailwindcss@^4.1.0`
-- `@tailwindcss/postcss`
-- `postcss`
+- `class-variance-authority` - CVA for component variants
+- `clsx`, `tailwind-merge` - Utility for className composition
+- `@rn-primitives/slot`, `@rn-primitives/portal` - Radix-style primitives
+
+### React Native Reusables Components
+- `components/ui/text.tsx` - Text with variant support (h1-h4, p, code, muted, etc.)
+- `components/ui/button.tsx` - Button with variants (default, destructive, outline, ghost, link)
+- `components/ui/card.tsx` - Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter
+- `components/ui/input.tsx` - TextInput with styling
 
 ### Configuration Files
-- `global.css` - Tailwind v4 imports
-- `metro.config.js` - `withNativeWind(config)`
-- `postcss.config.mjs` - `@tailwindcss/postcss` plugin
-- `nativewind-env.d.ts` - TypeScript types via `react-native-css/types`
+- `global.css` - Uniwind imports + CSS theme variables
+- `metro.config.js` - `withUniwindConfig(config, { cssEntryFile })`
+- `components.json` - shadcn CLI configuration for RN Reusables
+- `tsconfig.json` - Path alias `@/*` for imports
+- `.npmrc` - `legacy-peer-deps=true` for React 19 compatibility
+
+### Adding New Components
+```bash
+npx @react-native-reusables/cli@latest add <component-name>
+```
+Available components: text, button, card, input, dialog, select, tabs, accordion, etc.

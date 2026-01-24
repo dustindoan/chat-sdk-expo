@@ -4,6 +4,7 @@ import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Stack } from 'expo-router';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { PortalHost } from '@rn-primitives/portal';
 import { SWRConfig } from 'swr';
 import { ToastProvider } from '../components/toast';
 import { ArtifactProvider } from '../contexts/ArtifactContext';
@@ -69,6 +70,7 @@ export default function RootLayout() {
           </LocalLLMProvider>
         </AuthProvider>
       </KeyboardProvider>
+      <PortalHost />
     </GestureHandlerRootView>
   );
 }
