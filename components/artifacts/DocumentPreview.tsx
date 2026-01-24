@@ -6,16 +6,12 @@
  */
 
 import React, { memo, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Platform,
-} from 'react-native';
+import { View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useArtifact } from '../../contexts/ArtifactContext';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../theme';
+import { Text } from '@/components/ui/text';
+import { Button } from '@/components/ui/button';
+import { colors } from '@/lib/theme';
 import type { ArtifactKind } from '../../lib/artifacts/types';
 
 interface DocumentPreviewProps {
@@ -64,92 +60,36 @@ export const DocumentPreview = memo(function DocumentPreview({
     : 'Click to view';
 
   return (
-    <TouchableOpacity
-      style={styles.container}
+    <Button
+      variant="ghost"
+      className="my-2 h-auto flex-row items-center gap-3 rounded-lg border border-border bg-secondary p-3"
       onPress={handlePress}
-      activeOpacity={0.7}
       accessibilityLabel={`Open ${title} ${kindLabel}`}
     >
       {/* Icon */}
-      <View style={styles.iconContainer}>
-        <Feather name={kindIcon} size={24} color={colors.accent.primary} />
+      <View className="h-11 w-11 items-center justify-center rounded-md bg-card">
+        <Feather name={kindIcon} size={24} color={colors.primary} />
       </View>
 
       {/* Content */}
-      <View style={styles.content}>
-        <Text style={styles.title} numberOfLines={1}>
+      <View className="flex-1 gap-1">
+        <Text className="text-base font-semibold" numberOfLines={1}>
           {title || 'Untitled'}
         </Text>
-        <View style={styles.metaRow}>
-          <View style={styles.kindBadge}>
-            <Text style={styles.kindText}>{kindLabel}</Text>
+        <View className="flex-row items-center gap-2">
+          <View className="rounded bg-primary/20 px-2 py-0.5">
+            <Text className="text-xs font-medium text-primary">{kindLabel}</Text>
           </View>
         </View>
-        <Text style={styles.preview} numberOfLines={2}>
+        <Text variant="muted" className="text-sm leading-[18px]" numberOfLines={2}>
           {previewText}
         </Text>
       </View>
 
       {/* Arrow */}
-      <View style={styles.arrowContainer}>
-        <Feather name="chevron-right" size={20} color={colors.text.tertiary} />
+      <View className="p-1">
+        <Feather name="chevron-right" size={20} color={colors.disabled} />
       </View>
-    </TouchableOpacity>
+    </Button>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background.tertiary,
-    borderRadius: borderRadius.lg,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-    padding: spacing.md,
-    marginVertical: spacing.sm,
-    gap: spacing.md,
-    ...(Platform.OS === 'web' && ({ cursor: 'pointer' } as any)),
-  },
-  iconContainer: {
-    width: 44,
-    height: 44,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.background.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  content: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  title: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
-    color: colors.text.primary,
-  },
-  metaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  kindBadge: {
-    backgroundColor: colors.accent.primary + '20',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
-  },
-  kindText: {
-    fontSize: fontSize.xs,
-    color: colors.accent.primary,
-    fontWeight: fontWeight.medium,
-  },
-  preview: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-    lineHeight: 18,
-  },
-  arrowContainer: {
-    padding: spacing.xs,
-  },
 });

@@ -8,17 +8,17 @@
 import React, { memo, useCallback, useState } from 'react';
 import {
   View,
-  Text,
   StyleSheet,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { Text } from '@/components/ui/text';
+import { colors } from '@/lib/theme';
 import { useArtifact } from '../../../contexts/ArtifactContext';
 import { CodeContent } from '../../artifacts/CodeContent';
 import { TextContent } from '../../artifacts/TextContent';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme';
 import type { ToolUIProps } from './types';
 import type { ArtifactKind } from '../../../lib/artifacts/types';
 
@@ -176,25 +176,24 @@ export const DocumentTool = memo(function DocumentTool({
     return (
       <View style={styles.previewContainer}>
         {/* Header */}
-        <TouchableOpacity
+        <Pressable
           style={styles.header}
           onPress={handleOpenPanel}
-          activeOpacity={0.7}
         >
           <View style={styles.headerLeft}>
             {isStreaming ? (
-              <ActivityIndicator size="small" color={colors.text.secondary} />
+              <ActivityIndicator size="small" color={colors.tertiary} />
             ) : kind === 'code' ? (
-              <Feather name="code" size={16} color={colors.text.secondary} />
+              <Feather name="code" size={16} color={colors.tertiary} />
             ) : (
-              <Feather name="file-text" size={16} color={colors.text.secondary} />
+              <Feather name="file-text" size={16} color={colors.tertiary} />
             )}
-            <Text style={styles.headerTitle} numberOfLines={1}>
+            <Text className="flex-1 text-sm font-medium text-foreground" numberOfLines={1}>
               {title}
             </Text>
           </View>
-          <Feather name="maximize-2" size={16} color={colors.text.secondary} />
-        </TouchableOpacity>
+          <Feather name="maximize-2" size={16} color={colors.tertiary} />
+        </Pressable>
 
         {/* Content preview - same rendering as artifact panel */}
         <View style={styles.contentWrapper}>
@@ -212,9 +211,9 @@ export const DocumentTool = memo(function DocumentTool({
               />
             )
           ) : (
-            <View style={styles.loadingContent}>
-              <ActivityIndicator size="small" color={colors.accent.primary} />
-              <Text style={styles.loadingText}>
+            <View className="flex-row items-center justify-center gap-2 py-4">
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text className="text-sm text-muted-foreground">
                 {toolName === 'createDocument' ? 'Creating' : 'Updating'}{' '}
                 {kind === 'code' ? 'code' : 'document'}...
               </Text>
@@ -232,32 +231,31 @@ export const DocumentTool = memo(function DocumentTool({
     const languageLabel = kind === 'code' && language ? language : null;
 
     return (
-      <TouchableOpacity
+      <Pressable
         style={[styles.cardContainer, isLoading && styles.cardContainerLoading]}
         onPress={handleOpenPanel}
-        activeOpacity={0.7}
         disabled={isLoading}
         accessibilityLabel={`Open ${title} ${kindLabel}`}
       >
         {/* Icon */}
         <View style={styles.iconContainer}>
           {isLoading ? (
-            <ActivityIndicator size="small" color={colors.text.secondary} />
+            <ActivityIndicator size="small" color={colors.tertiary} />
           ) : (
-            <Feather name="code" size={20} color={colors.text.secondary} />
+            <Feather name="code" size={20} color={colors.tertiary} />
           )}
         </View>
 
         {/* Content - just title and type */}
         <View style={styles.cardContent}>
-          <Text style={styles.cardTitle} numberOfLines={1}>
+          <Text className="text-base font-medium text-foreground" numberOfLines={1}>
             {title}
           </Text>
-          <Text style={styles.cardSubtitle}>
+          <Text className="text-sm text-muted-foreground">
             {isLoading ? 'Loading...' : `${kindLabel}${languageLabel ? ` · ${languageLabel}` : ''}`}
           </Text>
         </View>
-      </TouchableOpacity>
+      </Pressable>
     );
   }
 
@@ -269,61 +267,44 @@ const styles = StyleSheet.create({
   // Streaming preview styles
   previewContainer: {
     maxWidth: 450,
-    borderRadius: borderRadius.lg,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border.default,
+    borderColor: colors.subtle,
     overflow: 'hidden',
-    marginVertical: spacing.sm,
+    marginVertical: 8,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.background.tertiary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: colors.subtle,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border.default,
+    borderBottomColor: colors.subtle,
     ...(Platform.OS === 'web' && ({ cursor: 'pointer' } as any)),
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
-    flex: 1,
-  },
-  headerTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.text.primary,
+    gap: 8,
     flex: 1,
   },
   contentWrapper: {
     maxHeight: 250,
     overflow: 'hidden',
   },
-  loadingContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.lg,
-  },
-  loadingText: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-  },
 
   // Card styles (compact after completion - Claude web style)
   cardContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.background.tertiary,
-    borderRadius: borderRadius.lg,
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.md,
-    marginVertical: spacing.sm,
-    gap: spacing.md,
+    backgroundColor: colors.subtle,
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginVertical: 8,
+    gap: 12,
     maxWidth: 450,
     ...(Platform.OS === 'web' && ({ cursor: 'pointer' } as any)),
   },
@@ -334,22 +315,13 @@ const styles = StyleSheet.create({
   iconContainer: {
     width: 40,
     height: 40,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.background.secondary,
+    borderRadius: 8,
+    backgroundColor: colors.secondary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   cardContent: {
     flex: 1,
     gap: 2,
-  },
-  cardTitle: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.medium,
-    color: colors.text.primary,
-  },
-  cardSubtitle: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
   },
 });

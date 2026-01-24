@@ -6,13 +6,8 @@ import { ChatHistoryList } from '../../components/ChatHistoryList';
 import { ChatHistoryProvider, useChatHistoryContext } from '../../contexts/ChatHistoryContext';
 import { useArtifact } from '../../contexts/ArtifactContext';
 import { generateAPIUrl } from '../../utils';
+import { colors, spacing } from '../../lib/theme';
 import type { Chat } from '../../hooks/useChatHistory';
-
-const colors = {
-  background: '#0a0a0a',
-  headerBackground: '#0a0a0a',
-  text: '#fafafa',
-};
 
 function DrawerContent() {
   const router = useRouter();
@@ -55,11 +50,8 @@ function NewChatButton() {
   };
 
   return (
-    <TouchableOpacity
-      onPress={handlePress}
-      style={{ marginRight: 16 }}
-    >
-      <Feather name="plus" size={24} color={colors.text} />
+    <TouchableOpacity onPress={handlePress} style={{ marginRight: spacing[4] }}>
+      <Feather name="plus" size={24} color={colors.foreground} />
     </TouchableOpacity>
   );
 }
@@ -71,9 +63,13 @@ export default function DrawerLayout() {
         drawerContent={() => <DrawerContent />}
         screenOptions={{
           headerStyle: {
-            backgroundColor: colors.headerBackground,
+            backgroundColor: colors.background,
           },
-          headerTintColor: colors.text,
+          // Fix: Uniwind/Tailwind v4 preflight resets default header padding
+          headerLeftContainerStyle: {
+            paddingLeft: spacing[3],
+          },
+          headerTintColor: colors.foreground,
           headerShadowVisible: false,
           drawerStyle: {
             backgroundColor: colors.background,

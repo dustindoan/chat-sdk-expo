@@ -6,9 +6,11 @@
  */
 
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
-import { colors, fontSize, spacing } from '../theme';
+import { Text } from '@/components/ui/text';
+import { Button } from '@/components/ui/button';
+import { colors } from '@/lib/theme';
 
 interface VersionNavigationProps {
   currentIndex: number;
@@ -40,34 +42,36 @@ export function VersionNavigation({
   }
 
   return (
-    <View style={styles.container}>
+    <View className="flex-row items-center gap-1">
       {/* Prev button */}
-      <TouchableOpacity
-        style={[styles.button, !canGoPrev && styles.buttonDisabled]}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7"
         onPress={onPrev}
         disabled={!canGoPrev || isLoading}
         accessibilityLabel="Previous version"
       >
-        <UndoIcon color={canGoPrev ? colors.text.primary : colors.text.tertiary} />
-      </TouchableOpacity>
+        <UndoIcon color={canGoPrev ? colors.foreground : colors.disabled} />
+      </Button>
 
       {/* Next button */}
-      <TouchableOpacity
-        style={[styles.button, !canGoNext && styles.buttonDisabled]}
+      <Button
+        variant="ghost"
+        size="icon"
+        className="h-7 w-7"
         onPress={onNext}
         disabled={!canGoNext || isLoading}
         accessibilityLabel="Next version"
       >
-        <RedoIcon color={canGoNext ? colors.text.primary : colors.text.tertiary} />
-      </TouchableOpacity>
+        <RedoIcon color={canGoNext ? colors.foreground : colors.disabled} />
+      </Button>
 
       {/* Diff toggle button */}
-      <TouchableOpacity
-        style={[
-          styles.button,
-          !canToggleDiff && styles.buttonDisabled,
-          isDiffMode && styles.buttonActive,
-        ]}
+      <Button
+        variant={isDiffMode ? 'secondary' : 'ghost'}
+        size="icon"
+        className="h-7 w-7"
         onPress={onToggleDiff}
         disabled={!canToggleDiff || isLoading}
         accessibilityLabel={isDiffMode ? 'Hide diff' : 'Show diff'}
@@ -75,16 +79,16 @@ export function VersionNavigation({
         <ClockIcon
           color={
             isDiffMode
-              ? colors.accent.primary
+              ? colors.primary
               : canToggleDiff
-                ? colors.text.primary
-                : colors.text.tertiary
+                ? colors.foreground
+                : colors.disabled
           }
         />
-      </TouchableOpacity>
+      </Button>
 
       {/* Version indicator */}
-      <Text style={styles.versionText}>
+      <Text variant="muted" className="ml-1 text-xs">
         {isLoading ? 'Loading...' : `Version ${currentIndex + 1} of ${totalVersions}`}
       </Text>
     </View>
@@ -141,26 +145,3 @@ function ClockIcon({ color }: { color: string }) {
     </Svg>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  button: {
-    padding: spacing.xs,
-    borderRadius: 4,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonActive: {
-    backgroundColor: colors.background.hover,
-  },
-  versionText: {
-    fontSize: fontSize.xs,
-    color: colors.text.secondary,
-    marginLeft: spacing.xs,
-  },
-});

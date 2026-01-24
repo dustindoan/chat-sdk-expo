@@ -1,13 +1,8 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import {
-  View,
-  TextInput,
-  TouchableOpacity,
-  Text,
-  StyleSheet,
-  Platform,
-} from 'react-native';
-import { colors, spacing, fontSize, borderRadius } from '../theme';
+import { View, TextInput } from 'react-native';
+import { Button } from '@/components/ui/button';
+import { Text } from '@/components/ui/text';
+import { Textarea } from '@/components/ui/textarea';
 import type { MessageEditorProps } from './types';
 
 /**
@@ -48,93 +43,35 @@ export function MessageEditor({
   }, [onCancel]);
 
   return (
-    <View style={styles.container}>
-      <TextInput
+    <View className="flex-1 gap-3">
+      <Textarea
         ref={inputRef}
-        style={styles.input}
+        className="min-h-[80px] max-h-[200px] resize-none rounded-lg bg-card focus-visible:ring-0"
         value={draftContent}
         onChangeText={setDraftContent}
         placeholder="Edit your message..."
-        placeholderTextColor={colors.text.tertiary}
-        multiline
-        textAlignVertical="top"
         editable={!isSubmitting}
       />
 
-      <View style={styles.buttonRow}>
-        <TouchableOpacity
-          style={[styles.button, styles.cancelButton]}
+      <View className="flex-row justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
           onPress={handleCancel}
           disabled={isSubmitting}
         >
-          <Text style={styles.cancelButtonText}>Cancel</Text>
-        </TouchableOpacity>
+          <Text>Cancel</Text>
+        </Button>
 
-        <TouchableOpacity
-          style={[
-            styles.button,
-            styles.saveButton,
-            isSubmitting && styles.buttonDisabled,
-          ]}
+        <Button
+          variant="default"
+          size="sm"
           onPress={handleSave}
           disabled={isSubmitting || !draftContent.trim()}
         >
-          <Text style={styles.saveButtonText}>
-            {isSubmitting ? 'Sending...' : 'Send'}
-          </Text>
-        </TouchableOpacity>
+          <Text>{isSubmitting ? 'Sending...' : 'Send'}</Text>
+        </Button>
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    gap: spacing.md,
-  },
-  input: {
-    backgroundColor: colors.background.secondary,
-    borderRadius: borderRadius.lg,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    fontSize: fontSize.base,
-    color: colors.text.primary,
-    minHeight: 80,
-    maxHeight: 200,
-    ...(Platform.OS === 'web' && {
-      outlineStyle: 'none',
-    } as any),
-  },
-  buttonRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: spacing.sm,
-  },
-  button: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    borderRadius: borderRadius.md,
-  },
-  cancelButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
-  cancelButtonText: {
-    color: colors.text.secondary,
-    fontSize: fontSize.sm,
-    fontWeight: '500',
-  },
-  saveButton: {
-    backgroundColor: colors.accent.primary,
-  },
-  saveButtonText: {
-    color: colors.text.inverse,
-    fontSize: fontSize.sm,
-    fontWeight: '500',
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-});

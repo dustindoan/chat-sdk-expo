@@ -1,6 +1,9 @@
 import React from 'react';
-import { TouchableOpacity, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { Button } from '@/components/ui/button';
+import { Text } from '@/components/ui/text';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { colors } from '@/lib/theme';
 
 interface ReasoningToggleProps {
   enabled: boolean;
@@ -10,22 +13,28 @@ interface ReasoningToggleProps {
 
 export function ReasoningToggle({ enabled, onToggle, disabled }: ReasoningToggleProps) {
   return (
-    <TouchableOpacity
-      className={`size-8 rounded-full items-center justify-center ${
-        enabled ? 'bg-blue-500/20' : ''
-      } ${disabled ? 'opacity-50' : ''}`}
-      style={Platform.OS === 'web' ? ({ cursor: disabled ? 'default' : 'pointer' } as any) : undefined}
-      onPress={onToggle}
-      disabled={disabled}
-      accessibilityLabel={enabled ? 'Disable extended thinking' : 'Enable extended thinking'}
-      accessibilityRole="switch"
-      accessibilityState={{ checked: enabled }}
-    >
-      <Feather
-        name="cpu"
-        size={18}
-        color={disabled ? '#71717a' : enabled ? '#3b82f6' : '#a1a1aa'}
-      />
-    </TouchableOpacity>
+    <Tooltip delayDuration={300}>
+      <TooltipTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className={`size-8 rounded-full ${enabled ? 'bg-blue-500/20' : ''}`}
+          onPress={onToggle}
+          disabled={disabled}
+          accessibilityLabel={enabled ? 'Disable extended thinking' : 'Enable extended thinking'}
+          accessibilityRole="switch"
+          accessibilityState={{ checked: enabled }}
+        >
+          <Feather
+            name="cpu"
+            size={18}
+            color={disabled ? colors.tertiary : enabled ? colors.primary : colors.mutedForeground}
+          />
+        </Button>
+      </TooltipTrigger>
+      <TooltipContent>
+        <Text>{enabled ? 'Disable thinking' : 'Enable thinking'}</Text>
+      </TooltipContent>
+    </Tooltip>
   );
 }

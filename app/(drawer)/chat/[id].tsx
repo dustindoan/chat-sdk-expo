@@ -3,7 +3,6 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
 import { ChatUI } from '../../../components/ChatUI';
 import { generateAPIUrl } from '../../../utils';
-import { colors } from '../../../components/theme';
 import { useChatHistoryContext } from '../../../contexts/ChatHistoryContext';
 import type { UIMessage } from '@ai-sdk/react';
 
@@ -62,7 +61,7 @@ export default function ChatScreen() {
   if (isLoading) {
     return (
       <View style={styles.centered}>
-        <ActivityIndicator size="large" color={colors.accent.primary} />
+        <ActivityIndicator size="large" color="#3b82f6" />
       </View>
     );
   }
@@ -110,7 +109,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a0a0a',
   },
   errorText: {
-    color: colors.text.secondary,
+    color: '#a1a1aa',
     fontSize: 16,
   },
 });

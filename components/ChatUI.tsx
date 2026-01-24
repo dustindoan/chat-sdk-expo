@@ -10,9 +10,8 @@ import { fetch as expoFetch } from 'expo/fetch';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { colors } from './theme';
-import { MessageList, MessageInput, ModelSelector } from './chat';
-import type { VoteMap, MessageInputHandle } from './chat/types';
+import { MessageList, PromptInput, ModelSelector } from './chat';
+import type { VoteMap, PromptInputHandle } from './chat/types';
 import { useToast } from './toast';
 import { useClipboard } from '../hooks/useClipboard';
 import { useAttachments } from '../hooks/useAttachments';
@@ -23,6 +22,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { generateAPIUrl } from '../utils';
 import { useLocalLLM } from '../contexts/LocalLLMContext';
 import { LocalChatTransport } from '../lib/local-llm';
+import { colors } from '../lib/theme';
 
 // Generate a random UUID
 function generateUUID(): string {
@@ -107,8 +107,8 @@ export function ChatUI({
   // Track if we've notified about chat creation
   const hasNotifiedCreationRef = useRef(false);
 
-  // Ref to MessageInput for clearing (handles iOS autocorrect race condition)
-  const messageInputRef = useRef<MessageInputHandle>(null);
+  // Ref to PromptInput for clearing (handles iOS autocorrect race condition)
+  const promptInputRef = useRef<PromptInputHandle>(null);
 
   // Keep refs in sync
   useEffect(() => {
@@ -152,8 +152,8 @@ export function ChatUI({
   // Set body background color on web
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.body.style.backgroundColor = colors.background.primary;
-      document.documentElement.style.backgroundColor = colors.background.primary;
+      document.body.style.backgroundColor = colors.background;
+      document.documentElement.style.backgroundColor = colors.background;
     }
   }, []);
 
@@ -296,7 +296,7 @@ export function ChatUI({
 
       // Clear input and attachments BEFORE sending to avoid race conditions
       // Use the ref's clear() method to properly dismiss iOS autocorrect
-      messageInputRef.current?.clear();
+      promptInputRef.current?.clear();
       clearAttachments();
 
       // Send message with parts
@@ -540,8 +540,8 @@ export function ChatUI({
           onVote={handleVote}
         />
 
-        <MessageInput
-          ref={messageInputRef}
+        <PromptInput
+          ref={promptInputRef}
           value={localInput}
           onChangeText={setLocalInput}
           onSend={handleSend}
@@ -572,7 +572,7 @@ export function ChatUI({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.primary,
+    backgroundColor: colors.background,
     overflow: 'hidden',
   } as ViewStyle,
   mainContent: {

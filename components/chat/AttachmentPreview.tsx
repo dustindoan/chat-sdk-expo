@@ -2,14 +2,14 @@ import React from 'react';
 import {
   View,
   Image,
-  Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   ActivityIndicator,
   Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, fontSize, borderRadius } from '../theme';
+import { Text } from '@/components/ui/text';
+import { colors } from '@/lib/theme';
 import type { AttachmentPreviewProps } from './types';
 
 const PREVIEW_SIZE = 64;
@@ -21,7 +21,7 @@ export function AttachmentPreview({ attachment, onRemove }: AttachmentPreviewPro
     <View style={styles.container}>
       {attachment.isUploading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={colors.text.secondary} />
+          <ActivityIndicator size="small" color={colors.mutedForeground} />
         </View>
       ) : isImage ? (
         <Image
@@ -31,12 +31,12 @@ export function AttachmentPreview({ attachment, onRemove }: AttachmentPreviewPro
         />
       ) : (
         <View style={styles.fileContainer}>
-          <Feather name="file" size={24} color={colors.text.secondary} />
+          <Feather name="file" size={24} color={colors.mutedForeground} />
         </View>
       )}
 
       {onRemove && !attachment.isUploading && (
-        <TouchableOpacity
+        <Pressable
           style={[
             styles.removeButton,
             Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
@@ -45,12 +45,12 @@ export function AttachmentPreview({ attachment, onRemove }: AttachmentPreviewPro
           accessibilityLabel="Remove attachment"
           accessibilityRole="button"
         >
-          <Feather name="x" size={12} color={colors.text.primary} />
-        </TouchableOpacity>
+          <Feather name="x" size={12} color={colors.foreground} />
+        </Pressable>
       )}
 
       <View style={styles.filenameContainer}>
-        <Text style={styles.filename} numberOfLines={1} ellipsizeMode="middle">
+        <Text className="text-center text-xs text-muted-foreground" numberOfLines={1}>
           {attachment.filename}
         </Text>
       </View>
@@ -66,26 +66,26 @@ const styles = StyleSheet.create({
   image: {
     width: PREVIEW_SIZE,
     height: PREVIEW_SIZE,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.background.tertiary,
+    borderRadius: 8,
+    backgroundColor: colors.subtle,
   },
   loadingContainer: {
     width: PREVIEW_SIZE,
     height: PREVIEW_SIZE,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.background.tertiary,
+    borderRadius: 8,
+    backgroundColor: colors.subtle,
     justifyContent: 'center',
     alignItems: 'center',
   },
   fileContainer: {
     width: PREVIEW_SIZE,
     height: PREVIEW_SIZE,
-    borderRadius: borderRadius.md,
-    backgroundColor: colors.background.tertiary,
+    borderRadius: 8,
+    backgroundColor: colors.subtle,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border.default,
+    borderColor: colors.subtle,
   },
   removeButton: {
     position: 'absolute',
@@ -94,19 +94,14 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: colors.accent.error,
+    backgroundColor: colors.destructive,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: colors.background.primary,
+    borderColor: colors.background,
   },
   filenameContainer: {
-    marginTop: spacing.xs,
+    marginTop: 4,
     paddingHorizontal: 2,
-  },
-  filename: {
-    fontSize: fontSize.xs,
-    color: colors.text.tertiary,
-    textAlign: 'center',
   },
 });

@@ -18,7 +18,7 @@ import {
 } from 'react-native';
 import { useArtifact } from '../contexts/ArtifactContext';
 import { ArtifactPanel } from './artifacts/ArtifactPanel';
-import { colors } from './theme';
+import { colors } from '@/lib/theme';
 
 interface SideBySideLayoutProps {
   children: ReactNode;
@@ -72,12 +72,12 @@ export const SideBySideLayout = memo(function SideBySideLayout({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background.primary,
+    backgroundColor: colors.background,
   },
   sideBySideContainer: {
     flex: 1,
     flexDirection: 'row',
-    backgroundColor: colors.background.primary,
+    backgroundColor: colors.background,
   },
   mainContent: {
     flex: 1,
@@ -85,6 +85,6 @@ const styles = StyleSheet.create({
   },
   artifactContainer: {
     borderLeftWidth: 1,
-    borderLeftColor: colors.border.default,
+    borderLeftColor: colors.subtle,
   },
 });

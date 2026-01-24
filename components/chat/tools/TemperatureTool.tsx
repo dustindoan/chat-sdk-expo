@@ -1,6 +1,7 @@
 import React, { memo } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme';
+import { View, ActivityIndicator } from 'react-native';
+import { Text } from '@/components/ui/text';
+import { colors, temperatureColors } from '@/lib/theme';
 import type { ToolUIProps } from './types';
 import type { TemperatureInput, TemperatureResult } from '../../../lib/ai/tools';
 
@@ -19,18 +20,21 @@ export const TemperatureTool = memo(function TemperatureTool({
   const hasResult = (state === 'result' || state === 'output-available') && result;
 
   return (
-    <View style={styles.container}>
+    <View
+      className="my-2 rounded-lg bg-secondary p-3"
+      style={{ borderLeftWidth: 3, borderLeftColor: colors.primary }}
+    >
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.headerIcon}>{'\uD83C\uDF21\uFE0F'}</Text>
-        <Text style={styles.headerText}>Temperature Conversion</Text>
+      <View className="mb-3 flex-row items-center gap-2">
+        <Text className="text-base">{'\uD83C\uDF21\uFE0F'}</Text>
+        <Text variant="muted" className="text-sm font-semibold">Temperature Conversion</Text>
       </View>
 
       {/* Loading state */}
       {isLoading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={colors.accent.primary} />
-          <Text style={styles.loadingText}>
+        <View className="flex-row items-center gap-2 py-2">
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text variant="muted" className="text-sm">
             Converting {args?.fahrenheit !== undefined ? `${args.fahrenheit}°F` : '...'}
           </Text>
         </View>
@@ -38,95 +42,31 @@ export const TemperatureTool = memo(function TemperatureTool({
 
       {/* Result state */}
       {hasResult && (
-        <View style={styles.conversionDisplay}>
+        <View className="flex-row items-center justify-center gap-3">
           {/* Fahrenheit side */}
-          <View style={[styles.tempBox, styles.fahrenheitBox]}>
-            <Text style={styles.tempValue}>{result.fahrenheit}°</Text>
-            <Text style={styles.tempUnit}>Fahrenheit</Text>
+          <View
+            className="flex-1 items-center rounded-md p-3"
+            style={{ backgroundColor: temperatureColors.hot }}
+          >
+            <Text className="text-2xl font-bold">{result.fahrenheit}°</Text>
+            <Text className="mt-1 text-xs text-white/70">Fahrenheit</Text>
           </View>
 
           {/* Arrow */}
-          <View style={styles.arrowContainer}>
-            <Text style={styles.arrow}>{'\u2192'}</Text>
+          <View className="px-2">
+            <Text variant="muted" className="text-xl">{'\u2192'}</Text>
           </View>
 
           {/* Celsius side */}
-          <View style={[styles.tempBox, styles.celsiusBox]}>
-            <Text style={styles.tempValue}>{result.celsius}°</Text>
-            <Text style={styles.tempUnit}>Celsius</Text>
+          <View
+            className="flex-1 items-center rounded-md p-3"
+            style={{ backgroundColor: temperatureColors.cold }}
+          >
+            <Text className="text-2xl font-bold">{result.celsius}°</Text>
+            <Text className="mt-1 text-xs text-white/70">Celsius</Text>
           </View>
         </View>
       )}
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.background.tertiary,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    marginVertical: spacing.sm,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.accent.primary,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  headerIcon: {
-    fontSize: fontSize.base,
-  },
-  headerText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.text.secondary,
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  loadingText: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-  },
-  conversionDisplay: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: spacing.md,
-  },
-  tempBox: {
-    flex: 1,
-    alignItems: 'center',
-    padding: spacing.md,
-    borderRadius: borderRadius.md,
-  },
-  fahrenheitBox: {
-    backgroundColor: '#7f1d1d', // Warm red
-  },
-  celsiusBox: {
-    backgroundColor: '#1e3a5f', // Cool blue
-  },
-  tempValue: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    color: colors.text.primary,
-  },
-  tempUnit: {
-    fontSize: fontSize.xs,
-    color: 'rgba(255, 255, 255, 0.7)',
-    marginTop: spacing.xs,
-  },
-  arrowContainer: {
-    paddingHorizontal: spacing.sm,
-  },
-  arrow: {
-    fontSize: fontSize.xl,
-    color: colors.text.secondary,
-  },
 });

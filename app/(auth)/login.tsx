@@ -1,17 +1,16 @@
 import { useState } from 'react';
 import {
   View,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  StyleSheet,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { Link, useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
-import { colors } from '../../components/theme';
+import { Text } from '@/components/ui/text';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -44,170 +43,76 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      className="flex-1 bg-background"
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
-      <View style={styles.content}>
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>Sign In</Text>
-          <Text style={styles.subtitle}>
-            Use your email and password to sign in
-          </Text>
-        </View>
+      <View className="flex-1 items-center justify-center px-4">
+        <Card className="w-full max-w-[400px] border-0 bg-transparent shadow-none">
+          <CardHeader className="mb-8 items-center gap-2">
+            <CardTitle className="text-xl font-semibold">Sign In</CardTitle>
+            <CardDescription className="text-center">
+              Use your email and password to sign in
+            </CardDescription>
+          </CardHeader>
 
-        {/* Form */}
-        <View style={styles.form}>
-          {error ? (
-            <View style={styles.errorContainer}>
-              <Text style={styles.errorText}>{error}</Text>
+          <CardContent className="gap-4">
+            {error ? (
+              <View className="rounded-lg border border-destructive bg-destructive/20 p-3">
+                <Text className="text-center text-sm text-destructive">{error}</Text>
+              </View>
+            ) : null}
+
+            <View className="gap-2">
+              <Text variant="muted" className="text-sm">Email Address</Text>
+              <Input
+                placeholder="user@acme.com"
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoComplete="email"
+                autoCorrect={false}
+                autoFocus
+                className="bg-secondary"
+              />
             </View>
-          ) : null}
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email Address</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="user@acme.com"
-              placeholderTextColor={colors.text.tertiary}
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoComplete="email"
-              autoCorrect={false}
-              autoFocus
-            />
-          </View>
+            <View className="gap-2">
+              <Text variant="muted" className="text-sm">Password</Text>
+              <Input
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+                autoComplete="password"
+                className="bg-secondary"
+              />
+            </View>
 
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Password</Text>
-            <TextInput
-              style={styles.input}
-              placeholderTextColor={colors.text.tertiary}
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-              autoComplete="password"
-            />
-          </View>
-
-          <TouchableOpacity
-            style={[
-              styles.button,
-              isLoading && styles.buttonDisabled,
-              Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
-            ]}
-            onPress={handleLogin}
-            disabled={isLoading}
-            activeOpacity={0.8}
-            accessibilityRole="button"
-            accessibilityLabel="Sign in"
-          >
-            {isLoading ? (
-              <ActivityIndicator color={colors.background.primary} />
-            ) : (
-              <Text style={styles.buttonText}>Sign in</Text>
-            )}
-          </TouchableOpacity>
-
-          <Text style={styles.footer}>
-            {"Don't have an account? "}
-            <Link
-              href={redirect ? `/register?redirect=${encodeURIComponent(redirect)}` : '/register'}
-              asChild
+            <Button
+              onPress={handleLogin}
+              disabled={isLoading}
+              className="mt-2"
             >
-              <Text style={styles.link}>Sign up</Text>
-            </Link>
-            {" for free."}
-          </Text>
-        </View>
+              {isLoading ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <Text>Sign in</Text>
+              )}
+            </Button>
+
+            <Text className="mt-2 text-center text-sm text-muted-foreground">
+              {"Don't have an account? "}
+              <Link
+                href={redirect ? `/register?redirect=${encodeURIComponent(redirect)}` : '/register'}
+                asChild
+              >
+                <Text className="text-sm font-semibold text-foreground">Sign up</Text>
+              </Link>
+              {" for free."}
+            </Text>
+          </CardContent>
+        </Card>
       </View>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.primary,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 48,
-    gap: 8,
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.text.primary,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: colors.text.secondary,
-  },
-  form: {
-    width: '100%',
-    maxWidth: 400,
-    gap: 16,
-    paddingHorizontal: 16,
-  },
-  errorContainer: {
-    backgroundColor: `${colors.accent.error}20`,
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: colors.accent.error,
-  },
-  errorText: {
-    color: colors.accent.error,
-    fontSize: 14,
-    textAlign: 'center',
-  },
-  inputGroup: {
-    gap: 8,
-  },
-  label: {
-    fontSize: 14,
-    color: colors.text.secondary,
-  },
-  input: {
-    backgroundColor: colors.background.tertiary,
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    fontSize: 14,
-    color: colors.text.primary,
-  },
-  button: {
-    backgroundColor: colors.text.primary,
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 8,
-  },
-  buttonDisabled: {
-    opacity: 0.7,
-  },
-  buttonText: {
-    color: colors.background.primary,
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  footer: {
-    textAlign: 'center',
-    fontSize: 14,
-    color: colors.text.secondary,
-    marginTop: 8,
-  },
-  link: {
-    color: colors.text.primary,
-    fontWeight: '600',
-  },
-});

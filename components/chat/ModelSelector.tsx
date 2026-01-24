@@ -1,19 +1,16 @@
-import React, { useCallback, useMemo, useRef, useEffect, memo } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
-import BottomSheet, { BottomSheetBackdrop, BottomSheetFlatList } from '@gorhom/bottom-sheet';
+import React, { useCallback, useMemo, useEffect, useRef, memo } from 'react';
+import { View, Pressable, Platform, ActivityIndicator, FlatList } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../theme';
+import { Text } from '@/components/ui/text';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { allModels, localModels, type ChatModel } from '../../lib/ai/models';
 import { useLocalLLM } from '../../contexts/LocalLLMContext';
-
-// Format bytes to human readable string
-function formatBytes(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${(bytes / Math.pow(k, i)).toFixed(1)} ${sizes[i]}`;
-}
+import { colors } from '@/lib/theme';
 
 interface ModelSelectorProps {
   selectedModelId: string;
@@ -28,9 +25,6 @@ export const ModelSelector = memo(function ModelSelector({
   isOpen,
   onClose,
 }: ModelSelectorProps) {
-  const bottomSheetRef = useRef<BottomSheet>(null);
-  const snapPoints = useMemo(() => ['50%'], []);
-
   const {
     isDownloaded,
     isPrepared,
@@ -51,43 +45,22 @@ export const ModelSelector = memo(function ModelSelector({
       const localModel = localModels[0];
       if (localModel) {
         onSelectModel(localModel.id);
-        bottomSheetRef.current?.close();
-      }
-    }
-  }, [isPrepared, isOpen, onSelectModel]);
-
-  const handleSheetChanges = useCallback(
-    (index: number) => {
-      if (index === -1) {
         onClose();
       }
-    },
-    [onClose]
-  );
-
-  const renderBackdrop = useCallback(
-    (props: any) => (
-      <BottomSheetBackdrop
-        {...props}
-        disappearsOnIndex={-1}
-        appearsOnIndex={0}
-        opacity={0.5}
-      />
-    ),
-    []
-  );
+    }
+  }, [isPrepared, isOpen, onSelectModel, onClose]);
 
   const handleSelectModel = async (model: ChatModel) => {
     // For cloud models, just select
     if (!model.isLocal) {
       onSelectModel(model.id);
-      bottomSheetRef.current?.close();
+      onClose();
       return;
     }
 
     // For local models, handle download/prepare flow
     if (!isDownloaded) {
-      // Start download - don't close sheet
+      // Start download - don't close dialog
       await downloadModel();
       return;
     }
@@ -102,7 +75,7 @@ export const ModelSelector = memo(function ModelSelector({
 
     // Model is ready and prepared, select it
     onSelectModel(model.id);
-    bottomSheetRef.current?.close();
+    onClose();
   };
 
   // Filter out local models on web
@@ -120,11 +93,16 @@ export const ModelSelector = memo(function ModelSelector({
       // Downloading
       if (isLoading && downloadProgress > 0) {
         return (
-          <View style={styles.localStatus}>
-            <View style={styles.progressContainer}>
-              <View style={[styles.progressBar, { width: `${downloadProgress * 100}%` }]} />
+          <View className="flex-row items-center gap-1 mr-2">
+            <View className="w-[60px] h-1 bg-background rounded-sm overflow-hidden">
+              <View
+                className="h-full bg-primary rounded-sm"
+                style={{ width: `${downloadProgress * 100}%` }}
+              />
             </View>
-            <Text style={styles.progressText}>{Math.round(downloadProgress * 100)}%</Text>
+            <Text className="text-xs text-muted-foreground">
+              {Math.round(downloadProgress * 100)}%
+            </Text>
           </View>
         );
       }
@@ -132,9 +110,9 @@ export const ModelSelector = memo(function ModelSelector({
       // Loading (preparing)
       if (isLoading) {
         return (
-          <View style={styles.localStatus}>
-            <ActivityIndicator size="small" color={colors.text.tertiary} />
-            <Text style={styles.statusText}>Loading...</Text>
+          <View className="flex-row items-center gap-1 mr-2">
+            <ActivityIndicator size="small" color={colors.tertiary} />
+            <Text className="text-xs text-muted-foreground">Loading...</Text>
           </View>
         );
       }
@@ -142,9 +120,9 @@ export const ModelSelector = memo(function ModelSelector({
       // Error state
       if (localModelError) {
         return (
-          <View style={styles.localStatus}>
-            <Feather name="alert-circle" size={14} color={colors.accent.error} />
-            <Text style={[styles.statusText, { color: colors.accent.error }]} numberOfLines={1}>
+          <View className="flex-row items-center gap-1 mr-2">
+            <Feather name="alert-circle" size={14} color={colors.destructive} />
+            <Text className="text-xs text-red-500" numberOfLines={1}>
               {localModelError}
             </Text>
           </View>
@@ -154,9 +132,9 @@ export const ModelSelector = memo(function ModelSelector({
       // Not downloaded
       if (!isDownloaded) {
         return (
-          <View style={styles.localStatus}>
-            <Feather name="download" size={14} color={colors.text.tertiary} />
-            <Text style={styles.statusText}>Download</Text>
+          <View className="flex-row items-center gap-1 mr-2">
+            <Feather name="download" size={14} color={colors.tertiary} />
+            <Text className="text-xs text-muted-foreground">Download</Text>
           </View>
         );
       }
@@ -164,17 +142,17 @@ export const ModelSelector = memo(function ModelSelector({
       // Downloaded but not prepared
       if (!isPrepared) {
         return (
-          <View style={styles.localStatus}>
-            <Text style={styles.statusText}>Tap to load</Text>
+          <View className="flex-row items-center gap-1 mr-2">
+            <Text className="text-xs text-muted-foreground">Tap to load</Text>
           </View>
         );
       }
 
       // Ready
       return (
-        <View style={styles.localStatus}>
-          <View style={styles.readyDot} />
-          <Text style={styles.readyText}>Ready</Text>
+        <View className="flex-row items-center gap-1 mr-2">
+          <View className="w-1.5 h-1.5 rounded-full bg-green-500" />
+          <Text className="text-xs text-green-500">Ready</Text>
         </View>
       );
     },
@@ -187,146 +165,52 @@ export const ModelSelector = memo(function ModelSelector({
       const canSelect = !item.isLocal || (isDownloaded && isPrepared);
 
       return (
-        <TouchableOpacity
-          style={[
-            styles.modelItem,
-            isSelected && canSelect && styles.modelItemSelected,
-            Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
-          ]}
+        <Pressable
+          className={`flex-row items-center justify-between p-4 rounded-xl bg-secondary ${
+            isSelected && canSelect ? 'border border-primary' : ''
+          }`}
+          style={Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined}
           onPress={() => handleSelectModel(item)}
           disabled={isLoading}
         >
-          <View style={styles.modelInfo}>
-            <Text style={[styles.modelName, isSelected && canSelect && styles.modelNameSelected]}>
+          <View className="flex-1">
+            <Text
+              className={`text-base font-medium mb-1 ${
+                isSelected && canSelect ? 'text-primary' : 'text-foreground'
+              }`}
+            >
               {item.name}
             </Text>
-            <Text style={styles.modelDescription}>{item.description}</Text>
+            <Text className="text-sm text-muted-foreground">{item.description}</Text>
           </View>
 
           {renderLocalStatus(item)}
 
           {isSelected && canSelect && (
-            <Feather name="check" size={20} color={colors.accent.primary} style={styles.checkIcon} />
+            <Feather name="check" size={20} color={colors.primary} className="ml-2" />
           )}
-        </TouchableOpacity>
+        </Pressable>
       );
     },
     [selectedModelId, isDownloaded, isPrepared, isLoading, renderLocalStatus]
   );
 
-  if (!isOpen) return null;
-
   return (
-    <BottomSheet
-      ref={bottomSheetRef}
-      index={0}
-      snapPoints={snapPoints}
-      onChange={handleSheetChanges}
-      enablePanDownToClose
-      backdropComponent={renderBackdrop}
-      backgroundStyle={styles.sheetBackground}
-      handleIndicatorStyle={styles.handleIndicator}
-    >
-      <View style={styles.header}>
-        <Text style={styles.headerTitle}>Select Model</Text>
-      </View>
-      <BottomSheetFlatList
-        data={filteredModels}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={styles.listContent}
-      />
-    </BottomSheet>
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="w-[350px] max-w-md bg-card border-border">
+        <DialogHeader>
+          <DialogTitle>Select Model</DialogTitle>
+        </DialogHeader>
+        <View className="gap-2 max-h-[50vh]">
+          <FlatList
+            data={filteredModels}
+            keyExtractor={(item) => item.id}
+            renderItem={renderItem}
+            contentContainerStyle={{ gap: 8 }}
+            showsVerticalScrollIndicator={false}
+          />
+        </View>
+      </DialogContent>
+    </Dialog>
   );
-});
-
-const styles = StyleSheet.create({
-  sheetBackground: {
-    backgroundColor: colors.background.secondary,
-  },
-  handleIndicator: {
-    backgroundColor: colors.text.tertiary,
-  },
-  header: {
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.subtle,
-  },
-  headerTitle: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    color: colors.text.primary,
-  },
-  listContent: {
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  modelItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: spacing.lg,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.background.tertiary,
-  },
-  modelItemSelected: {
-    borderWidth: 1,
-    borderColor: colors.accent.primary,
-  },
-  modelInfo: {
-    flex: 1,
-  },
-  modelName: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.medium,
-    color: colors.text.primary,
-    marginBottom: spacing.xs,
-  },
-  modelNameSelected: {
-    color: colors.accent.primary,
-  },
-  modelDescription: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-  },
-  localStatus: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    marginRight: spacing.sm,
-  },
-  progressContainer: {
-    width: 60,
-    height: 4,
-    backgroundColor: colors.background.primary,
-    borderRadius: 2,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    height: '100%',
-    backgroundColor: colors.accent.primary,
-    borderRadius: 2,
-  },
-  progressText: {
-    fontSize: fontSize.xs,
-    color: colors.text.tertiary,
-  },
-  statusText: {
-    fontSize: fontSize.xs,
-    color: colors.text.tertiary,
-  },
-  readyDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#22c55e', // green-500
-  },
-  readyText: {
-    fontSize: fontSize.xs,
-    color: '#22c55e',
-  },
-  checkIcon: {
-    marginLeft: spacing.sm,
-  },
 });

@@ -1,15 +1,15 @@
 import React, { memo, useState, useCallback } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { colors, spacing, fontSize, borderRadius } from '../theme';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/text';
 import { SimpleMarkdown } from './SimpleMarkdown';
-import { ToolInvocation } from './ToolInvocation';
-import { MessageActions } from './MessageActions';
+import { Tool } from './Tool';
+import { Actions } from './Actions';
 import { MessageEditor } from './MessageEditor';
 import { ImagePreview } from './ImagePreview';
-import { ReasoningSection } from './ReasoningSection';
-import type { MessageBubbleProps, ToolPart, FilePart, ReasoningPart, MessageMode } from './types';
+import { Reasoning } from './Reasoning';
+import type { MessageProps, ToolPart, FilePart, ReasoningPart, MessageMode } from './types';
 
-export const MessageBubble = memo(function MessageBubble({
+export const Message = memo(function Message({
   message,
   isStreaming = false,
   isLoading = false,
@@ -20,7 +20,7 @@ export const MessageBubble = memo(function MessageBubble({
   onApprovalResponse,
   voteState,
   onVote,
-}: MessageBubbleProps) {
+}: MessageProps) {
   const isUser = message.role === 'user';
   const [mode, setMode] = useState<MessageMode>('view');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -86,8 +86,8 @@ export const MessageBubble = memo(function MessageBubble({
     // Edit mode for user messages
     if (mode === 'edit') {
       return (
-        <View style={styles.userMessageRow}>
-          <View style={styles.editorContainer}>
+        <View className="flex-row items-start justify-end gap-2">
+          <View className="max-w-[85%] flex-1">
             <MessageEditor
               message={message}
               onSave={handleSave}
@@ -101,12 +101,12 @@ export const MessageBubble = memo(function MessageBubble({
 
     // View mode for user messages
     return (
-      <View style={styles.userMessageRow}>
-        <View style={styles.userColumn}>
-          <View style={styles.userBubble}>
+      <View className="flex-row items-start justify-end gap-2">
+        <View className="max-w-[70%] items-end">
+          <View className="rounded-2xl bg-secondary px-4 py-3">
             {/* Render file attachments first */}
             {fileParts.length > 0 && (
-              <View style={styles.userFilesContainer}>
+              <View className="mb-2">
                 {fileParts.map((part, index) => (
                   <ImagePreview
                     key={`file-${index}`}
@@ -116,11 +116,13 @@ export const MessageBubble = memo(function MessageBubble({
                 ))}
               </View>
             )}
-            {textContent && <Text style={styles.userText}>{textContent}</Text>}
+            {textContent && (
+              <Text className="text-base leading-[22px]">{textContent}</Text>
+            )}
           </View>
           {/* Only show edit actions when not loading */}
           {!isLoading && (
-            <MessageActions
+            <Actions
               content={textContent}
               role="user"
               isStreaming={isStreaming}
@@ -135,11 +137,11 @@ export const MessageBubble = memo(function MessageBubble({
 
   // Assistant message
   return (
-    <View style={styles.assistantMessageRow}>
-      <View style={styles.assistantContent}>
+    <View className="items-start pl-3">
+      <View className="max-w-[90%]">
         {/* Reasoning sections (extended thinking) - render before main content */}
         {reasoningParts.map((part, index) => (
-          <ReasoningSection
+          <Reasoning
             key={`reasoning-${index}`}
             text={part.text || ''}
             isStreaming={part.state === 'streaming' || (isStreaming && !part.text)}
@@ -147,7 +149,7 @@ export const MessageBubble = memo(function MessageBubble({
         ))}
 
         {toolParts.map((part, index) => (
-          <ToolInvocation
+          <Tool
             key={index}
             part={part}
             onApprovalResponse={onApprovalResponse}
@@ -158,7 +160,7 @@ export const MessageBubble = memo(function MessageBubble({
           <SimpleMarkdown text={textContent} onCopyCode={onCopy} />
         )}
 
-        <MessageActions
+        <Actions
           content={textContent}
           role="assistant"
           isStreaming={isStreaming}
@@ -171,44 +173,4 @@ export const MessageBubble = memo(function MessageBubble({
       </View>
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  userMessageRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'flex-start',
-    gap: spacing.sm,
-  },
-  userColumn: {
-    maxWidth: '70%',
-    alignItems: 'flex-end',
-  },
-  userBubble: {
-    backgroundColor: colors.message.user.background,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.xl,
-  },
-  userText: {
-    fontSize: fontSize.base,
-    lineHeight: 22,
-    color: colors.message.user.text,
-  },
-  userFilesContainer: {
-    marginBottom: spacing.sm,
-  },
-  editorContainer: {
-    flex: 1,
-    maxWidth: '85%',
-  },
-  assistantMessageRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: spacing.md,
-  },
-  assistantContent: {
-    flex: 1,
-    maxWidth: '90%',
-  },
 });

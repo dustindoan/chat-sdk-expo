@@ -67,7 +67,7 @@ export type ChatStatus = 'submitted' | 'streaming' | 'ready' | 'error';
 export type MessageMode = 'view' | 'edit';
 
 // Props for message components
-export interface MessageBubbleProps {
+export interface MessageProps {
   message: Message;
   isStreaming?: boolean;
   isLoading?: boolean;
@@ -84,7 +84,7 @@ export interface MessageBubbleProps {
 // Vote state for a message
 export type VoteState = 'up' | 'down' | null;
 
-export interface MessageActionsProps {
+export interface ActionsProps {
   content: string;
   role: 'user' | 'assistant';
   isStreaming?: boolean;
@@ -110,12 +110,12 @@ export interface CodeBlockProps {
   onCopy?: (code: string) => void;
 }
 
-export interface ToolInvocationProps {
+export interface ToolProps {
   part: ToolPart;
   onApprovalResponse?: ToolApprovalResponseFn;
 }
 
-export interface WelcomeMessageProps {
+export interface ConversationEmptyStateProps {
   title: string;
   subtitle: string;
 }
@@ -139,7 +139,7 @@ export interface MessageListProps {
   onVote?: (messageId: string, type: 'up' | 'down') => void;
 }
 
-export interface MessageInputProps {
+export interface PromptInputProps {
   value: string;
   onChangeText: (text: string) => void;
   onSend: () => void;
@@ -158,8 +158,8 @@ export interface MessageInputProps {
   supportsReasoning?: boolean;
 }
 
-// Ref handle for MessageInput to allow imperative control
-export interface MessageInputHandle {
+// Ref handle for PromptInput to allow imperative control
+export interface PromptInputHandle {
   /** Clear the input and dismiss any pending iOS autocorrect */
   clear: () => void;
 }

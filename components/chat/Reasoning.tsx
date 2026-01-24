@@ -1,20 +1,27 @@
-import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, TouchableOpacity, Animated, Platform, ScrollView } from 'react-native';
+import React, { memo, useState, useEffect, useRef } from 'react';
+import { View, Animated, Platform, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { Text } from '@/components/ui/text';
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from '@/components/ui/collapsible';
+import { colors } from '@/lib/theme';
 
 const AUTO_CLOSE_DELAY = 500;
 
-interface ReasoningSectionProps {
+interface ReasoningProps {
   text: string;
   isStreaming?: boolean;
   defaultOpen?: boolean;
 }
 
-export const ReasoningSection = memo(function ReasoningSection({
+export const Reasoning = memo(function Reasoning({
   text,
   isStreaming = false,
   defaultOpen = true,
-}: ReasoningSectionProps) {
+}: ReasoningProps) {
   const [isOpen, setIsOpen] = useState(defaultOpen);
   const [duration, setDuration] = useState(0);
   const [hasAutoClosed, setHasAutoClosed] = useState(false);
@@ -54,10 +61,6 @@ export const ReasoningSection = memo(function ReasoningSection({
     }).start();
   }, [isOpen, rotateAnim]);
 
-  const toggleOpen = useCallback(() => {
-    setIsOpen((prev) => !prev);
-  }, []);
-
   const rotation = rotateAnim.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '180deg'],
@@ -69,37 +72,31 @@ export const ReasoningSection = memo(function ReasoningSection({
   }
 
   return (
-    <View className="mb-2">
-      <TouchableOpacity
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mb-2">
+      <CollapsibleTrigger
         className="flex-row items-center gap-1 py-0.5 px-1.5 rounded-md self-start"
         style={Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined}
-        onPress={toggleOpen}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: isOpen }}
-        accessibilityLabel={isOpen ? 'Collapse thinking' : 'Expand thinking'}
       >
-        <Feather name="cpu" size={12} color="#71717a" />
-        <Text className="text-[11px] text-zinc-500">
+        <Feather name="cpu" size={12} color={colors.tertiary} />
+        <Text className="text-[11px] text-muted-foreground">
           {isStreaming || duration === 0 ? 'Thinking' : `${duration}s`}
         </Text>
         {isStreaming && <ShimmerDots />}
         <Animated.View style={{ transform: [{ rotate: rotation }] }}>
-          <Feather name="chevron-down" size={10} color="#71717a" />
+          <Feather name="chevron-down" size={10} color={colors.tertiary} />
         </Animated.View>
-      </TouchableOpacity>
+      </CollapsibleTrigger>
 
-      {isOpen && (
-        <View className="mt-1.5 rounded-md border border-zinc-800/50 bg-zinc-900/30 overflow-hidden">
-          <ScrollView
-            className="max-h-48"
-            contentContainerClassName="p-2.5"
-            showsVerticalScrollIndicator={true}
-          >
-            <Text className="text-[11px] leading-relaxed text-zinc-500">{text}</Text>
-          </ScrollView>
-        </View>
-      )}
-    </View>
+      <CollapsibleContent className="mt-1.5 rounded-md border border-border/50 bg-secondary/30 overflow-hidden">
+        <ScrollView
+          className="max-h-48"
+          contentContainerClassName="p-2.5"
+          showsVerticalScrollIndicator={true}
+        >
+          <Text className="text-[11px] leading-relaxed text-muted-foreground">{text}</Text>
+        </ScrollView>
+      </CollapsibleContent>
+    </Collapsible>
   );
 });
 
@@ -145,15 +142,15 @@ function ShimmerDots() {
 
   return (
     <View className="flex-row -ml-1">
-      <Animated.Text className="text-[11px] text-zinc-500 font-bold" style={{ opacity: dot1 }}>
-        .
-      </Animated.Text>
-      <Animated.Text className="text-[11px] text-zinc-500 font-bold" style={{ opacity: dot2 }}>
-        .
-      </Animated.Text>
-      <Animated.Text className="text-[11px] text-zinc-500 font-bold" style={{ opacity: dot3 }}>
-        .
-      </Animated.Text>
+      <Animated.View style={{ opacity: dot1 }}>
+        <Text className="text-[11px] text-muted-foreground font-bold">.</Text>
+      </Animated.View>
+      <Animated.View style={{ opacity: dot2 }}>
+        <Text className="text-[11px] text-muted-foreground font-bold">.</Text>
+      </Animated.View>
+      <Animated.View style={{ opacity: dot3 }}>
+        <Text className="text-[11px] text-muted-foreground font-bold">.</Text>
+      </Animated.View>
     </View>
   );
 }

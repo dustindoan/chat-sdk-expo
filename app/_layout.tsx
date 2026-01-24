@@ -11,8 +11,8 @@ import { ArtifactProvider } from '../contexts/ArtifactContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { LocalLLMProvider } from '../contexts/LocalLLMContext';
 import { SideBySideLayout } from '../components/SideBySideLayout';
-import { colors } from '../components/theme';
 import { authFetcher } from '../lib/swr';
+import { colors } from '../lib/theme';
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { isLoading } = useAuth();
@@ -23,7 +23,7 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.accent.primary} />
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
@@ -55,7 +55,7 @@ export default function RootLayout() {
                       screenOptions={{
                         headerShown: false,
                         contentStyle: {
-                          backgroundColor: colors.background.primary,
+                          backgroundColor: colors.background,
                         },
                       }}
                     >
@@ -80,6 +80,6 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: colors.background.primary,
+    backgroundColor: colors.background,
   },
 });

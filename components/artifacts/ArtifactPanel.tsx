@@ -26,7 +26,7 @@ import { TextContent } from './TextContent';
 import { CodeContent } from './CodeContent';
 import { DiffView } from './DiffView';
 import { VersionFooter } from './VersionFooter';
-import { colors } from '../theme';
+import { colors } from '@/lib/theme';
 
 const ANIMATION_DURATION = 250;
 
@@ -308,9 +308,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     right: 0,
     top: 0,
-    backgroundColor: colors.background.primary,
+    backgroundColor: colors.background,
     borderLeftWidth: 1,
-    borderLeftColor: colors.border.default,
+    borderLeftColor: colors.subtle,
     ...Platform.select({
       web: {
         boxShadow: '-4px 0 16px rgba(0, 0, 0, 0.2)',
@@ -327,7 +327,7 @@ const styles = StyleSheet.create({
   // Inline mode styles (for side-by-side layout on desktop)
   inlinePanel: {
     flex: 1,
-    backgroundColor: colors.background.primary,
+    backgroundColor: colors.background,
   },
   content: {
     flex: 1,

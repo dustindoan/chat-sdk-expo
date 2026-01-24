@@ -244,7 +244,7 @@ if (!response.ok) {
 - `lib/db/schema.ts` - Vote table definition
 - `lib/db/queries.ts` - `getVotesByChatId()`, `voteMessage()` queries
 - `app/api/vote+api.ts` - GET (fetch votes) and PATCH (record vote) endpoints
-- `components/chat/MessageActions.tsx` - Vote button UI with state colors
+- `components/chat/Actions.tsx` - Vote button UI with state colors
 - `components/chat/types.ts` - VoteState, VoteMap type definitions
 - `components/ChatUI.tsx` - Vote state management and API calls
 
@@ -548,21 +548,20 @@ app/
 components/
 ├── ChatUI.tsx              # Main chat orchestrator
 ├── ChatHistoryList.tsx     # Sidebar with grouped chat list
-├── theme.ts                # Design tokens
-├── chat/                   # Chat components
+├── chat/                   # Chat components (AI Elements naming)
 │   ├── MessageList.tsx
-│   ├── MessageBubble.tsx     # Supports view/edit modes
+│   ├── Message.tsx           # Message display (supports view/edit modes)
 │   ├── MessageEditor.tsx     # Inline message editing
-│   ├── MessageInput.tsx      # Tailwind classes, responsive max-width
-│   ├── MessageActions.tsx    # Copy, edit, regenerate, vote buttons
+│   ├── PromptInput.tsx       # Chat input with attachments, reasoning toggle
+│   ├── Actions.tsx           # Copy, edit, regenerate, vote buttons
 │   ├── SimpleMarkdown.tsx    # Custom streaming-optimized renderer
 │   ├── ModelSelector.tsx
-│   ├── ToolInvocation.tsx    # Routes to tool-specific components
-│   ├── WelcomeMessage.tsx
+│   ├── Tool.tsx              # Routes to tool-specific components
+│   ├── ConversationEmptyState.tsx  # Welcome message when no messages
 │   ├── AttachmentPreview.tsx # Pending attachment thumbnail
 │   ├── ImagePreview.tsx      # Image display with tap-to-expand
 │   ├── ReasoningToggle.tsx   # Extended thinking toggle button
-│   ├── ReasoningSection.tsx  # Collapsible thinking display
+│   ├── Reasoning.tsx         # Collapsible thinking display
 │   └── tools/                # Tool-specific UI components
 │       ├── index.ts        # Tool registry
 │       ├── types.ts        # ToolUIProps, ToolState, ToolApproval types
@@ -570,7 +569,7 @@ components/
 │       ├── TemperatureTool.tsx  # F° to C° conversion display
 │       ├── DocumentTool.tsx    # Artifact preview card
 │       ├── CodeExecutionTool.tsx # Code execution UI with output display
-│       ├── ToolApprovalCard.tsx # Tool approval UI (Allow/Deny)
+│       ├── Confirmation.tsx  # Tool approval UI (Allow/Deny)
 │       └── DefaultTool.tsx # Fallback for unknown tools
 ├── artifacts/              # Artifact system components
 │   ├── index.ts            # Barrel exports
@@ -712,10 +711,12 @@ npm run db:push
 
 ### Running
 ```bash
-npx expo start          # Start dev server
 npx expo start --web    # Web only
-npx expo run:ios        # Build and run on iOS simulator
+npx expo run:ios        # Build and run on iOS simulator (dev build required)
+npx expo run:android    # Build and run on Android emulator (dev build required)
 ```
+
+**Important:** This project requires a dev build, not Expo Go. Use `npx expo run:ios` or `npx expo run:android` for native testing.
 
 ### Environment
 Create `.env` (gitignored):
@@ -750,6 +751,58 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/chat
 - `components.json` - shadcn CLI configuration for RN Reusables
 - `tsconfig.json` - Path alias `@/*` for imports
 - `.npmrc` - `legacy-peer-deps=true` for React 19 compatibility
+
+### Styling Guidelines
+
+**When to use Tailwind classes (preferred):**
+- Components that accept `className` prop
+- Most UI elements in JSX
+
+```tsx
+<View className="flex-row items-center gap-2 bg-secondary p-4">
+  <Text className="text-muted-foreground">Hello</Text>
+</View>
+```
+
+**When to use theme constants (`lib/theme/colors.ts`):**
+- React Navigation options (headerStyle, drawerStyle, etc.)
+- Style props that don't accept className (placeholderTextColor, color for icons)
+- StyleSheet.create() objects
+- ActivityIndicator color prop
+
+```tsx
+import { colors, spacing } from '@/lib/theme';
+
+// React Navigation
+screenOptions={{
+  headerStyle: { backgroundColor: colors.background },
+  headerTintColor: colors.foreground,
+}}
+
+// Icon colors
+<Feather name="copy" size={16} color={colors.tertiary} />
+
+// ActivityIndicator
+<ActivityIndicator color={colors.primary} />
+```
+
+**Semantic color tokens (use these, not zinc-*, slate-*, etc.):**
+| Token | Tailwind Class | Theme Constant | Use Case |
+|-------|---------------|----------------|----------|
+| background | `bg-background` | `colors.background` | Page backgrounds |
+| foreground | `text-foreground` | `colors.foreground` | Primary text |
+| card | `bg-card` | `colors.card` | Card backgrounds |
+| secondary | `bg-secondary` | `colors.secondary` | Secondary surfaces |
+| muted-foreground | `text-muted-foreground` | `colors.mutedForeground` | Secondary text |
+| tertiary | - | `colors.tertiary` | Icons, line numbers |
+| primary | `text-primary`, `bg-primary` | `colors.primary` | Accent color (blue) |
+| destructive | `text-destructive` | `colors.destructive` | Error states (red) |
+| success | - | `colors.success` | Success states (green) |
+| subtle | - | `colors.subtle` | Subtle borders/backgrounds |
+
+**Key files:**
+- `global.css` - CSS theme variables (source of truth)
+- `lib/theme/colors.ts` - Same values for style objects
 
 ### Adding New Components
 ```bash

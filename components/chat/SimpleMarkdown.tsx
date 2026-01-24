@@ -3,12 +3,12 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
   Platform,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../theme';
+import { colors, syntaxColors } from '@/lib/theme';
 
 interface SimpleMarkdownProps {
   text: string;
@@ -236,10 +236,10 @@ function CodeBlock({
     <View style={styles.codeBlockCard}>
       <View style={styles.codeBlockHeader}>
         <View style={styles.codeBlockHeaderLeft}>
-          <Feather name="file" size={14} color={colors.text.secondary} />
+          <Feather name="file" size={14} color={colors.mutedForeground} />
           <Text style={styles.codeBlockTitle}>{language}</Text>
         </View>
-        <TouchableOpacity
+        <Pressable
           style={[
             styles.codeBlockAction,
             isStreaming && styles.codeBlockActionDisabled,
@@ -248,8 +248,8 @@ function CodeBlock({
           onPress={() => onCopy?.(code)}
           disabled={isStreaming}
         >
-          <Feather name="copy" size={14} color={colors.text.tertiary} />
-        </TouchableOpacity>
+          <Feather name="copy" size={14} color={colors.tertiary} />
+        </Pressable>
       </View>
       <View style={styles.codeBlockContent}>
         <View style={styles.lineNumbers}>
@@ -343,116 +343,116 @@ function highlightLine(line: string): React.ReactNode {
 const styles = StyleSheet.create({
   // Text styles
   paragraph: {
-    fontSize: fontSize.base,
+    fontSize: 16,
     lineHeight: 24,
-    color: colors.text.primary,
+    color: colors.foreground,
     marginVertical: 2,
   },
   h1: {
-    fontSize: fontSize['2xl'],
-    fontWeight: fontWeight.bold,
-    color: colors.text.primary,
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.foreground,
+    marginTop: 12,
+    marginBottom: 8,
   },
   h2: {
-    fontSize: fontSize.xl,
-    fontWeight: fontWeight.semibold,
-    color: colors.text.primary,
-    marginTop: spacing.md,
-    marginBottom: spacing.sm,
+    fontSize: 20,
+    fontWeight: '600',
+    color: colors.foreground,
+    marginTop: 12,
+    marginBottom: 8,
   },
   h3: {
-    fontSize: fontSize.lg,
-    fontWeight: fontWeight.semibold,
-    color: colors.text.primary,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.foreground,
+    marginTop: 8,
+    marginBottom: 4,
   },
   bold: {
-    fontWeight: fontWeight.bold,
-    color: colors.text.primary,
+    fontWeight: '700',
+    color: colors.foreground,
   },
   italic: {
     fontStyle: 'italic',
-    color: colors.text.primary,
+    color: colors.foreground,
   },
   inlineCode: {
     fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-    backgroundColor: colors.background.tertiary,
+    backgroundColor: colors.subtle,
     paddingHorizontal: 4,
-    borderRadius: borderRadius.sm,
-    color: colors.code.text,
-    fontSize: fontSize.sm,
+    borderRadius: 4,
+    color: syntaxColors.normal,
+    fontSize: 14,
   },
 
   // List styles
   list: {
-    marginVertical: spacing.sm,
+    marginVertical: 8,
   },
   listItem: {
     flexDirection: 'row',
     marginVertical: 2,
   },
   bullet: {
-    color: colors.text.secondary,
-    marginRight: spacing.sm,
-    fontSize: fontSize.base,
+    color: colors.mutedForeground,
+    marginRight: 8,
+    fontSize: 16,
   },
   listText: {
     flex: 1,
-    fontSize: fontSize.base,
+    fontSize: 16,
     lineHeight: 24,
-    color: colors.text.primary,
+    color: colors.foreground,
   },
   spacer: {
-    height: spacing.sm,
+    height: 8,
   },
 
   // Code block styles
   codeBlockCard: {
-    backgroundColor: colors.background.tertiary,
-    borderRadius: borderRadius.lg,
+    backgroundColor: colors.subtle,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: colors.border.default,
-    marginVertical: spacing.md,
+    borderColor: colors.subtle,
+    marginVertical: 12,
     overflow: 'hidden',
   },
   codeBlockHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.background.secondary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: colors.secondary,
     borderBottomWidth: 1,
-    borderBottomColor: colors.border.subtle,
+    borderBottomColor: colors.subtleBorder,
   },
   codeBlockHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 8,
   },
   codeBlockTitle: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
+    fontSize: 14,
+    color: colors.mutedForeground,
   },
   codeBlockAction: {
-    padding: spacing.xs,
+    padding: 4,
   },
   codeBlockActionDisabled: {
     opacity: 0.5,
   },
   codeBlockContent: {
     flexDirection: 'row',
-    backgroundColor: colors.background.tertiary,
+    backgroundColor: colors.subtle,
   },
   lineNumbers: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    backgroundColor: colors.background.secondary,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
+    backgroundColor: colors.secondary,
     borderRightWidth: 1,
-    borderRightColor: colors.border.subtle,
+    borderRightColor: colors.subtleBorder,
     minWidth: 40,
     alignItems: 'flex-end',
   },
@@ -460,18 +460,18 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
     fontSize: 13,
     lineHeight: 20,
-    color: colors.text.tertiary,
+    color: colors.tertiary,
   },
   codeScrollView: {
     flex: 1,
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
   },
   codeLine: {
     fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
     fontSize: 13,
     lineHeight: 20,
-    color: colors.code.text,
+    color: syntaxColors.normal,
   },
 
   // Syntax highlighting
@@ -479,24 +479,24 @@ const styles = StyleSheet.create({
     fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
     fontSize: 13,
     lineHeight: 20,
-    color: '#c792ea', // Purple
+    color: syntaxColors.keyword,
   },
   syntaxString: {
     fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
     fontSize: 13,
     lineHeight: 20,
-    color: '#c3e88d', // Green
+    color: syntaxColors.string,
   },
   syntaxComment: {
     fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
     fontSize: 13,
     lineHeight: 20,
-    color: '#546e7a', // Gray
+    color: syntaxColors.comment,
   },
   syntaxNumber: {
     fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
     fontSize: 13,
     lineHeight: 20,
-    color: '#f78c6c', // Orange
+    color: syntaxColors.number,
   },
 });

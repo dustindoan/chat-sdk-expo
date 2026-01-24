@@ -38,4 +38,4 @@ export { TemperatureTool } from './TemperatureTool';
 export { DocumentTool } from './DocumentTool';
 export { CodeExecutionTool } from './CodeExecutionTool';
 export { DefaultTool } from './DefaultTool';
-export { ToolApprovalCard, ToolApprovedCard, ToolDeniedCard } from './ToolApprovalCard';
+export { Confirmation, ConfirmationApproved, ConfirmationDenied } from './Confirmation';

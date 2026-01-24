@@ -5,8 +5,9 @@
  */
 
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
-import { colors, fontSize, spacing, borderRadius } from '../theme';
+import { View } from 'react-native';
+import { Text } from '@/components/ui/text';
+import { Button } from '@/components/ui/button';
 
 interface VersionFooterProps {
   onRestore: () => void;
@@ -20,73 +21,30 @@ export function VersionFooter({
   isRestoring = false,
 }: VersionFooterProps) {
   return (
-    <View style={styles.container}>
-      <Text style={styles.message}>You are viewing a previous version</Text>
+    <View className="gap-2 border-t border-border bg-secondary p-3">
+      <Text variant="muted" className="text-center text-sm">
+        You are viewing a previous version
+      </Text>
 
-      <View style={styles.actions}>
-        <TouchableOpacity
-          style={[styles.button, styles.restoreButton]}
+      <View className="flex-row justify-center gap-2">
+        <Button
+          variant="default"
+          size="sm"
           onPress={onRestore}
           disabled={isRestoring}
         >
-          <Text style={[styles.buttonText, styles.restoreButtonText]}>
-            {isRestoring ? 'Restoring...' : 'Restore this version'}
-          </Text>
-        </TouchableOpacity>
+          <Text>{isRestoring ? 'Restoring...' : 'Restore this version'}</Text>
+        </Button>
 
-        <TouchableOpacity
-          style={[styles.button, styles.latestButton]}
+        <Button
+          variant="outline"
+          size="sm"
           onPress={onBackToLatest}
           disabled={isRestoring}
         >
-          <Text style={[styles.buttonText, styles.latestButtonText]}>
-            Back to latest
-          </Text>
-        </TouchableOpacity>
+          <Text>Back to latest</Text>
+        </Button>
       </View>
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.background.tertiary,
-    borderTopWidth: 1,
-    borderTopColor: colors.border.default,
-    padding: spacing.md,
-    gap: spacing.sm,
-  },
-  message: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-    textAlign: 'center',
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    justifyContent: 'center',
-  },
-  button: {
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.lg,
-    borderRadius: borderRadius.md,
-  },
-  restoreButton: {
-    backgroundColor: colors.accent.primary,
-  },
-  latestButton: {
-    backgroundColor: colors.background.hover,
-    borderWidth: 1,
-    borderColor: colors.border.default,
-  },
-  buttonText: {
-    fontSize: fontSize.sm,
-    fontWeight: '500',
-  },
-  restoreButtonText: {
-    color: colors.text.primary,
-  },
-  latestButtonText: {
-    color: colors.text.secondary,
-  },
-});

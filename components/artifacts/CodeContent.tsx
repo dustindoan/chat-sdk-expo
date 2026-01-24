@@ -6,14 +6,9 @@
  */
 
 import React, { memo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  Platform,
-} from 'react-native';
-import { colors, spacing, fontSize, borderRadius } from '../theme';
+import { View, ScrollView, Platform } from 'react-native';
+import { Text } from '@/components/ui/text';
+import { syntaxColors } from '@/lib/theme';
 import type { ArtifactContentProps } from '../../lib/artifacts/types';
 
 /**
@@ -36,20 +31,29 @@ export const CodeContent = memo(function CodeContent({
 
   return (
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
+      className="flex-1 bg-secondary"
+      contentContainerStyle={{ paddingBottom: 48 }}
       showsVerticalScrollIndicator={true}
     >
       {/* Language badge */}
-      <View style={styles.languageBadge}>
-        <Text style={styles.languageText}>{language}</Text>
+      <View className="border-b border-border bg-card px-3 py-2">
+        <Text
+          className="text-sm text-muted-foreground"
+          style={{ fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier' }}
+        >
+          {language}
+        </Text>
       </View>
 
       {/* Code display */}
-      <View style={styles.codeContainer}>
-        <View style={styles.lineNumbers}>
+      <View className="flex-row">
+        <View className="min-w-[50px] items-end border-r border-border bg-card px-2 py-3">
           {lines.map((_, i) => (
-            <Text key={i} style={styles.lineNumber}>
+            <Text
+              key={i}
+              className="text-[13px] leading-5 text-muted-foreground"
+              style={{ fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier' }}
+            >
               {i + 1}
             </Text>
           ))}
@@ -57,11 +61,15 @@ export const CodeContent = memo(function CodeContent({
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          style={styles.codeScrollView}
+          className="flex-1"
         >
-          <View style={styles.codeLines}>
+          <View className="px-3 py-3">
             {lines.map((line, i) => (
-              <Text key={i} style={styles.codeLine}>
+              <Text
+                key={i}
+                className="text-[13px] leading-5"
+                style={{ fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier' }}
+              >
                 {highlightLine(line)}
               </Text>
             ))}
@@ -177,99 +185,16 @@ function highlightLine(line: string): React.ReactNode {
     return ' '; // Empty line
   }
 
-  return tokens.map((token, i) => {
-    const style =
-      token.type === 'keyword'
-        ? styles.syntaxKeyword
-        : token.type === 'string'
-          ? styles.syntaxString
-          : token.type === 'comment'
-            ? styles.syntaxComment
-            : token.type === 'number'
-              ? styles.syntaxNumber
-              : styles.codeLine;
-
-    return (
-      <Text key={i} style={style}>
-        {token.text}
-      </Text>
-    );
-  });
+  return tokens.map((token, i) => (
+    <Text
+      key={i}
+      className="text-[13px] leading-5"
+      style={{
+        fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
+        color: syntaxColors[token.type],
+      }}
+    >
+      {token.text}
+    </Text>
+  ));
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.tertiary,
-  },
-  contentContainer: {
-    paddingBottom: spacing.xl * 2,
-  },
-  languageBadge: {
-    backgroundColor: colors.background.secondary,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.subtle,
-  },
-  languageText: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-  },
-  codeContainer: {
-    flexDirection: 'row',
-  },
-  lineNumbers: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.sm,
-    backgroundColor: colors.background.secondary,
-    borderRightWidth: 1,
-    borderRightColor: colors.border.subtle,
-    minWidth: 50,
-    alignItems: 'flex-end',
-  },
-  lineNumber: {
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-    fontSize: 13,
-    lineHeight: 20,
-    color: colors.text.tertiary,
-  },
-  codeScrollView: {
-    flex: 1,
-  },
-  codeLines: {
-    paddingVertical: spacing.md,
-    paddingHorizontal: spacing.md,
-  },
-  codeLine: {
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-    fontSize: 13,
-    lineHeight: 20,
-    color: colors.code.text,
-  },
-  syntaxKeyword: {
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-    fontSize: 13,
-    lineHeight: 20,
-    color: '#c792ea', // Purple
-  },
-  syntaxString: {
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-    fontSize: 13,
-    lineHeight: 20,
-    color: '#c3e88d', // Green
-  },
-  syntaxComment: {
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-    fontSize: 13,
-    lineHeight: 20,
-    color: '#546e7a', // Gray
-  },
-  syntaxNumber: {
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-    fontSize: 13,
-    lineHeight: 20,
-    color: '#f78c6c', // Orange
-  },
-});

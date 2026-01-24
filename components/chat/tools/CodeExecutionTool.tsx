@@ -1,13 +1,8 @@
 import React, { memo, useState, useEffect, useCallback } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  ScrollView,
-  Pressable,
-} from 'react-native';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme';
+import { View, ActivityIndicator, ScrollView } from 'react-native';
+import { Text } from '@/components/ui/text';
+import { Button } from '@/components/ui/button';
+import { colors, languageColors } from '@/lib/theme';
 import type { ToolUIProps } from './types';
 import type { ExecuteCodeInput, ExecuteCodeResult } from '../../../lib/ai/tools/executeCode';
 import {
@@ -20,8 +15,8 @@ type CodeExecutionToolProps = ToolUIProps<ExecuteCodeInput, ExecuteCodeResult>;
 
 // Language display names and colors
 const languageConfig = {
-  python: { name: 'Python', color: '#3776ab', icon: '\uD83D\uDC0D' },
-  javascript: { name: 'JavaScript', color: '#f7df1e', icon: '\uD83D\uDFE8' },
+  python: { name: 'Python', color: languageColors.python, icon: '\uD83D\uDC0D' },
+  javascript: { name: 'JavaScript', color: languageColors.javascript, icon: '\uD83D\uDFE8' },
 };
 
 /**
@@ -86,65 +81,71 @@ export const CodeExecutionTool = memo(function CodeExecutionTool({
   }, []);
 
   return (
-    <View style={styles.container}>
+    <View
+      className="my-2 rounded-lg bg-secondary p-3"
+      style={{ borderLeftWidth: 3, borderLeftColor: colors.success }}
+    >
       {/* Header */}
-      <View style={styles.header}>
-        <View style={[styles.languageBadge, { backgroundColor: config.color }]}>
-          <Text style={styles.languageIcon}>{config.icon}</Text>
-          <Text style={styles.languageName}>{config.name}</Text>
+      <View className="mb-3 flex-row items-center gap-2">
+        <View
+          className="flex-row items-center gap-1 rounded px-2 py-1"
+          style={{ backgroundColor: config.color }}
+        >
+          <Text className="text-sm">{config.icon}</Text>
+          <Text className="text-xs font-semibold text-black">{config.name}</Text>
         </View>
-        <Text style={styles.headerText}>Code Execution</Text>
+        <Text variant="muted" className="flex-1 text-sm font-semibold">Code Execution</Text>
         {supportsInBrowserExecution() && (
-          <View style={styles.browserBadge}>
-            <Text style={styles.browserBadgeText}>In-Browser</Text>
+          <View className="rounded bg-emerald-500/20 px-2 py-0.5">
+            <Text className="text-xs font-medium text-emerald-500">In-Browser</Text>
           </View>
         )}
       </View>
 
       {/* Loading state (streaming args) */}
       {isLoading && (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={colors.accent.primary} />
-          <Text style={styles.loadingText}>Preparing code...</Text>
+        <View className="flex-row items-center gap-2 py-2">
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text variant="muted" className="text-sm">Preparing code...</Text>
         </View>
       )}
 
       {/* Approval pending state */}
       {isApprovalPending && args && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Code to execute:</Text>
-          <Pressable onPress={toggleCodeView}>
+        <View className="mt-2">
+          <Text variant="muted" className="mb-1 text-sm font-medium">Code to execute:</Text>
+          <Button variant="ghost" className="h-auto p-0" onPress={toggleCodeView}>
             <ScrollView
               horizontal
-              style={styles.codeContainer}
-              contentContainerStyle={styles.codeContent}
+              className="max-h-[200px] rounded-md bg-card"
+              contentContainerStyle={{ padding: 8 }}
             >
-              <Text style={styles.codeText}>
+              <Text className="font-mono text-sm leading-5">
                 {showFullCode ? code : truncatedCode}
               </Text>
             </ScrollView>
             {codeLines.length > 10 && (
-              <Text style={styles.expandText}>
+              <Text className="mt-1 text-center text-xs text-primary">
                 {showFullCode ? 'Show less' : `Show all ${codeLines.length} lines`}
               </Text>
             )}
-          </Pressable>
+          </Button>
         </View>
       )}
 
       {/* Denied state */}
       {wasDenied && (
-        <View style={styles.deniedContainer}>
-          <Text style={styles.deniedIcon}>{'\u26D4'}</Text>
-          <Text style={styles.deniedText}>Code execution was denied</Text>
+        <View className="flex-row items-center justify-center gap-2 py-3">
+          <Text className="text-lg">{'\u26D4'}</Text>
+          <Text variant="muted" className="text-sm">Code execution was denied</Text>
         </View>
       )}
 
       {/* Executing state */}
       {isExecuting && (
-        <View style={styles.executingContainer}>
-          <ActivityIndicator size="small" color={colors.accent.primary} />
-          <Text style={styles.executingText}>
+        <View className="flex-row items-center justify-center gap-2 py-3">
+          <ActivityIndicator size="small" color={colors.primary} />
+          <Text variant="muted" className="text-sm">
             Executing {config.name} code...
           </Text>
         </View>
@@ -152,53 +153,52 @@ export const CodeExecutionTool = memo(function CodeExecutionTool({
 
       {/* Execution result */}
       {executionResult && !isExecuting && (
-        <View style={styles.resultSection}>
+        <View className="mt-2">
           {/* Code preview (collapsed) */}
-          <Pressable onPress={toggleCodeView} style={styles.codePreviewHeader}>
-            <Text style={styles.codePreviewLabel}>Code</Text>
-            <Text style={styles.codePreviewToggle}>
+          <Button
+            variant="ghost"
+            className="h-auto flex-row items-center gap-2 p-0 py-1"
+            onPress={toggleCodeView}
+          >
+            <Text variant="muted" className="text-sm font-medium">Code</Text>
+            <Text variant="muted" className="text-xs">
               {showFullCode ? '\u25BC' : '\u25B6'}
             </Text>
-          </Pressable>
+          </Button>
 
           {showFullCode && (
             <ScrollView
               horizontal
-              style={styles.codeContainer}
-              contentContainerStyle={styles.codeContent}
+              className="max-h-[200px] rounded-md bg-card"
+              contentContainerStyle={{ padding: 8 }}
             >
-              <Text style={styles.codeText}>{code}</Text>
+              <Text className="font-mono text-sm leading-5">{code}</Text>
             </ScrollView>
           )}
 
           {/* Status indicator */}
-          <View style={styles.statusRow}>
+          <View className="mb-1 mt-2 flex-row items-center gap-2">
             <View
-              style={[
-                styles.statusIndicator,
-                executionResult.success ? styles.statusSuccess : styles.statusError,
-              ]}
+              className="h-2 w-2 rounded-full"
+              style={{ backgroundColor: executionResult.success ? colors.success : colors.destructive }}
             />
-            <Text style={styles.statusText}>
+            <Text className="text-sm font-medium">
               {executionResult.success ? 'Success' : 'Error'}
             </Text>
-            <Text style={styles.executionTime}>
+            <Text variant="muted" className="ml-auto text-xs">
               {executionResult.executionTime}ms
             </Text>
           </View>
 
           {/* Output */}
-          <View style={styles.outputSection}>
-            <Text style={styles.outputLabel}>Output:</Text>
+          <View className="mt-2">
+            <Text variant="muted" className="mb-1 text-sm font-medium">Output:</Text>
             <ScrollView
-              style={styles.outputContainer}
-              contentContainerStyle={styles.outputContent}
+              className="max-h-[200px] rounded-md bg-card"
+              contentContainerStyle={{ padding: 8 }}
             >
               <Text
-                style={[
-                  styles.outputText,
-                  !executionResult.success && styles.errorText,
-                ]}
+                className={`font-mono text-sm leading-5 ${executionResult.success ? 'text-emerald-500' : 'text-red-500'}`}
               >
                 {executionResult.error || executionResult.output}
               </Text>
@@ -208,190 +208,4 @@ export const CodeExecutionTool = memo(function CodeExecutionTool({
       )}
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.background.tertiary,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    marginVertical: spacing.sm,
-    borderLeftWidth: 3,
-    borderLeftColor: '#10b981', // Green accent for code execution
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.md,
-  },
-  languageBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: borderRadius.sm,
-    gap: 4,
-  },
-  languageIcon: {
-    fontSize: fontSize.sm,
-  },
-  languageName: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.semibold,
-    color: '#000',
-  },
-  headerText: {
-    flex: 1,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.text.secondary,
-  },
-  browserBadge: {
-    backgroundColor: 'rgba(16, 185, 129, 0.2)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 2,
-    borderRadius: borderRadius.sm,
-  },
-  browserBadgeText: {
-    fontSize: fontSize.xs,
-    color: '#10b981',
-    fontWeight: fontWeight.medium,
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.sm,
-  },
-  loadingText: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-  },
-  section: {
-    marginTop: spacing.sm,
-  },
-  sectionTitle: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.text.secondary,
-    marginBottom: spacing.xs,
-  },
-  codeContainer: {
-    backgroundColor: colors.background.secondary,
-    borderRadius: borderRadius.md,
-    maxHeight: 200,
-  },
-  codeContent: {
-    padding: spacing.sm,
-  },
-  codeText: {
-    fontFamily: 'monospace',
-    fontSize: fontSize.sm,
-    color: colors.text.primary,
-    lineHeight: 20,
-  },
-  expandText: {
-    fontSize: fontSize.xs,
-    color: colors.accent.primary,
-    marginTop: spacing.xs,
-    textAlign: 'center',
-  },
-  deniedContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    justifyContent: 'center',
-  },
-  deniedIcon: {
-    fontSize: fontSize.lg,
-  },
-  deniedText: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-  },
-  executingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-    justifyContent: 'center',
-  },
-  executingText: {
-    fontSize: fontSize.sm,
-    color: colors.text.secondary,
-  },
-  resultSection: {
-    marginTop: spacing.sm,
-  },
-  codePreviewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  codePreviewLabel: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.text.secondary,
-  },
-  codePreviewToggle: {
-    fontSize: fontSize.xs,
-    color: colors.text.tertiary,
-  },
-  statusRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginTop: spacing.sm,
-    marginBottom: spacing.xs,
-  },
-  statusIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  statusSuccess: {
-    backgroundColor: '#10b981',
-  },
-  statusError: {
-    backgroundColor: '#ef4444',
-  },
-  statusText: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.text.primary,
-  },
-  executionTime: {
-    fontSize: fontSize.xs,
-    color: colors.text.tertiary,
-    marginLeft: 'auto',
-  },
-  outputSection: {
-    marginTop: spacing.sm,
-  },
-  outputLabel: {
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.text.secondary,
-    marginBottom: spacing.xs,
-  },
-  outputContainer: {
-    backgroundColor: colors.background.secondary,
-    borderRadius: borderRadius.md,
-    maxHeight: 200,
-  },
-  outputContent: {
-    padding: spacing.sm,
-  },
-  outputText: {
-    fontFamily: 'monospace',
-    fontSize: fontSize.sm,
-    color: '#10b981',
-    lineHeight: 20,
-  },
-  errorText: {
-    color: '#ef4444',
-  },
 });

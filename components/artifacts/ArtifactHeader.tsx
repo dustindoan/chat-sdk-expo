@@ -6,16 +6,11 @@
  */
 
 import React, { memo } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Platform,
-  ActivityIndicator,
-} from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../theme';
+import { Text } from '@/components/ui/text';
+import { Button } from '@/components/ui/button';
+import { colors } from '@/lib/theme';
 import type { ArtifactKind, ArtifactStatus } from '../../lib/artifacts/types';
 import { VersionNavigation } from './VersionNavigation';
 
@@ -55,30 +50,32 @@ export const ArtifactHeader = memo(function ArtifactHeader({
   const kindIcon = kind === 'code' ? 'code' : 'file-text';
 
   return (
-    <View style={styles.container}>
+    <View className="min-h-[56px] flex-row items-center justify-between border-b border-border bg-card px-3 py-2">
       {/* Left side: close button and title */}
-      <View style={styles.leftSection}>
-        <TouchableOpacity
-          style={styles.closeButton}
+      <View className="flex-1 flex-row items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
           onPress={onClose}
           accessibilityLabel="Close artifact panel"
         >
-          <Feather name="x" size={20} color={colors.text.secondary} />
-        </TouchableOpacity>
+          <Feather name="x" size={20} color={colors.tertiary} />
+        </Button>
 
-        <View style={styles.titleSection}>
-          <Text style={styles.title} numberOfLines={1}>
+        <View className="flex-1 gap-1">
+          <Text className="text-base font-semibold" numberOfLines={1}>
             {title || 'Untitled'}
           </Text>
-          <View style={styles.kindBadge}>
-            <Feather name={kindIcon} size={12} color={colors.text.secondary} />
-            <Text style={styles.kindText}>{kindLabel}</Text>
+          <View className="flex-row items-center gap-1">
+            <Feather name={kindIcon} size={12} color={colors.tertiary} />
+            <Text variant="muted" className="text-xs">{kindLabel}</Text>
           </View>
         </View>
       </View>
 
       {/* Right side: version navigation, status and actions */}
-      <View style={styles.rightSection}>
+      <View className="flex-row items-center gap-2">
         {/* Version navigation (only when not streaming and has versions) */}
         {!isStreaming && versionProps && versionProps.totalVersions > 1 && (
           <VersionNavigation
@@ -93,14 +90,16 @@ export const ArtifactHeader = memo(function ArtifactHeader({
         )}
 
         {isStreaming && (
-          <View style={styles.streamingIndicator}>
-            <ActivityIndicator size="small" color={colors.accent.primary} />
-            <Text style={styles.streamingText}>Generating...</Text>
+          <View className="flex-row items-center gap-1 rounded-md bg-secondary px-2 py-1">
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text className="text-xs text-primary">Generating...</Text>
           </View>
         )}
 
-        <TouchableOpacity
-          style={[styles.actionButton, isStreaming && styles.actionButtonDisabled]}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8"
           onPress={onCopy}
           disabled={isStreaming}
           accessibilityLabel="Copy content"
@@ -108,79 +107,10 @@ export const ArtifactHeader = memo(function ArtifactHeader({
           <Feather
             name="copy"
             size={18}
-            color={isStreaming ? colors.text.tertiary : colors.text.secondary}
+            color={isStreaming ? colors.disabled : colors.tertiary}
           />
-        </TouchableOpacity>
+        </Button>
       </View>
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    backgroundColor: colors.background.secondary,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border.default,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    minHeight: 56,
-  },
-  leftSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-    gap: spacing.sm,
-  },
-  closeButton: {
-    padding: spacing.xs,
-    borderRadius: borderRadius.md,
-  },
-  titleSection: {
-    flex: 1,
-    gap: spacing.xs,
-  },
-  title: {
-    fontSize: fontSize.base,
-    fontWeight: fontWeight.semibold,
-    color: colors.text.primary,
-  },
-  kindBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-  },
-  kindText: {
-    fontSize: fontSize.xs,
-    color: colors.text.secondary,
-  },
-  rightSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  streamingIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    backgroundColor: colors.background.tertiary,
-    borderRadius: borderRadius.md,
-  },
-  streamingText: {
-    fontSize: fontSize.xs,
-    color: colors.accent.primary,
-  },
-  actionButton: {
-    padding: spacing.sm,
-    borderRadius: borderRadius.md,
-    ...(Platform.OS === 'web' && ({ cursor: 'pointer' } as any)),
-  },
-  actionButtonDisabled: {
-    opacity: 0.5,
-    ...(Platform.OS === 'web' && ({ cursor: 'default' } as any)),
-  },
 });

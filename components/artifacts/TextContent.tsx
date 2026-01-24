@@ -6,9 +6,8 @@
  */
 
 import React, { memo } from 'react';
-import { View, StyleSheet, ScrollView } from 'react-native';
+import { View, ScrollView } from 'react-native';
 import { SimpleMarkdown } from '../chat/SimpleMarkdown';
-import { colors, spacing } from '../theme';
 import type { ArtifactContentProps } from '../../lib/artifacts/types';
 
 /**
@@ -23,27 +22,13 @@ export const TextContent = memo(function TextContent({
 
   return (
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
+      className="flex-1 bg-background"
+      contentContainerStyle={{ padding: 16, paddingBottom: 48 }}
       showsVerticalScrollIndicator={true}
     >
-      <View style={styles.content}>
+      <View className="min-h-[200px]">
         <SimpleMarkdown text={content + (isStreaming ? '\u258C' : '')} />
       </View>
     </ScrollView>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.primary,
-  },
-  contentContainer: {
-    padding: spacing.lg,
-    paddingBottom: spacing.xl * 2,
-  },
-  content: {
-    minHeight: 200,
-  },
 });

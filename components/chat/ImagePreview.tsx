@@ -1,107 +1,82 @@
 import React, { useState } from 'react';
-import {
-  View,
-  Image,
-  Text,
-  StyleSheet,
-  TouchableOpacity,
-  Modal,
-  Pressable,
-  Dimensions,
-  Platform,
-} from 'react-native';
+import { View, Image, StyleSheet, Pressable, Dimensions, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, spacing, fontSize, borderRadius } from '../theme';
+import { Text } from '@/components/ui/text';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogTrigger,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { colors } from '@/lib/theme';
 import type { ImagePreviewProps } from './types';
 
 const THUMBNAIL_SIZE = 200;
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export function ImagePreview({ url, filename }: ImagePreviewProps) {
-  const [isModalVisible, setIsModalVisible] = useState(false);
   const [imageError, setImageError] = useState(false);
 
   if (imageError) {
     return (
       <View style={styles.errorContainer}>
-        <Feather name="image" size={24} color={colors.text.tertiary} />
-        <Text style={styles.errorText}>Failed to load image</Text>
+        <Feather name="image" size={24} color={colors.tertiary} />
+        <Text className="mt-1 text-xs text-muted-foreground">Failed to load image</Text>
       </View>
     );
   }
 
   return (
-    <>
-      <TouchableOpacity
-        onPress={() => setIsModalVisible(true)}
-        style={[
-          styles.container,
-          Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
-        ]}
-        activeOpacity={0.8}
-        accessibilityLabel={`View ${filename || 'image'} full size`}
-        accessibilityRole="button"
-      >
-        <Image
-          source={{ uri: url }}
-          style={styles.thumbnail}
-          resizeMode="cover"
-          onError={() => setImageError(true)}
-        />
-        {filename && (
-          <View style={styles.filenameContainer}>
-            <Text style={styles.filename} numberOfLines={1} ellipsizeMode="middle">
-              {filename}
-            </Text>
-          </View>
-        )}
-      </TouchableOpacity>
-
-      <Modal
-        visible={isModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsModalVisible(false)}
-      >
+    <Dialog>
+      <DialogTrigger asChild>
         <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setIsModalVisible(false)}
+          style={[
+            styles.container,
+            Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
+          ]}
+          accessibilityLabel={`View ${filename || 'image'} full size`}
+          accessibilityRole="button"
         >
-          <View style={styles.modalContent}>
-            <Image
-              source={{ uri: url }}
-              style={styles.fullImage}
-              resizeMode="contain"
-            />
-            <TouchableOpacity
-              style={[
-                styles.closeButton,
-                Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
-              ]}
-              onPress={() => setIsModalVisible(false)}
-              accessibilityLabel="Close image"
-              accessibilityRole="button"
-            >
-              <Feather name="x" size={24} color={colors.text.primary} />
-            </TouchableOpacity>
-          </View>
+          <Image
+            source={{ uri: url }}
+            style={styles.thumbnail}
+            resizeMode="cover"
+            onError={() => setImageError(true)}
+          />
+          {filename && (
+            <View style={styles.filenameContainer}>
+              <Text className="text-xs text-foreground" numberOfLines={1}>
+                {filename}
+              </Text>
+            </View>
+          )}
         </Pressable>
-      </Modal>
-    </>
+      </DialogTrigger>
+      <DialogContent className="max-w-[95vw] bg-black/95 border-none p-0 sm:max-w-[90vw]">
+        <View style={styles.modalContent}>
+          <Image
+            source={{ uri: url }}
+            style={styles.fullImage}
+            resizeMode="contain"
+          />
+        </View>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: spacing.xs,
-    borderRadius: borderRadius.lg,
+    marginVertical: 4,
+    borderRadius: 12,
     overflow: 'hidden',
-    backgroundColor: colors.background.tertiary,
+    backgroundColor: colors.subtle,
   },
   thumbnail: {
     width: THUMBNAIL_SIZE,
     height: THUMBNAIL_SIZE,
-    borderRadius: borderRadius.lg,
+    borderRadius: 12,
   },
   filenameContainer: {
     position: 'absolute',
@@ -109,54 +84,29 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-  },
-  filename: {
-    fontSize: fontSize.xs,
-    color: colors.text.primary,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   errorContainer: {
     width: THUMBNAIL_SIZE,
     height: 100,
-    borderRadius: borderRadius.lg,
-    backgroundColor: colors.background.tertiary,
+    borderRadius: 12,
+    backgroundColor: colors.subtle,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: colors.border.default,
-    marginVertical: spacing.xs,
-  },
-  errorText: {
-    fontSize: fontSize.xs,
-    color: colors.text.tertiary,
-    marginTop: spacing.xs,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    borderColor: colors.subtle,
+    marginVertical: 4,
   },
   modalContent: {
-    width: SCREEN_WIDTH,
-    height: SCREEN_HEIGHT,
+    width: '100%',
+    minHeight: 300,
     justifyContent: 'center',
     alignItems: 'center',
+    padding: 16,
   },
   fullImage: {
-    width: SCREEN_WIDTH * 0.95,
-    height: SCREEN_HEIGHT * 0.8,
-  },
-  closeButton: {
-    position: 'absolute',
-    top: Platform.OS === 'ios' ? 60 : 40,
-    right: 20,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: SCREEN_WIDTH * 0.85,
+    height: SCREEN_HEIGHT * 0.7,
   },
 });

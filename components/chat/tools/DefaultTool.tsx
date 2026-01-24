@@ -1,13 +1,8 @@
 import React, { memo, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  Pressable,
-  Platform,
-} from 'react-native';
-import { colors, spacing, fontSize, fontWeight, borderRadius } from '../../theme';
+import { View, ActivityIndicator, Platform } from 'react-native';
+import { Text } from '@/components/ui/text';
+import { Button } from '@/components/ui/button';
+import { colors } from '@/lib/theme';
 import type { ToolUIProps } from './types';
 
 /**
@@ -26,49 +21,63 @@ export const DefaultTool = memo(function DefaultTool({
   const hasResult = (state === 'result' || state === 'output-available') && result !== undefined;
 
   return (
-    <View style={styles.container}>
+    <View
+      className="my-2 rounded-lg bg-secondary p-3"
+      style={{ borderLeftWidth: 3, borderLeftColor: colors.primary }}
+    >
       {/* Header */}
-      <View style={styles.header}>
-        <Text style={styles.icon}>{'\uD83D\uDD27'}</Text>
-        <Text style={styles.name}>{toolName}</Text>
-        {isLoading && (
-          <ActivityIndicator size="small" color={colors.accent.primary} />
-        )}
+      <View className="mb-2 flex-row items-center gap-2">
+        <Text className="text-base">{'\uD83D\uDD27'}</Text>
+        <Text className="flex-1 text-sm font-semibold text-primary">{toolName}</Text>
+        {isLoading && <ActivityIndicator size="small" color={colors.primary} />}
       </View>
 
       {/* Input args */}
       {args && Object.keys(args).length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Input</Text>
-          <View style={styles.codeBlock}>
-            <Text style={styles.code}>{JSON.stringify(args, null, 2)}</Text>
+        <View className="mt-2">
+          <Text variant="muted" className="mb-1 text-xs uppercase tracking-wide">
+            Input
+          </Text>
+          <View className="rounded-md bg-card p-2">
+            <Text
+              className="text-xs"
+              style={{ fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier' }}
+            >
+              {JSON.stringify(args, null, 2)}
+            </Text>
           </View>
         </View>
       )}
 
       {/* Result */}
       {hasResult && (
-        <View style={styles.section}>
-          <Pressable
-            style={styles.resultHeader}
+        <View className="mt-2">
+          <Button
+            variant="ghost"
+            className="h-auto flex-row items-center justify-between p-0"
             onPress={() => setIsExpanded(!isExpanded)}
           >
-            <Text style={styles.sectionLabel}>Result</Text>
-            <Text style={styles.expandIcon}>
+            <Text variant="muted" className="text-xs uppercase tracking-wide">
+              Result
+            </Text>
+            <Text variant="muted" className="text-xs">
               {isExpanded ? '\u25BC' : '\u25B6'}
             </Text>
-          </Pressable>
+          </Button>
 
           {isExpanded && (
-            <View style={styles.codeBlock}>
-              <Text style={styles.code}>
+            <View className="mt-1 rounded-md bg-card p-2">
+              <Text
+                className="text-xs"
+                style={{ fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier' }}
+              >
                 {JSON.stringify(result, null, 2)}
               </Text>
             </View>
           )}
 
           {!isExpanded && (
-            <Text style={styles.collapsedHint}>
+            <Text variant="muted" className="text-xs italic">
               Tap to expand result
             </Text>
           )}
@@ -76,65 +85,4 @@ export const DefaultTool = memo(function DefaultTool({
       )}
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    backgroundColor: colors.background.tertiary,
-    borderRadius: borderRadius.lg,
-    padding: spacing.md,
-    marginVertical: spacing.sm,
-    borderLeftWidth: 3,
-    borderLeftColor: colors.accent.primary,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    marginBottom: spacing.sm,
-  },
-  icon: {
-    fontSize: fontSize.base,
-  },
-  name: {
-    flex: 1,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.semibold,
-    color: colors.accent.primary,
-  },
-  section: {
-    marginTop: spacing.sm,
-  },
-  sectionLabel: {
-    fontSize: fontSize.xs,
-    fontWeight: fontWeight.medium,
-    color: colors.text.secondary,
-    marginBottom: spacing.xs,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-  },
-  resultHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  expandIcon: {
-    fontSize: fontSize.xs,
-    color: colors.text.secondary,
-  },
-  codeBlock: {
-    backgroundColor: colors.background.secondary,
-    borderRadius: borderRadius.md,
-    padding: spacing.sm,
-  },
-  code: {
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-    fontSize: fontSize.xs,
-    color: colors.text.primary,
-  },
-  collapsedHint: {
-    fontSize: fontSize.xs,
-    color: colors.text.tertiary,
-    fontStyle: 'italic',
-  },
 });

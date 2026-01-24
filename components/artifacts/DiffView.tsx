@@ -6,9 +6,10 @@
  */
 
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, ScrollView } from 'react-native';
 import { diffWords, type Change } from 'diff';
-import { colors, fontSize, spacing } from '../theme';
+import { Text } from '@/components/ui/text';
+import { colors } from '@/lib/theme';
 
 interface DiffViewProps {
   oldContent: string;
@@ -23,10 +24,10 @@ export function DiffView({ oldContent, newContent, kind }: DiffViewProps) {
 
   return (
     <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.contentContainer}
+      className="flex-1 bg-card"
+      contentContainerStyle={{ padding: 16 }}
     >
-      <View style={[styles.content, kind === 'code' && styles.codeContent]}>
+      <View className={`flex-row flex-wrap ${kind === 'code' ? 'rounded-lg bg-secondary p-3' : ''}`}>
         {changes.map((change, index) => (
           <DiffSegment key={index} change={change} kind={kind} />
         ))}
@@ -60,60 +61,18 @@ function DiffSegment({ change, kind }: DiffSegmentProps) {
         return (
           <React.Fragment key={lineIndex}>
             <Text
+              className={`text-base leading-6 ${kind === 'code' ? 'font-mono text-sm' : ''}`}
               style={[
-                styles.text,
-                kind === 'code' && styles.codeText,
-                isAddition && styles.addition,
-                isDeletion && styles.deletion,
+                isAddition && { backgroundColor: 'rgba(34, 197, 94, 0.2)', color: colors.success },
+                isDeletion && { backgroundColor: 'rgba(239, 68, 68, 0.2)', color: colors.destructive, textDecorationLine: 'line-through' },
               ]}
             >
               {line}
             </Text>
-            {showNewline && <Text style={styles.newline}>{'\n'}</Text>}
+            {showNewline && <Text style={{ width: '100%', height: 0 }}>{'\n'}</Text>}
           </React.Fragment>
         );
       })}
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background.secondary,
-  },
-  contentContainer: {
-    padding: spacing.lg,
-  },
-  content: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  codeContent: {
-    backgroundColor: colors.code.background,
-    padding: spacing.md,
-    borderRadius: 8,
-  },
-  text: {
-    fontSize: fontSize.base,
-    color: colors.text.primary,
-    lineHeight: 24,
-  },
-  codeText: {
-    fontFamily: 'monospace',
-    fontSize: fontSize.sm,
-  },
-  newline: {
-    width: '100%',
-    height: 0,
-  },
-  addition: {
-    backgroundColor: 'rgba(34, 197, 94, 0.2)', // Green with opacity
-    color: colors.accent.success,
-  },
-  deletion: {
-    backgroundColor: 'rgba(239, 68, 68, 0.2)', // Red with opacity
-    color: colors.accent.error,
-    textDecorationLine: 'line-through',
-  },
-});

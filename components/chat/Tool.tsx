@@ -1,19 +1,19 @@
 import React from 'react';
-import { getToolComponent, ToolApprovalCard, ToolApprovedCard, ToolDeniedCard } from './tools';
-import type { ToolInvocationProps } from './types';
+import { getToolComponent, Confirmation, ConfirmationApproved, ConfirmationDenied } from './tools';
+import type { ToolProps } from './types';
 import type { ToolState } from './tools/types';
 
 /**
- * ToolInvocation component
+ * Tool component
  * Routes tool invocations to their appropriate UI component
  * based on the tool registry
  *
  * Handles tool approval flow:
- * - approval-requested: Shows ToolApprovalCard with Approve/Deny buttons
- * - approval-responded: Shows ToolApprovedCard briefly, then the tool result
- * - output-denied: Shows ToolDeniedCard
+ * - approval-requested: Shows Confirmation with Approve/Deny buttons
+ * - approval-responded: Shows ConfirmationApproved briefly, then the tool result
+ * - output-denied: Shows ConfirmationDenied
  */
-export function ToolInvocation({ part, onApprovalResponse }: ToolInvocationProps) {
+export function Tool({ part, onApprovalResponse }: ToolProps) {
   const toolName = part.toolName || part.type?.replace('tool-', '') || 'unknown';
   const toolCallId = part.toolCallId || 'unknown';
 
@@ -27,7 +27,7 @@ export function ToolInvocation({ part, onApprovalResponse }: ToolInvocationProps
   // Handle approval states
   if (state === 'approval-requested') {
     return (
-      <ToolApprovalCard
+      <Confirmation
         toolName={toolName}
         toolCallId={toolCallId}
         state={state}
@@ -40,7 +40,7 @@ export function ToolInvocation({ part, onApprovalResponse }: ToolInvocationProps
 
   if (state === 'output-denied') {
     return (
-      <ToolDeniedCard
+      <ConfirmationDenied
         toolName={toolName}
         approval={part.approval}
       />
@@ -52,10 +52,10 @@ export function ToolInvocation({ part, onApprovalResponse }: ToolInvocationProps
   if (state === 'approval-responded' && !result) {
     const wasApproved = part.approval?.approved !== false;
     if (wasApproved) {
-      return <ToolApprovedCard toolName={toolName} />;
+      return <ConfirmationApproved toolName={toolName} />;
     } else {
       return (
-        <ToolDeniedCard
+        <ConfirmationDenied
           toolName={toolName}
           approval={part.approval}
         />

@@ -1,8 +1,9 @@
 import React, { useRef, useEffect, memo } from 'react';
-import { View, Text, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
-import { colors, spacing } from '../theme';
-import { WelcomeMessage } from './WelcomeMessage';
-import { MessageBubble } from './MessageBubble';
+import { View, ScrollView, ActivityIndicator } from 'react-native';
+import { Text } from '@/components/ui/text';
+import { ConversationEmptyState } from './ConversationEmptyState';
+import { Message } from './Message';
+import { colors } from '@/lib/theme';
 import type { MessageListProps } from './types';
 
 export const MessageList = memo(function MessageList({
@@ -36,16 +37,16 @@ export const MessageList = memo(function MessageList({
   return (
     <ScrollView
       ref={scrollViewRef}
-      style={styles.container}
-      contentContainerStyle={styles.scrollContent}
+      className="min-h-0 flex-1 bg-background"
+      contentContainerClassName="grow items-center"
     >
       {/* Centered content wrapper with max-width */}
-      <View style={styles.content}>
+      <View className="w-full max-w-4xl gap-3 px-3 py-4">
         {messages.length === 0 ? (
-          <WelcomeMessage title={welcomeTitle} subtitle={welcomeSubtitle} />
+          <ConversationEmptyState title={welcomeTitle} subtitle={welcomeSubtitle} />
         ) : (
           messages.map((message, index) => (
-            <MessageBubble
+            <Message
               key={message.id}
               message={message}
               isStreaming={isLoading && index === messages.length - 1 && message.role === 'assistant'}
@@ -62,57 +63,18 @@ export const MessageList = memo(function MessageList({
         )}
 
         {showThinkingIndicator && (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="small" color={colors.accent.primary} />
-            <Text style={styles.loadingText}>Thinking...</Text>
+          <View className="flex-row items-center gap-2 py-3">
+            <ActivityIndicator size="small" color={colors.primary} />
+            <Text className="text-sm text-muted-foreground">Thinking...</Text>
           </View>
         )}
 
         {error && (
-          <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>Error: {error.message}</Text>
+          <View className="my-2 rounded-lg bg-destructive/20 p-3">
+            <Text className="text-sm text-destructive">Error: {error.message}</Text>
           </View>
         )}
       </View>
     </ScrollView>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    minHeight: 0,
-    backgroundColor: colors.background.primary,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    alignItems: 'center',
-  },
-  content: {
-    width: '100%',
-    maxWidth: 896, // max-w-4xl equivalent
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.lg,
-    gap: spacing.md,
-  },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingVertical: spacing.md,
-  },
-  loadingText: {
-    fontSize: 14,
-    color: colors.text.secondary,
-  },
-  errorContainer: {
-    backgroundColor: colors.accent.error + '20',
-    borderRadius: 8,
-    padding: spacing.md,
-    marginVertical: spacing.sm,
-  },
-  errorText: {
-    fontSize: 14,
-    color: colors.accent.error,
-  },
 });

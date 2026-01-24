@@ -1,15 +1,10 @@
 import React, { useEffect, useRef } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Animated,
-  Platform,
-} from 'react-native';
+import { View, Animated, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, spacing, borderRadius, fontSize, fontWeight } from '../theme';
+import { Text } from '@/components/ui/text';
+import { Button } from '@/components/ui/button';
+import { colors } from '@/lib/theme';
 
 export type ToastType = 'success' | 'error' | 'info';
 
@@ -26,9 +21,9 @@ const TOAST_ICONS: Record<ToastType, keyof typeof Feather.glyphMap> = {
 };
 
 const TOAST_COLORS: Record<ToastType, string> = {
-  success: colors.accent.success,
-  error: colors.accent.error,
-  info: colors.accent.primary,
+  success: colors.success,
+  error: colors.destructive,
+  info: colors.info,
 };
 
 export function Toast({ message, type, onDismiss }: ToastProps) {
@@ -72,69 +67,47 @@ export function Toast({ message, type, onDismiss }: ToastProps) {
 
   return (
     <Animated.View
-      style={[
-        styles.container,
-        {
-          top: insets.top + spacing.md,
-          opacity,
-          transform: [{ translateY }],
-        },
-      ]}
+      className="absolute left-4 right-4 z-[9999] items-center"
+      style={{
+        top: insets.top + 12,
+        opacity,
+        transform: [{ translateY }],
+      }}
     >
-      <View style={[styles.toast, { borderLeftColor: TOAST_COLORS[type] }]}>
+      <View
+        className="max-w-[400px] flex-row items-center gap-2 rounded-lg bg-secondary px-4 py-3 shadow-lg"
+        style={{
+          borderLeftWidth: 3,
+          borderLeftColor: TOAST_COLORS[type],
+          ...Platform.select({
+            web: {
+              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+            },
+            default: {
+              shadowColor: '#000',
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.3,
+              shadowRadius: 12,
+              elevation: 8,
+            },
+          }),
+        }}
+      >
         <Feather
           name={TOAST_ICONS[type]}
           size={18}
           color={TOAST_COLORS[type]}
         />
-        <Text style={styles.message}>{message}</Text>
-        <TouchableOpacity
+        <Text className="flex-1 text-sm font-medium">{message}</Text>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6"
           onPress={handleDismiss}
-          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-          style={Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined}
         >
-          <Feather name="x" size={16} color={colors.text.tertiary} />
-        </TouchableOpacity>
+          <Feather name="x" size={16} color={colors.tertiary} />
+        </Button>
       </View>
     </Animated.View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    left: spacing.lg,
-    right: spacing.lg,
-    zIndex: 9999,
-    alignItems: 'center',
-  },
-  toast: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.background.tertiary,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
-    borderRadius: borderRadius.lg,
-    borderLeftWidth: 3,
-    gap: spacing.sm,
-    maxWidth: 400,
-    ...Platform.select({
-      web: {
-        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-      },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.3,
-        shadowRadius: 12,
-        elevation: 8,
-      },
-    }),
-  },
-  message: {
-    flex: 1,
-    fontSize: fontSize.sm,
-    fontWeight: fontWeight.medium,
-    color: colors.text.primary,
-  },
-});
