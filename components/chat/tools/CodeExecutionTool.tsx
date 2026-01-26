@@ -13,11 +13,13 @@ import {
 
 type CodeExecutionToolProps = ToolUIProps<ExecuteCodeInput, ExecuteCodeResult>;
 
-// Language display names and colors
-const languageConfig = {
-  python: { name: 'Python', color: languageColors.python, icon: '\uD83D\uDC0D' },
-  javascript: { name: 'JavaScript', color: languageColors.javascript, icon: '\uD83D\uDFE8' },
-};
+// Language display names and colors (lazy to avoid module evaluation order issues)
+function getLanguageConfig() {
+  return {
+    python: { name: 'Python', color: languageColors.python, icon: '\uD83D\uDC0D' },
+    javascript: { name: 'JavaScript', color: languageColors.javascript, icon: '\uD83D\uDFE8' },
+  };
+}
 
 /**
  * CodeExecutionTool component
@@ -70,6 +72,7 @@ export const CodeExecutionTool = memo(function CodeExecutionTool({
   }, [wasApproved, args, executionResult, isExecuting]);
 
   const language = args?.language || 'javascript';
+  const languageConfig = getLanguageConfig();
   const config = languageConfig[language] || languageConfig.javascript;
   const code = args?.code || '';
   const codeLines = code.split('\n');

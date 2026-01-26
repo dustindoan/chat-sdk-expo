@@ -13,13 +13,31 @@ import { randomUUID } from 'crypto';
 
 export async function POST(request: Request): Promise<Response> {
   try {
-    const userId = randomUUID();
-    const guestNumber = Math.floor(Math.random() * 100000);
-    const guestEmail = `guest-${userId.slice(0, 8)}@guest.local`;
-    const guestName = `Guest ${guestNumber}`;
-    // Use a fixed password for guests - they can't log in with it anyway since
-    // the email domain is fake
-    const guestPassword = `guest-${userId}`;
+    // Accept email/password from client for session restoration support
+    // If not provided, generate random credentials (backwards compatibility)
+    let guestEmail: string;
+    let guestPassword: string;
+    let guestName: string;
+
+    try {
+      const body = await request.json();
+      if (body.email && body.password) {
+        guestEmail = body.email;
+        guestPassword = body.password;
+        // Extract guest ID from email for name
+        const guestId = guestEmail.split('@')[0].replace('guest-', '');
+        guestName = `Guest ${guestId.slice(0, 6)}`;
+      } else {
+        throw new Error('No credentials provided');
+      }
+    } catch {
+      // Fallback: generate random credentials
+      const userId = randomUUID();
+      const guestNumber = Math.floor(Math.random() * 100000);
+      guestEmail = `guest-${userId.slice(0, 8)}@guest.local`;
+      guestName = `Guest ${guestNumber}`;
+      guestPassword = `guest-${userId}`;
+    }
 
     // Use Better Auth's signUpEmail API to create the user and session
     // This ensures proper cookie signing

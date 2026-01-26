@@ -21,11 +21,14 @@ export const auth = betterAuth({
     'exp://localhost:8081',
   ],
   session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 days
-    updateAge: 60 * 60 * 24, // 1 day
+    expiresIn: 60 * 60 * 24 * 30, // 30 days (matches NextAuth default)
+    updateAge: 60 * 60 * 24, // 1 day - refresh session daily
     cookieCache: {
       enabled: true,
-      maxAge: 60 * 5, // 5 minutes
+      maxAge: 60 * 5, // 5 minutes - cache to avoid DB lookups
+    },
+    cookie: {
+      maxAge: 60 * 60 * 24 * 30, // 30 days - persists across browser restarts
     },
   },
   advanced: {

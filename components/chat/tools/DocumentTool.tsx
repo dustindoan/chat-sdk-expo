@@ -66,6 +66,7 @@ export const DocumentTool = memo(function DocumentTool({
   args,
   result,
 }: DocumentToolProps) {
+  const styles = getStyles();
   const { artifact, setArtifact, getDocument, getStreamingDocument } = useArtifact();
 
   const isToolLoading = state === 'partial-call' || state === 'call';
@@ -263,65 +264,77 @@ export const DocumentTool = memo(function DocumentTool({
   return null;
 });
 
-const styles = StyleSheet.create({
-  // Streaming preview styles
-  previewContainer: {
-    maxWidth: 450,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.subtle,
-    overflow: 'hidden',
-    marginVertical: 8,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: colors.subtle,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.subtle,
-    ...(Platform.OS === 'web' && ({ cursor: 'pointer' } as any)),
-  },
-  headerLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    flex: 1,
-  },
-  contentWrapper: {
-    maxHeight: 250,
-    overflow: 'hidden',
-  },
+// Lazy-initialized styles to avoid module evaluation order issues with colors import
+let _styles: ReturnType<typeof createStyles> | null = null;
 
-  // Card styles (compact after completion - Claude web style)
-  cardContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.subtle,
-    borderRadius: 12,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginVertical: 8,
-    gap: 12,
-    maxWidth: 450,
-    ...(Platform.OS === 'web' && ({ cursor: 'pointer' } as any)),
-  },
-  cardContainerLoading: {
-    opacity: 0.7,
-    ...(Platform.OS === 'web' && ({ cursor: 'wait' } as any)),
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: colors.secondary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cardContent: {
-    flex: 1,
-    gap: 2,
-  },
-});
+function getStyles() {
+  if (!_styles) {
+    _styles = createStyles();
+  }
+  return _styles;
+}
+
+function createStyles() {
+  return StyleSheet.create({
+    // Streaming preview styles
+    previewContainer: {
+      maxWidth: 450,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.subtle,
+      overflow: 'hidden',
+      marginVertical: 8,
+    },
+    header: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: colors.subtle,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.subtle,
+      ...(Platform.OS === 'web' && ({ cursor: 'pointer' } as any)),
+    },
+    headerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      flex: 1,
+    },
+    contentWrapper: {
+      maxHeight: 250,
+      overflow: 'hidden',
+    },
+
+    // Card styles (compact after completion - Claude web style)
+    cardContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.subtle,
+      borderRadius: 12,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      marginVertical: 8,
+      gap: 12,
+      maxWidth: 450,
+      ...(Platform.OS === 'web' && ({ cursor: 'pointer' } as any)),
+    },
+    cardContainerLoading: {
+      opacity: 0.7,
+      ...(Platform.OS === 'web' && ({ cursor: 'wait' } as any)),
+    },
+    iconContainer: {
+      width: 40,
+      height: 40,
+      borderRadius: 8,
+      backgroundColor: colors.secondary,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cardContent: {
+      flex: 1,
+      gap: 2,
+    },
+  });
+}

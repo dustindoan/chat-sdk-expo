@@ -173,6 +173,18 @@ export function ChatHistoryList({
         </View>
       </View>
 
+      {/* Navigation */}
+      <View className="border-b border-border px-2 py-2">
+        <Button
+          variant="ghost"
+          className={`h-auto flex-row items-center justify-start gap-3 rounded-lg px-3 py-2.5 ${pathname === '/chats' ? 'bg-secondary' : ''}`}
+          onPress={() => router.push('/chats')}
+        >
+          <Feather name="message-square" size={18} color={colors.mutedForeground} />
+          <Text className="text-sm">Chats</Text>
+        </Button>
+      </View>
+
       {/* Chat list */}
       <ScrollView className="flex-1" contentContainerStyle={{ padding: 8 }}>
         {history.isLoading ? (

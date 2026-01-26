@@ -10,15 +10,10 @@
  */
 
 import React, { memo, type ReactNode } from 'react';
-import {
-  View,
-  StyleSheet,
-  Platform,
-  useWindowDimensions,
-} from 'react-native';
+import { View, Platform, useWindowDimensions } from 'react-native';
 import { useArtifact } from '../contexts/ArtifactContext';
 import { ArtifactPanel } from './artifacts/ArtifactPanel';
-import { colors } from '@/lib/theme';
+import { cn } from '@/lib/utils';
 
 interface SideBySideLayoutProps {
   children: ReactNode;
@@ -47,9 +42,9 @@ export const SideBySideLayout = memo(function SideBySideLayout({
   // On desktop: use flexbox row layout, show/hide artifact panel
   // On mobile: use overlay mode for artifact panel
   return (
-    <View style={isDesktopWeb ? styles.sideBySideContainer : styles.container}>
+    <View className={cn('flex-1 bg-background', isDesktopWeb && 'flex-row')}>
       {/* Main content - always rendered in same position */}
-      <View style={styles.mainContent}>
+      <View className="flex-1 overflow-hidden">
         {children}
       </View>
 
@@ -57,7 +52,7 @@ export const SideBySideLayout = memo(function SideBySideLayout({
       {isDesktopWeb ? (
         // Desktop: inline panel with conditional width (0 when hidden)
         isArtifactVisible && (
-          <View style={[styles.artifactContainer, { width: artifactPanelWidth }]}>
+          <View style={{ width: artifactPanelWidth }} className="border-l border-subtle">
             <ArtifactPanel mode="inline" />
           </View>
         )
@@ -67,24 +62,4 @@ export const SideBySideLayout = memo(function SideBySideLayout({
       )}
     </View>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  sideBySideContainer: {
-    flex: 1,
-    flexDirection: 'row',
-    backgroundColor: colors.background,
-  },
-  mainContent: {
-    flex: 1,
-    overflow: 'hidden',
-  },
-  artifactContainer: {
-    borderLeftWidth: 1,
-    borderLeftColor: colors.subtle,
-  },
 });

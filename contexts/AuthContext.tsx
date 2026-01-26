@@ -14,6 +14,9 @@ import { authClient, useSession, AUTH_STORAGE_PREFIX } from '../lib/auth/client'
 import { generateAPIUrl } from '../utils';
 import { isGuestEmail } from '../lib/constants';
 
+// Storage key for persisting guest credentials across session loss
+const GUEST_CREDENTIALS_KEY = `${AUTH_STORAGE_PREFIX}_guest_credentials`;
+
 export type UserType = 'regular' | 'guest';
 
 interface User {
@@ -42,6 +45,47 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 // The expo plugin stores cookies in JSON format: { "cookie-name": { value, expires } }
 const EXPO_COOKIE_STORAGE_KEY = `${AUTH_STORAGE_PREFIX}_cookie`;
 
+// Helper to store guest credentials for restoration after session loss
+async function storeGuestCredentials(email: string, password: string): Promise<void> {
+  const data = JSON.stringify({ email, password });
+  if (Platform.OS === 'web') {
+    localStorage.setItem(GUEST_CREDENTIALS_KEY, data);
+  } else {
+    await SecureStore.setItemAsync(GUEST_CREDENTIALS_KEY, data);
+  }
+}
+
+// Helper to retrieve stored guest credentials
+async function getStoredGuestCredentials(): Promise<{ email: string; password: string } | null> {
+  try {
+    let data: string | null;
+    if (Platform.OS === 'web') {
+      data = localStorage.getItem(GUEST_CREDENTIALS_KEY);
+    } else {
+      data = await SecureStore.getItemAsync(GUEST_CREDENTIALS_KEY);
+    }
+    if (data) {
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('[Auth] Failed to get stored guest credentials:', error);
+  }
+  return null;
+}
+
+// Helper to clear stored guest credentials
+async function clearGuestCredentials(): Promise<void> {
+  try {
+    if (Platform.OS === 'web') {
+      localStorage.removeItem(GUEST_CREDENTIALS_KEY);
+    } else {
+      await SecureStore.deleteItemAsync(GUEST_CREDENTIALS_KEY);
+    }
+  } catch (error) {
+    console.error('[Auth] Failed to clear guest credentials:', error);
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -57,12 +101,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // because `window` is undefined. We need to manually trigger a fetch on native.
   // See: https://github.com/better-auth/better-auth/issues/4570
   useEffect(() => {
-    if (hasInitialized.current) return;
-
-    const initAuth = async () => {
-      // On native platforms, useSession may not auto-fetch due to window check
-      // Force a session fetch to ensure we get the initial state
-      if (Platform.OS !== 'web') {
+    // On native platforms, useSession may not auto-fetch due to window check
+    // Force a session fetch to ensure we get the initial state
+    if (Platform.OS !== 'web' && !hasInitialized.current) {
+      const fetchNativeSession = async () => {
         try {
           const session = await authClient.getSession();
           if (session?.data?.user) {
@@ -74,46 +116,53 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               image: userData.image,
               type: userData.type || 'regular',
             });
-            setIsLoading(false);
             hasInitialized.current = true;
-            return;
+            setIsLoading(false);
           }
         } catch (error) {
           console.error('[Auth] Session fetch error:', error);
         }
-      }
+      };
+      fetchNativeSession();
+    }
+  }, []);
 
-      // Wait a bit for useSession to resolve on web, or fall through on native
-      // If no session data after a short delay, create guest session
-      setTimeout(async () => {
-        if (hasInitialized.current) return;
-        hasInitialized.current = true;
+  // Wait for useSession to finish loading before deciding on guest creation
+  // This prevents race conditions where we create a new guest while session is still loading
+  useEffect(() => {
+    // Skip if already initialized (native path) or still pending
+    if (hasInitialized.current || sessionPending) return;
 
-        const currentSession = sessionData;
-        if (currentSession?.user) {
-          const userData = currentSession.user as any;
-          setUser({
-            id: userData.id,
-            name: userData.name,
-            email: userData.email,
-            image: userData.image,
-            type: userData.type || 'regular',
-          });
-        } else {
-          // No session - create guest
-          try {
+    const initFromSession = async () => {
+      hasInitialized.current = true;
+
+      if (sessionData?.user) {
+        // Existing session found - use it
+        const userData = sessionData.user as any;
+        setUser({
+          id: userData.id,
+          name: userData.name,
+          email: userData.email,
+          image: userData.image,
+          type: userData.type || 'regular',
+        });
+      } else {
+        // No session - try to restore previous guest or create new one
+        try {
+          const restored = await tryRestoreGuestSession();
+          if (!restored) {
             await createGuestSession();
-          } catch (guestError) {
-            console.error('[Auth] Guest creation failed:', guestError);
-            setUser(null);
           }
+        } catch (guestError) {
+          console.error('[Auth] Guest session failed:', guestError);
+          setUser(null);
         }
-        setIsLoading(false);
-      }, Platform.OS === 'web' ? 100 : 0);
+      }
+      setIsLoading(false);
     };
 
-    initAuth();
-  }, []);
+    initFromSession();
+  }, [sessionPending, sessionData]);
 
   // Sync useSession updates to user state (for web and after sign-in/sign-out)
   useEffect(() => {
@@ -163,11 +212,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Try to restore a previous guest session using stored credentials
+  const tryRestoreGuestSession = async (): Promise<boolean> => {
+    const credentials = await getStoredGuestCredentials();
+    if (!credentials) {
+      return false;
+    }
+
+    try {
+      console.log('[Auth] Attempting to restore guest session...');
+      const result = await authClient.signIn.email({
+        email: credentials.email,
+        password: credentials.password,
+      });
+
+      if (result.error) {
+        console.log('[Auth] Guest restoration failed:', result.error.message);
+        // Clear invalid credentials
+        await clearGuestCredentials();
+        return false;
+      }
+
+      if (result.data?.user) {
+        const userData = result.data.user as any;
+        setUser({
+          id: userData.id,
+          name: userData.name,
+          email: userData.email,
+          image: userData.image,
+          type: userData.type || 'guest',
+        });
+        console.log('[Auth] Guest session restored successfully');
+        return true;
+      }
+    } catch (error) {
+      console.error('[Auth] Guest restoration error:', error);
+      await clearGuestCredentials();
+    }
+
+    return false;
+  };
+
   // Create a guest session
   const createGuestSession = async () => {
+    // Generate credentials for the new guest
+    const guestId = Math.random().toString(36).substring(2, 10);
+    const guestEmail = `guest-${guestId}@guest.local`;
+    const guestPassword = `guest-${guestId}-${Date.now()}`;
+
     const response = await fetch(generateAPIUrl('/api/auth/guest'), {
       method: 'POST',
       credentials: 'include',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ email: guestEmail, password: guestPassword }),
     });
 
     if (!response.ok) {
@@ -175,6 +274,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     const data = await response.json();
+
+    // Store credentials for future restoration
+    await storeGuestCredentials(guestEmail, guestPassword);
 
     // Store session token on native platforms in expo plugin format
     // The expo plugin expects: { "cookie-name": { value: "...", expires: "..." } }
@@ -248,6 +350,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         image: userData.image,
         type: userData.type || 'regular',
       });
+      // Clear guest credentials when signing in as regular user
+      await clearGuestCredentials();
     }
 
     // Small delay to ensure token is stored before SWR revalidation
@@ -272,6 +376,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           image: userData.image,
           type: userData.type || 'regular',
         });
+        // Clear guest credentials when signing up as regular user
+        await clearGuestCredentials();
       }
 
       // Small delay to ensure token is stored before SWR revalidation

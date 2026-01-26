@@ -20,13 +20,17 @@ const TOAST_ICONS: Record<ToastType, keyof typeof Feather.glyphMap> = {
   info: 'info',
 };
 
-const TOAST_COLORS: Record<ToastType, string> = {
-  success: colors.success,
-  error: colors.destructive,
-  info: colors.info,
-};
+// Lazy getter to avoid module evaluation order issues with colors import
+function getToastColors(): Record<ToastType, string> {
+  return {
+    success: colors.success,
+    error: colors.destructive,
+    info: colors.info,
+  };
+}
 
 export function Toast({ message, type, onDismiss }: ToastProps) {
+  const TOAST_COLORS = getToastColors();
   const insets = useSafeAreaInsets();
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(-20)).current;

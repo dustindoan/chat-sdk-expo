@@ -95,6 +95,7 @@ function extractCodeBlocks(text: string) {
 
 // Render markdown text (without code blocks)
 function MarkdownText({ text }: { text: string }) {
+  const styles = getStyles();
   const lines = text.split('\n');
   const elements: React.ReactNode[] = [];
   let inList = false;
@@ -167,6 +168,7 @@ function MarkdownText({ text }: { text: string }) {
 
 // Render inline markdown (bold, italic, inline code)
 function renderInlineMarkdown(text: string): React.ReactNode {
+  const styles = getStyles();
   const parts: React.ReactNode[] = [];
   let remaining = text;
   let key = 0;
@@ -226,6 +228,7 @@ function CodeBlock({
   isStreaming?: boolean;
   onCopy?: (code: string) => void;
 }) {
+  const styles = getStyles();
   const lines = code.split('\n');
   // Remove trailing empty line if present
   if (lines[lines.length - 1] === '') {
@@ -273,6 +276,7 @@ function CodeBlock({
 
 // Basic syntax highlighting
 function highlightLine(line: string): React.ReactNode {
+  const styles = getStyles();
   const keywords = [
     'function', 'const', 'let', 'var', 'return', 'if', 'else', 'for', 'while',
     'class', 'import', 'export', 'from', 'def', 'async', 'await', 'try', 'catch',
@@ -340,163 +344,175 @@ function highlightLine(line: string): React.ReactNode {
   });
 }
 
-const styles = StyleSheet.create({
-  // Text styles
-  paragraph: {
-    fontSize: 16,
-    lineHeight: 24,
-    color: colors.foreground,
-    marginVertical: 2,
-  },
-  h1: {
-    fontSize: 24,
-    fontWeight: '700',
-    color: colors.foreground,
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  h2: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.foreground,
-    marginTop: 12,
-    marginBottom: 8,
-  },
-  h3: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.foreground,
-    marginTop: 8,
-    marginBottom: 4,
-  },
-  bold: {
-    fontWeight: '700',
-    color: colors.foreground,
-  },
-  italic: {
-    fontStyle: 'italic',
-    color: colors.foreground,
-  },
-  inlineCode: {
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-    backgroundColor: colors.subtle,
-    paddingHorizontal: 4,
-    borderRadius: 4,
-    color: syntaxColors.normal,
-    fontSize: 14,
-  },
+// Lazy-initialized styles to avoid module evaluation order issues with colors import
+let _styles: ReturnType<typeof createStyles> | null = null;
 
-  // List styles
-  list: {
-    marginVertical: 8,
-  },
-  listItem: {
-    flexDirection: 'row',
-    marginVertical: 2,
-  },
-  bullet: {
-    color: colors.mutedForeground,
-    marginRight: 8,
-    fontSize: 16,
-  },
-  listText: {
-    flex: 1,
-    fontSize: 16,
-    lineHeight: 24,
-    color: colors.foreground,
-  },
-  spacer: {
-    height: 8,
-  },
+function getStyles() {
+  if (!_styles) {
+    _styles = createStyles();
+  }
+  return _styles;
+}
 
-  // Code block styles
-  codeBlockCard: {
-    backgroundColor: colors.subtle,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: colors.subtle,
-    marginVertical: 12,
-    overflow: 'hidden',
-  },
-  codeBlockHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    backgroundColor: colors.secondary,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.subtleBorder,
-  },
-  codeBlockHeaderLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  codeBlockTitle: {
-    fontSize: 14,
-    color: colors.mutedForeground,
-  },
-  codeBlockAction: {
-    padding: 4,
-  },
-  codeBlockActionDisabled: {
-    opacity: 0.5,
-  },
-  codeBlockContent: {
-    flexDirection: 'row',
-    backgroundColor: colors.subtle,
-  },
-  lineNumbers: {
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    backgroundColor: colors.secondary,
-    borderRightWidth: 1,
-    borderRightColor: colors.subtleBorder,
-    minWidth: 40,
-    alignItems: 'flex-end',
-  },
-  lineNumber: {
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-    fontSize: 13,
-    lineHeight: 20,
-    color: colors.tertiary,
-  },
-  codeScrollView: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-  },
-  codeLine: {
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-    fontSize: 13,
-    lineHeight: 20,
-    color: syntaxColors.normal,
-  },
+function createStyles() {
+  return StyleSheet.create({
+    // Text styles
+    paragraph: {
+      fontSize: 16,
+      lineHeight: 24,
+      color: colors.foreground,
+      marginVertical: 2,
+    },
+    h1: {
+      fontSize: 24,
+      fontWeight: '700',
+      color: colors.foreground,
+      marginTop: 12,
+      marginBottom: 8,
+    },
+    h2: {
+      fontSize: 20,
+      fontWeight: '600',
+      color: colors.foreground,
+      marginTop: 12,
+      marginBottom: 8,
+    },
+    h3: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: colors.foreground,
+      marginTop: 8,
+      marginBottom: 4,
+    },
+    bold: {
+      fontWeight: '700',
+      color: colors.foreground,
+    },
+    italic: {
+      fontStyle: 'italic',
+      color: colors.foreground,
+    },
+    inlineCode: {
+      fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
+      backgroundColor: colors.subtle,
+      paddingHorizontal: 4,
+      borderRadius: 4,
+      color: syntaxColors.normal,
+      fontSize: 14,
+    },
 
-  // Syntax highlighting
-  syntaxKeyword: {
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-    fontSize: 13,
-    lineHeight: 20,
-    color: syntaxColors.keyword,
-  },
-  syntaxString: {
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-    fontSize: 13,
-    lineHeight: 20,
-    color: syntaxColors.string,
-  },
-  syntaxComment: {
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-    fontSize: 13,
-    lineHeight: 20,
-    color: syntaxColors.comment,
-  },
-  syntaxNumber: {
-    fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-    fontSize: 13,
-    lineHeight: 20,
-    color: syntaxColors.number,
-  },
-});
+    // List styles
+    list: {
+      marginVertical: 8,
+    },
+    listItem: {
+      flexDirection: 'row',
+      marginVertical: 2,
+    },
+    bullet: {
+      color: colors.mutedForeground,
+      marginRight: 8,
+      fontSize: 16,
+    },
+    listText: {
+      flex: 1,
+      fontSize: 16,
+      lineHeight: 24,
+      color: colors.foreground,
+    },
+    spacer: {
+      height: 8,
+    },
+
+    // Code block styles
+    codeBlockCard: {
+      backgroundColor: colors.subtle,
+      borderRadius: 12,
+      borderWidth: 1,
+      borderColor: colors.subtle,
+      marginVertical: 12,
+      overflow: 'hidden',
+    },
+    codeBlockHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      backgroundColor: colors.secondary,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.subtleBorder,
+    },
+    codeBlockHeaderLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    codeBlockTitle: {
+      fontSize: 14,
+      color: colors.mutedForeground,
+    },
+    codeBlockAction: {
+      padding: 4,
+    },
+    codeBlockActionDisabled: {
+      opacity: 0.5,
+    },
+    codeBlockContent: {
+      flexDirection: 'row',
+      backgroundColor: colors.subtle,
+    },
+    lineNumbers: {
+      paddingVertical: 12,
+      paddingHorizontal: 8,
+      backgroundColor: colors.secondary,
+      borderRightWidth: 1,
+      borderRightColor: colors.subtleBorder,
+      minWidth: 40,
+      alignItems: 'flex-end',
+    },
+    lineNumber: {
+      fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
+      fontSize: 13,
+      lineHeight: 20,
+      color: colors.tertiary,
+    },
+    codeScrollView: {
+      flex: 1,
+      paddingVertical: 12,
+      paddingHorizontal: 12,
+    },
+    codeLine: {
+      fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
+      fontSize: 13,
+      lineHeight: 20,
+      color: syntaxColors.normal,
+    },
+
+    // Syntax highlighting
+    syntaxKeyword: {
+      fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
+      fontSize: 13,
+      lineHeight: 20,
+      color: syntaxColors.keyword,
+    },
+    syntaxString: {
+      fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
+      fontSize: 13,
+      lineHeight: 20,
+      color: syntaxColors.string,
+    },
+    syntaxComment: {
+      fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
+      fontSize: 13,
+      lineHeight: 20,
+      color: syntaxColors.comment,
+    },
+    syntaxNumber: {
+      fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
+      fontSize: 13,
+      lineHeight: 20,
+      color: syntaxColors.number,
+    },
+  });
+}

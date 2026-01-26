@@ -15,6 +15,7 @@ import type { AttachmentPreviewProps } from './types';
 const PREVIEW_SIZE = 64;
 
 export function AttachmentPreview({ attachment, onRemove }: AttachmentPreviewProps) {
+  const styles = getStyles();
   const isImage = attachment.mediaType.startsWith('image/');
 
   return (
@@ -58,50 +59,62 @@ export function AttachmentPreview({ attachment, onRemove }: AttachmentPreviewPro
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    width: PREVIEW_SIZE,
-    position: 'relative',
-  },
-  image: {
-    width: PREVIEW_SIZE,
-    height: PREVIEW_SIZE,
-    borderRadius: 8,
-    backgroundColor: colors.subtle,
-  },
-  loadingContainer: {
-    width: PREVIEW_SIZE,
-    height: PREVIEW_SIZE,
-    borderRadius: 8,
-    backgroundColor: colors.subtle,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  fileContainer: {
-    width: PREVIEW_SIZE,
-    height: PREVIEW_SIZE,
-    borderRadius: 8,
-    backgroundColor: colors.subtle,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.subtle,
-  },
-  removeButton: {
-    position: 'absolute',
-    top: -6,
-    right: -6,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.destructive,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: colors.background,
-  },
-  filenameContainer: {
-    marginTop: 4,
-    paddingHorizontal: 2,
-  },
-});
+// Lazy-initialized styles to avoid module evaluation order issues with colors import
+let _styles: ReturnType<typeof createStyles> | null = null;
+
+function getStyles() {
+  if (!_styles) {
+    _styles = createStyles();
+  }
+  return _styles;
+}
+
+function createStyles() {
+  return StyleSheet.create({
+    container: {
+      width: PREVIEW_SIZE,
+      position: 'relative',
+    },
+    image: {
+      width: PREVIEW_SIZE,
+      height: PREVIEW_SIZE,
+      borderRadius: 8,
+      backgroundColor: colors.subtle,
+    },
+    loadingContainer: {
+      width: PREVIEW_SIZE,
+      height: PREVIEW_SIZE,
+      borderRadius: 8,
+      backgroundColor: colors.subtle,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    fileContainer: {
+      width: PREVIEW_SIZE,
+      height: PREVIEW_SIZE,
+      borderRadius: 8,
+      backgroundColor: colors.subtle,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.subtle,
+    },
+    removeButton: {
+      position: 'absolute',
+      top: -6,
+      right: -6,
+      width: 20,
+      height: 20,
+      borderRadius: 10,
+      backgroundColor: colors.destructive,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 2,
+      borderColor: colors.background,
+    },
+    filenameContainer: {
+      marginTop: 4,
+      paddingHorizontal: 2,
+    },
+  });
+}

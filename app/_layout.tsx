@@ -1,6 +1,6 @@
 import '../polyfills.js';
 import '../global.css';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import { Stack } from 'expo-router';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -12,7 +12,6 @@ import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { LocalLLMProvider } from '../contexts/LocalLLMContext';
 import { SideBySideLayout } from '../components/SideBySideLayout';
 import { authFetcher } from '../lib/swr';
-import { colors } from '../lib/theme';
 
 function AuthGate({ children }: { children: React.ReactNode }) {
   const { isLoading } = useAuth();
@@ -22,8 +21,8 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
   if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
+      <View className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator size="large" className="text-primary" />
       </View>
     );
   }
@@ -55,7 +54,7 @@ export default function RootLayout() {
                       screenOptions={{
                         headerShown: false,
                         contentStyle: {
-                          backgroundColor: colors.background,
+                          backgroundColor: '#0a0a0a',
                         },
                       }}
                     >
@@ -74,12 +73,3 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
-
-const styles = StyleSheet.create({
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: colors.background,
-  },
-});

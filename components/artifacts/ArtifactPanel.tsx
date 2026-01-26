@@ -26,7 +26,7 @@ import { TextContent } from './TextContent';
 import { CodeContent } from './CodeContent';
 import { DiffView } from './DiffView';
 import { VersionFooter } from './VersionFooter';
-import { colors } from '@/lib/theme';
+import { colors } from '@/lib/theme/colors';
 
 const ANIMATION_DURATION = 250;
 
@@ -42,6 +42,7 @@ interface ArtifactPanelProps {
 export const ArtifactPanel = memo(function ArtifactPanel({
   mode = 'overlay',
 }: ArtifactPanelProps) {
+  const styles = getStyles();
   const {
     artifact,
     hideArtifact,
@@ -292,44 +293,56 @@ export const ArtifactPanel = memo(function ArtifactPanel({
   );
 });
 
-const styles = StyleSheet.create({
-  container: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 1000,
-  },
-  hidden: {
-    pointerEvents: 'none',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'black',
-  },
-  panel: {
-    position: 'absolute',
-    right: 0,
-    top: 0,
-    backgroundColor: colors.background,
-    borderLeftWidth: 1,
-    borderLeftColor: colors.subtle,
-    ...Platform.select({
-      web: {
-        boxShadow: '-4px 0 16px rgba(0, 0, 0, 0.2)',
-      },
-      default: {
-        shadowColor: '#000',
-        shadowOffset: { width: -4, height: 0 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 16,
-      },
-    }),
-  },
-  // Inline mode styles (for side-by-side layout on desktop)
-  inlinePanel: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  content: {
-    flex: 1,
-  },
-});
+// Lazy-initialized styles to avoid module evaluation order issues with colors import
+let _styles: ReturnType<typeof createStyles> | null = null;
+
+function getStyles() {
+  if (!_styles) {
+    _styles = createStyles();
+  }
+  return _styles;
+}
+
+function createStyles() {
+  return StyleSheet.create({
+    container: {
+      ...StyleSheet.absoluteFillObject,
+      zIndex: 1000,
+    },
+    hidden: {
+      pointerEvents: 'none',
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'black',
+    },
+    panel: {
+      position: 'absolute',
+      right: 0,
+      top: 0,
+      backgroundColor: colors.background,
+      borderLeftWidth: 1,
+      borderLeftColor: colors.subtle,
+      ...Platform.select({
+        web: {
+          boxShadow: '-4px 0 16px rgba(0, 0, 0, 0.2)',
+        },
+        default: {
+          shadowColor: '#000',
+          shadowOffset: { width: -4, height: 0 },
+          shadowOpacity: 0.2,
+          shadowRadius: 8,
+          elevation: 16,
+        },
+      }),
+    },
+    // Inline mode styles (for side-by-side layout on desktop)
+    inlinePanel: {
+      flex: 1,
+      backgroundColor: colors.background,
+    },
+    content: {
+      flex: 1,
+    },
+  });
+}

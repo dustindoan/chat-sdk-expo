@@ -1,12 +1,12 @@
-import { Platform, TouchableOpacity } from 'react-native';
+import { Platform, TouchableOpacity, View } from 'react-native';
 import { Drawer } from 'expo-router/drawer';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { useResolveClassNames } from 'uniwind';
 import { ChatHistoryList } from '../../components/ChatHistoryList';
 import { ChatHistoryProvider, useChatHistoryContext } from '../../contexts/ChatHistoryContext';
 import { useArtifact } from '../../contexts/ArtifactContext';
 import { generateAPIUrl } from '../../utils';
-import { colors, spacing } from '../../lib/theme';
 import type { Chat } from '../../hooks/useChatHistory';
 
 function DrawerContent() {
@@ -50,29 +50,31 @@ function NewChatButton() {
   };
 
   return (
-    <TouchableOpacity onPress={handlePress} style={{ marginRight: spacing[4] }}>
-      <Feather name="plus" size={24} color={colors.foreground} />
+    <TouchableOpacity onPress={handlePress} className="mr-4">
+      <Feather name="plus" size={24} className="text-foreground" />
     </TouchableOpacity>
   );
 }
 
 export default function DrawerLayout() {
+  // Use Uniwind's useResolveClassNames to convert Tailwind classes to style objects
+  // for React Navigation screenOptions which only accept style objects
+  const headerStyle = useResolveClassNames('bg-background');
+  const headerLeftContainerStyle = useResolveClassNames('pl-3');
+  const drawerStyle = useResolveClassNames('bg-background');
+  const tintColorStyle = useResolveClassNames('text-foreground');
+
   return (
     <ChatHistoryProvider>
       <Drawer
         drawerContent={() => <DrawerContent />}
         screenOptions={{
-          headerStyle: {
-            backgroundColor: colors.background,
-          },
-          // Fix: Uniwind/Tailwind v4 preflight resets default header padding
-          headerLeftContainerStyle: {
-            paddingLeft: spacing[3],
-          },
-          headerTintColor: colors.foreground,
+          headerStyle,
+          headerLeftContainerStyle,
+          headerTintColor: tintColorStyle.color as string,
           headerShadowVisible: false,
           drawerStyle: {
-            backgroundColor: colors.background,
+            ...drawerStyle,
             width: Platform.OS === 'web' ? 280 : '85%',
           },
           headerRight: () => <NewChatButton />,
@@ -88,6 +90,14 @@ export default function DrawerLayout() {
           name="chat/[id]"
           options={{
             title: 'Chat',
+          }}
+        />
+        <Drawer.Screen
+          name="chats"
+          options={{
+            title: 'Chats',
+            // Hide from drawer menu - accessed via sidebar link
+            drawerItemStyle: { display: 'none' },
           }}
         />
       </Drawer>

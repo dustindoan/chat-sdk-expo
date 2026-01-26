@@ -68,6 +68,7 @@ export function ChatUI({
   onRequestNewChat,
   initialModelId,
 }: ChatUIProps) {
+  const styles = getStyles();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { showToast } = useToast();
@@ -569,17 +570,29 @@ export function ChatUI({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: colors.background,
-    overflow: 'hidden',
-  } as ViewStyle,
-  mainContent: {
-    flex: 1,
-    flexDirection: 'column',
-    overflow: 'hidden',
-  },
-});
+// Lazy-initialized styles to avoid module evaluation order issues with colors import
+let _styles: ReturnType<typeof createStyles> | null = null;
+
+function getStyles() {
+  if (!_styles) {
+    _styles = createStyles();
+  }
+  return _styles;
+}
+
+function createStyles() {
+  return StyleSheet.create({
+    container: {
+      flex: 1,
+      backgroundColor: colors.background,
+      overflow: 'hidden',
+    } as ViewStyle,
+    mainContent: {
+      flex: 1,
+      flexDirection: 'column',
+      overflow: 'hidden',
+    },
+  });
+}
 
 ChatUI.displayName = 'ChatUI';

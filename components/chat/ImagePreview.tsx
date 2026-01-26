@@ -16,6 +16,7 @@ const THUMBNAIL_SIZE = 200;
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export function ImagePreview({ url, filename }: ImagePreviewProps) {
+  const styles = getStyles();
   const [imageError, setImageError] = useState(false);
 
   if (imageError) {
@@ -66,47 +67,59 @@ export function ImagePreview({ url, filename }: ImagePreviewProps) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    marginVertical: 4,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: colors.subtle,
-  },
-  thumbnail: {
-    width: THUMBNAIL_SIZE,
-    height: THUMBNAIL_SIZE,
-    borderRadius: 12,
-  },
-  filenameContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  errorContainer: {
-    width: THUMBNAIL_SIZE,
-    height: 100,
-    borderRadius: 12,
-    backgroundColor: colors.subtle,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.subtle,
-    marginVertical: 4,
-  },
-  modalContent: {
-    width: '100%',
-    minHeight: 300,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  fullImage: {
-    width: SCREEN_WIDTH * 0.85,
-    height: SCREEN_HEIGHT * 0.7,
-  },
-});
+// Lazy-initialized styles to avoid module evaluation order issues with colors import
+let _styles: ReturnType<typeof createStyles> | null = null;
+
+function getStyles() {
+  if (!_styles) {
+    _styles = createStyles();
+  }
+  return _styles;
+}
+
+function createStyles() {
+  return StyleSheet.create({
+    container: {
+      marginVertical: 4,
+      borderRadius: 12,
+      overflow: 'hidden',
+      backgroundColor: colors.subtle,
+    },
+    thumbnail: {
+      width: THUMBNAIL_SIZE,
+      height: THUMBNAIL_SIZE,
+      borderRadius: 12,
+    },
+    filenameContainer: {
+      position: 'absolute',
+      bottom: 0,
+      left: 0,
+      right: 0,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    errorContainer: {
+      width: THUMBNAIL_SIZE,
+      height: 100,
+      borderRadius: 12,
+      backgroundColor: colors.subtle,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.subtle,
+      marginVertical: 4,
+    },
+    modalContent: {
+      width: '100%',
+      minHeight: 300,
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 16,
+    },
+    fullImage: {
+      width: SCREEN_WIDTH * 0.85,
+      height: SCREEN_HEIGHT * 0.7,
+    },
+  });
+}
