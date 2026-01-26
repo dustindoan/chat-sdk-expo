@@ -13,7 +13,7 @@ import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ContentLayout } from '@/components/ui/content-layout';
-import { useChatsView, type ChatWithSnippet } from '@/hooks/useChatsView';
+import { useChats, type ChatWithSnippet } from '@/hooks/useChats';
 import { generateAPIUrl } from '@/utils';
 import { colors } from '@/lib/theme';
 
@@ -205,7 +205,7 @@ export default function ChatsScreen() {
     loadMore,
     deleteChat,
     exportChat,
-  } = useChatsView({
+  } = useChats({
     api: generateAPIUrl('/api'),
     limit: 20,
   });

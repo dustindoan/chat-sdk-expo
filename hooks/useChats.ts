@@ -1,5 +1,5 @@
 /**
- * useChatsView - Hook for the dedicated Chats view with search and pagination
+ * useChats - Hook for the dedicated Chats view with search and pagination
  *
  * Provides:
  * - Full-text search across all message content
@@ -29,12 +29,12 @@ export interface ChatWithSnippet {
   messageCount?: number;
 }
 
-export interface ChatsViewResponse {
+export interface ChatsResponse {
   chats: ChatWithSnippet[];
   hasMore: boolean;
 }
 
-export interface UseChatsViewOptions {
+export interface UseChatsOptions {
   /** API base URL */
   api?: string;
   /** Number of chats per page */
@@ -45,7 +45,7 @@ export interface UseChatsViewOptions {
   onError?: (error: Error) => void;
 }
 
-export interface UseChatsViewResult {
+export interface UseChatsResult {
   /** Search query */
   searchQuery: string;
   /** Set search query */
@@ -101,9 +101,9 @@ function useDebounce<T>(value: T, delay: number): T {
 const DEFAULT_LIMIT = 20;
 const DEFAULT_DEBOUNCE_MS = 300;
 
-export function useChatsView(
-  options: UseChatsViewOptions = {}
-): UseChatsViewResult {
+export function useChats(
+  options: UseChatsOptions = {}
+): UseChatsResult {
   const {
     api = '/api',
     limit = DEFAULT_LIMIT,
@@ -137,7 +137,7 @@ export function useChatsView(
     isLoading,
     isValidating,
     mutate,
-  } = useSWR<ChatsViewResponse>(apiUrl, authFetcher, {
+  } = useSWR<ChatsResponse>(apiUrl, authFetcher, {
     revalidateOnFocus: false, // Don't revalidate on focus for this view
     onError: (err) => {
       onError?.(err instanceof Error ? err : new Error(String(err)));
@@ -184,7 +184,7 @@ export function useChatsView(
         throw new Error(`Failed to load more: ${response.statusText}`);
       }
 
-      const moreData: ChatsViewResponse = await response.json();
+      const moreData: ChatsResponse = await response.json();
 
       setAllChats((prev) => [...prev, ...moreData.chats]);
       setHasMore(moreData.hasMore);
