@@ -9,13 +9,13 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
+import { useResolveClassNames } from 'uniwind';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ContentLayout } from '@/components/ui/content-layout';
 import { useChats, type ChatWithSnippet } from '@/hooks/useChats';
 import { generateAPIUrl } from '@/utils';
-import { colors } from '@/lib/theme';
 
 // ============================================================================
 // SEARCH HEADER COMPONENT (memoized to prevent re-mount on input change)
@@ -34,21 +34,23 @@ const SearchHeader = memo(function SearchHeader({
   isSearching,
   count,
 }: SearchHeaderProps) {
+  const mutedForegroundStyle = useResolveClassNames('text-muted-foreground');
+
   return (
     <ContentLayout contentClassName="pb-2 pt-4">
       {/* Search Input */}
       <View className="bg-secondary flex-row items-center rounded-lg px-3">
-        <Feather name="search" size={18} color={colors.mutedForeground} />
+        <Feather name="search" size={18} color={mutedForegroundStyle.color as string} />
         <Input
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder="Search your chats..."
-          placeholderTextColor={colors.mutedForeground}
+          placeholderTextColor={mutedForegroundStyle.color as string}
           className="flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0"
         />
         {searchQuery.length > 0 && (
           <Pressable onPress={() => setSearchQuery('')}>
-            <Feather name="x" size={18} color={colors.mutedForeground} />
+            <Feather name="x" size={18} color={mutedForegroundStyle.color as string} />
           </Pressable>
         )}
       </View>
@@ -100,6 +102,9 @@ interface ChatItemProps {
 
 function ChatItem({ chat, onPress, onExport, onDelete }: ChatItemProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const mutedForegroundStyle = useResolveClassNames('text-muted-foreground');
+  const foregroundStyle = useResolveClassNames('text-foreground');
+  const destructiveStyle = useResolveClassNames('text-destructive');
 
   const handleMenuPress = useCallback(() => {
     setMenuOpen((prev) => !prev);
@@ -148,7 +153,7 @@ function ChatItem({ chat, onPress, onExport, onDelete }: ChatItemProps) {
           className="p-2"
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Feather name="more-horizontal" size={20} color={colors.mutedForeground} />
+          <Feather name="more-horizontal" size={20} color={mutedForegroundStyle.color as string} />
         </Pressable>
       </Pressable>
 
@@ -169,7 +174,7 @@ function ChatItem({ chat, onPress, onExport, onDelete }: ChatItemProps) {
               onPress={handleExport}
               className="flex-row items-center gap-3 px-4 py-3 active:bg-secondary"
             >
-              <Feather name="download" size={16} color={colors.foreground} />
+              <Feather name="download" size={16} color={foregroundStyle.color as string} />
               <Text className="text-foreground text-sm">Export</Text>
             </Pressable>
             <View className="bg-border h-px" />
@@ -177,7 +182,7 @@ function ChatItem({ chat, onPress, onExport, onDelete }: ChatItemProps) {
               onPress={handleDelete}
               className="flex-row items-center gap-3 px-4 py-3 active:bg-secondary"
             >
-              <Feather name="trash-2" size={16} color={colors.destructive} />
+              <Feather name="trash-2" size={16} color={destructiveStyle.color as string} />
               <Text className="text-destructive text-sm">Delete</Text>
             </Pressable>
           </View>
@@ -193,6 +198,9 @@ function ChatItem({ chat, onPress, onExport, onDelete }: ChatItemProps) {
 
 export default function ChatsScreen() {
   const router = useRouter();
+  const primaryStyle = useResolveClassNames('text-primary');
+  const destructiveStyle = useResolveClassNames('text-destructive');
+  const mutedForegroundStyle = useResolveClassNames('text-muted-foreground');
   const {
     searchQuery,
     setSearchQuery,
@@ -271,7 +279,7 @@ export default function ChatsScreen() {
     if (isLoadingMore) {
       return (
         <ContentLayout contentClassName="items-center py-4">
-          <ActivityIndicator color={colors.primary} />
+          <ActivityIndicator color={primaryStyle.color as string} />
         </ContentLayout>
       );
     }
@@ -287,13 +295,13 @@ export default function ChatsScreen() {
     }
 
     return null;
-  }, [isLoadingMore, hasMore, loadMore]);
+  }, [isLoadingMore, hasMore, loadMore, primaryStyle.color]);
 
   const renderEmpty = useCallback(() => {
     if (isLoading) {
       return (
         <ContentLayout className="flex-1 justify-center" contentClassName="items-center py-12">
-          <ActivityIndicator color={colors.primary} size="large" />
+          <ActivityIndicator color={primaryStyle.color as string} size="large" />
         </ContentLayout>
       );
     }
@@ -301,7 +309,7 @@ export default function ChatsScreen() {
     if (error) {
       return (
         <ContentLayout className="flex-1 justify-center" contentClassName="items-center py-12">
-          <Feather name="alert-circle" size={48} color={colors.destructive} />
+          <Feather name="alert-circle" size={48} color={destructiveStyle.color as string} />
           <Text className="text-muted-foreground mt-4 text-center">
             Failed to load chats
           </Text>
@@ -311,7 +319,7 @@ export default function ChatsScreen() {
 
     return (
       <ContentLayout className="flex-1 justify-center" contentClassName="items-center py-12">
-        <Feather name="message-square" size={48} color={colors.mutedForeground} />
+        <Feather name="message-square" size={48} color={mutedForegroundStyle.color as string} />
         <Text className="text-muted-foreground mt-4 text-center">
           {isSearching ? 'No chats found' : 'No chats yet'}
         </Text>
@@ -322,7 +330,7 @@ export default function ChatsScreen() {
         )}
       </ContentLayout>
     );
-  }, [isLoading, error, isSearching, handleNewChat]);
+  }, [isLoading, error, isSearching, handleNewChat, primaryStyle.color, destructiveStyle.color, mutedForegroundStyle.color]);
 
   return (
     <View className="bg-background flex-1">

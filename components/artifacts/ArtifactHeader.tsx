@@ -8,9 +8,9 @@
 import React, { memo } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useResolveClassNames } from 'uniwind';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
-import { colors } from '@/lib/theme';
 import type { ArtifactKind, ArtifactStatus } from '../../lib/artifacts/types';
 import { VersionNavigation } from './VersionNavigation';
 
@@ -45,6 +45,10 @@ export const ArtifactHeader = memo(function ArtifactHeader({
   onClose,
   versionProps,
 }: ArtifactHeaderProps) {
+  const tertiaryStyle = useResolveClassNames('text-tertiary');
+  const primaryStyle = useResolveClassNames('text-primary');
+  const disabledStyle = useResolveClassNames('text-disabled');
+
   const isStreaming = status === 'streaming';
   const kindLabel = kind === 'code' ? 'Code' : 'Document';
   const kindIcon = kind === 'code' ? 'code' : 'file-text';
@@ -60,7 +64,7 @@ export const ArtifactHeader = memo(function ArtifactHeader({
           onPress={onClose}
           accessibilityLabel="Close artifact panel"
         >
-          <Feather name="x" size={20} color={colors.tertiary} />
+          <Feather name="x" size={20} color={tertiaryStyle.color as string} />
         </Button>
 
         <View className="flex-1 gap-1">
@@ -68,7 +72,7 @@ export const ArtifactHeader = memo(function ArtifactHeader({
             {title || 'Untitled'}
           </Text>
           <View className="flex-row items-center gap-1">
-            <Feather name={kindIcon} size={12} color={colors.tertiary} />
+            <Feather name={kindIcon} size={12} color={tertiaryStyle.color as string} />
             <Text variant="muted" className="text-xs">{kindLabel}</Text>
           </View>
         </View>
@@ -91,7 +95,7 @@ export const ArtifactHeader = memo(function ArtifactHeader({
 
         {isStreaming && (
           <View className="flex-row items-center gap-1 rounded-md bg-secondary px-2 py-1">
-            <ActivityIndicator size="small" color={colors.primary} />
+            <ActivityIndicator size="small" color={primaryStyle.color as string} />
             <Text className="text-xs text-primary">Generating...</Text>
           </View>
         )}
@@ -107,7 +111,7 @@ export const ArtifactHeader = memo(function ArtifactHeader({
           <Feather
             name="copy"
             size={18}
-            color={isStreaming ? colors.disabled : colors.tertiary}
+            color={isStreaming ? disabledStyle.color as string : tertiaryStyle.color as string}
           />
         </Button>
       </View>

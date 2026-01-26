@@ -1,9 +1,9 @@
 import React, { useRef, useEffect, memo } from 'react';
 import { View, ScrollView, ActivityIndicator } from 'react-native';
+import { useResolveClassNames } from 'uniwind';
 import { Text } from '@/components/ui/text';
 import { ConversationEmptyState } from './ConversationEmptyState';
 import { Message } from './Message';
-import { colors } from '@/lib/theme';
 import type { MessageListProps } from './types';
 
 export const MessageList = memo(function MessageList({
@@ -21,6 +21,9 @@ export const MessageList = memo(function MessageList({
   onVote,
 }: MessageListProps) {
   const scrollViewRef = useRef<ScrollView>(null);
+
+  // Use useResolveClassNames for ActivityIndicator color
+  const primaryStyle = useResolveClassNames('text-primary');
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -64,7 +67,7 @@ export const MessageList = memo(function MessageList({
 
         {showThinkingIndicator && (
           <View className="flex-row items-center gap-2 py-3">
-            <ActivityIndicator size="small" color={colors.primary} />
+            <ActivityIndicator size="small" color={primaryStyle.color as string} />
             <Text className="text-sm text-muted-foreground">Thinking...</Text>
           </View>
         )}

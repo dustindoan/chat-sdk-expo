@@ -23,6 +23,22 @@
   --color-input: hsl(0 0% 15%);
   --color-ring: hsl(217 91% 60%);
 
+  /* Extended palette */
+  --color-success: #22c55e;
+  --color-warning: #f59e0b;
+  --color-info: hsl(217 91% 60%);
+  --color-tertiary: #71717a;
+  --color-disabled: #52525b;
+  --color-subtle: #27272a;
+  --color-subtle-border: #3f3f46;
+
+  /* Syntax highlighting colors */
+  --color-syntax-keyword: #c792ea;
+  --color-syntax-string: #c3e88d;
+  --color-syntax-comment: #546e7a;
+  --color-syntax-number: #f78c6c;
+  --color-syntax-normal: #e0e0e0;
+
   /* Border radius */
   --radius-sm: 0.25rem;
   --radius-md: 0.375rem;

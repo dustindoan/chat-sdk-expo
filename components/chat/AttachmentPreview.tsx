@@ -1,120 +1,61 @@
 import React from 'react';
-import {
-  View,
-  Image,
-  Pressable,
-  StyleSheet,
-  ActivityIndicator,
-  Platform,
-} from 'react-native';
+import { View, Image, Pressable, ActivityIndicator, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useResolveClassNames } from 'uniwind';
 import { Text } from '@/components/ui/text';
-import { colors } from '@/lib/theme';
 import type { AttachmentPreviewProps } from './types';
 
 const PREVIEW_SIZE = 64;
 
 export function AttachmentPreview({ attachment, onRemove }: AttachmentPreviewProps) {
-  const styles = getStyles();
+  // Use useResolveClassNames for icon colors
+  const mutedForegroundStyle = useResolveClassNames('text-muted-foreground');
+  const foregroundStyle = useResolveClassNames('text-foreground');
+
   const isImage = attachment.mediaType.startsWith('image/');
 
   return (
-    <View style={styles.container}>
+    <View style={{ width: PREVIEW_SIZE }} className="relative">
       {attachment.isUploading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="small" color={colors.mutedForeground} />
+        <View
+          className="items-center justify-center rounded-lg bg-subtle"
+          style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
+        >
+          <ActivityIndicator size="small" color={mutedForegroundStyle.color as string} />
         </View>
       ) : isImage ? (
         <Image
           source={{ uri: attachment.url }}
-          style={styles.image}
+          className="rounded-lg bg-subtle"
+          style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
           resizeMode="cover"
         />
       ) : (
-        <View style={styles.fileContainer}>
-          <Feather name="file" size={24} color={colors.mutedForeground} />
+        <View
+          className="items-center justify-center rounded-lg border border-subtle bg-subtle"
+          style={{ width: PREVIEW_SIZE, height: PREVIEW_SIZE }}
+        >
+          <Feather name="file" size={24} color={mutedForegroundStyle.color as string} />
         </View>
       )}
 
       {onRemove && !attachment.isUploading && (
         <Pressable
-          style={[
-            styles.removeButton,
-            Platform.OS === 'web' && ({ cursor: 'pointer' } as any),
-          ]}
+          className="absolute -right-1.5 -top-1.5 h-5 w-5 items-center justify-center rounded-full border-2 border-background bg-destructive"
+          style={Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined}
           onPress={onRemove}
           accessibilityLabel="Remove attachment"
           accessibilityRole="button"
         >
-          <Feather name="x" size={12} color={colors.foreground} />
+          <Feather name="x" size={12} color={foregroundStyle.color as string} />
         </Pressable>
       )}
 
-      <View style={styles.filenameContainer}>
+      <View className="mt-1 px-0.5">
         <Text className="text-center text-xs text-muted-foreground" numberOfLines={1}>
           {attachment.filename}
         </Text>
       </View>
     </View>
   );
-}
-
-// Lazy-initialized styles to avoid module evaluation order issues with colors import
-let _styles: ReturnType<typeof createStyles> | null = null;
-
-function getStyles() {
-  if (!_styles) {
-    _styles = createStyles();
-  }
-  return _styles;
-}
-
-function createStyles() {
-  return StyleSheet.create({
-    container: {
-      width: PREVIEW_SIZE,
-      position: 'relative',
-    },
-    image: {
-      width: PREVIEW_SIZE,
-      height: PREVIEW_SIZE,
-      borderRadius: 8,
-      backgroundColor: colors.subtle,
-    },
-    loadingContainer: {
-      width: PREVIEW_SIZE,
-      height: PREVIEW_SIZE,
-      borderRadius: 8,
-      backgroundColor: colors.subtle,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    fileContainer: {
-      width: PREVIEW_SIZE,
-      height: PREVIEW_SIZE,
-      borderRadius: 8,
-      backgroundColor: colors.subtle,
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderWidth: 1,
-      borderColor: colors.subtle,
-    },
-    removeButton: {
-      position: 'absolute',
-      top: -6,
-      right: -6,
-      width: 20,
-      height: 20,
-      borderRadius: 10,
-      backgroundColor: colors.destructive,
-      justifyContent: 'center',
-      alignItems: 'center',
-      borderWidth: 2,
-      borderColor: colors.background,
-    },
-    filenameContainer: {
-      marginTop: 4,
-      paddingHorizontal: 2,
-    },
-  });
 }

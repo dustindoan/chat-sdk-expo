@@ -6,16 +6,10 @@
  */
 
 import React, { memo, useCallback, useState } from 'react';
-import {
-  View,
-  StyleSheet,
-  Pressable,
-  ActivityIndicator,
-  Platform,
-} from 'react-native';
+import { View, Pressable, ActivityIndicator, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useResolveClassNames } from 'uniwind';
 import { Text } from '@/components/ui/text';
-import { colors } from '@/lib/theme';
 import { useArtifact } from '../../../contexts/ArtifactContext';
 import { CodeContent } from '../../artifacts/CodeContent';
 import { TextContent } from '../../artifacts/TextContent';
@@ -66,8 +60,11 @@ export const DocumentTool = memo(function DocumentTool({
   args,
   result,
 }: DocumentToolProps) {
-  const styles = getStyles();
   const { artifact, setArtifact, getDocument, getStreamingDocument } = useArtifact();
+
+  // Use useResolveClassNames for icon colors
+  const tertiaryStyle = useResolveClassNames('text-tertiary');
+  const primaryStyle = useResolveClassNames('text-primary');
 
   const isToolLoading = state === 'partial-call' || state === 'call';
   const hasResult = (state === 'result' || state === 'output-available') && result;
@@ -175,29 +172,30 @@ export const DocumentTool = memo(function DocumentTool({
     const isStreaming = streamingDoc?.status === 'streaming';
 
     return (
-      <View style={styles.previewContainer}>
+      <View className="my-2 max-w-[450px] overflow-hidden rounded-xl border border-subtle">
         {/* Header */}
         <Pressable
-          style={styles.header}
+          className="flex-row items-center justify-between border-b border-subtle bg-subtle px-3 py-2"
+          style={Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined}
           onPress={handleOpenPanel}
         >
-          <View style={styles.headerLeft}>
+          <View className="flex-1 flex-row items-center gap-2">
             {isStreaming ? (
-              <ActivityIndicator size="small" color={colors.tertiary} />
+              <ActivityIndicator size="small" color={tertiaryStyle.color as string} />
             ) : kind === 'code' ? (
-              <Feather name="code" size={16} color={colors.tertiary} />
+              <Feather name="code" size={16} color={tertiaryStyle.color as string} />
             ) : (
-              <Feather name="file-text" size={16} color={colors.tertiary} />
+              <Feather name="file-text" size={16} color={tertiaryStyle.color as string} />
             )}
             <Text className="flex-1 text-sm font-medium text-foreground" numberOfLines={1}>
               {title}
             </Text>
           </View>
-          <Feather name="maximize-2" size={16} color={colors.tertiary} />
+          <Feather name="maximize-2" size={16} color={tertiaryStyle.color as string} />
         </Pressable>
 
         {/* Content preview - same rendering as artifact panel */}
-        <View style={styles.contentWrapper}>
+        <View className="max-h-[250px] overflow-hidden">
           {displayContent ? (
             kind === 'code' ? (
               <CodeContent
@@ -213,7 +211,7 @@ export const DocumentTool = memo(function DocumentTool({
             )
           ) : (
             <View className="flex-row items-center justify-center gap-2 py-4">
-              <ActivityIndicator size="small" color={colors.primary} />
+              <ActivityIndicator size="small" color={primaryStyle.color as string} />
               <Text className="text-sm text-muted-foreground">
                 {toolName === 'createDocument' ? 'Creating' : 'Updating'}{' '}
                 {kind === 'code' ? 'code' : 'document'}...
@@ -233,22 +231,23 @@ export const DocumentTool = memo(function DocumentTool({
 
     return (
       <Pressable
-        style={[styles.cardContainer, isLoading && styles.cardContainerLoading]}
+        className={`my-2 max-w-[450px] flex-row items-center gap-3 rounded-xl bg-subtle px-3 py-2 ${isLoading ? 'opacity-70' : ''}`}
+        style={Platform.OS === 'web' ? ({ cursor: isLoading ? 'wait' : 'pointer' } as any) : undefined}
         onPress={handleOpenPanel}
         disabled={isLoading}
         accessibilityLabel={`Open ${title} ${kindLabel}`}
       >
         {/* Icon */}
-        <View style={styles.iconContainer}>
+        <View className="h-10 w-10 items-center justify-center rounded-lg bg-secondary">
           {isLoading ? (
-            <ActivityIndicator size="small" color={colors.tertiary} />
+            <ActivityIndicator size="small" color={tertiaryStyle.color as string} />
           ) : (
-            <Feather name="code" size={20} color={colors.tertiary} />
+            <Feather name="code" size={20} color={tertiaryStyle.color as string} />
           )}
         </View>
 
         {/* Content - just title and type */}
-        <View style={styles.cardContent}>
+        <View className="flex-1 gap-0.5">
           <Text className="text-base font-medium text-foreground" numberOfLines={1}>
             {title}
           </Text>
@@ -263,78 +262,3 @@ export const DocumentTool = memo(function DocumentTool({
   // Fallback - shouldn't reach here normally
   return null;
 });
-
-// Lazy-initialized styles to avoid module evaluation order issues with colors import
-let _styles: ReturnType<typeof createStyles> | null = null;
-
-function getStyles() {
-  if (!_styles) {
-    _styles = createStyles();
-  }
-  return _styles;
-}
-
-function createStyles() {
-  return StyleSheet.create({
-    // Streaming preview styles
-    previewContainer: {
-      maxWidth: 450,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.subtle,
-      overflow: 'hidden',
-      marginVertical: 8,
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      backgroundColor: colors.subtle,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.subtle,
-      ...(Platform.OS === 'web' && ({ cursor: 'pointer' } as any)),
-    },
-    headerLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      flex: 1,
-    },
-    contentWrapper: {
-      maxHeight: 250,
-      overflow: 'hidden',
-    },
-
-    // Card styles (compact after completion - Claude web style)
-    cardContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: colors.subtle,
-      borderRadius: 12,
-      paddingVertical: 8,
-      paddingHorizontal: 12,
-      marginVertical: 8,
-      gap: 12,
-      maxWidth: 450,
-      ...(Platform.OS === 'web' && ({ cursor: 'pointer' } as any)),
-    },
-    cardContainerLoading: {
-      opacity: 0.7,
-      ...(Platform.OS === 'web' && ({ cursor: 'wait' } as any)),
-    },
-    iconContainer: {
-      width: 40,
-      height: 40,
-      borderRadius: 8,
-      backgroundColor: colors.secondary,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    cardContent: {
-      flex: 1,
-      gap: 2,
-    },
-  });
-}

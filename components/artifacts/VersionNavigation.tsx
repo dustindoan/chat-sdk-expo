@@ -8,9 +8,9 @@
 import React from 'react';
 import { View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { useResolveClassNames } from 'uniwind';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
-import { colors } from '@/lib/theme';
 
 interface VersionNavigationProps {
   currentIndex: number;
@@ -31,6 +31,10 @@ export function VersionNavigation({
   onNext,
   onToggleDiff,
 }: VersionNavigationProps) {
+  const foregroundStyle = useResolveClassNames('text-foreground');
+  const disabledStyle = useResolveClassNames('text-disabled');
+  const primaryStyle = useResolveClassNames('text-primary');
+
   const canGoPrev = currentIndex > 0;
   const canGoNext = currentIndex < totalVersions - 1;
   const canToggleDiff = currentIndex > 0; // Can't diff if at first version
@@ -52,7 +56,7 @@ export function VersionNavigation({
         disabled={!canGoPrev || isLoading}
         accessibilityLabel="Previous version"
       >
-        <UndoIcon color={canGoPrev ? colors.foreground : colors.disabled} />
+        <UndoIcon color={canGoPrev ? foregroundStyle.color as string : disabledStyle.color as string} />
       </Button>
 
       {/* Next button */}
@@ -64,7 +68,7 @@ export function VersionNavigation({
         disabled={!canGoNext || isLoading}
         accessibilityLabel="Next version"
       >
-        <RedoIcon color={canGoNext ? colors.foreground : colors.disabled} />
+        <RedoIcon color={canGoNext ? foregroundStyle.color as string : disabledStyle.color as string} />
       </Button>
 
       {/* Diff toggle button */}
@@ -79,10 +83,10 @@ export function VersionNavigation({
         <ClockIcon
           color={
             isDiffMode
-              ? colors.primary
+              ? primaryStyle.color as string
               : canToggleDiff
-                ? colors.foreground
-                : colors.disabled
+                ? foregroundStyle.color as string
+                : disabledStyle.color as string
           }
         />
       </Button>

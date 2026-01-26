@@ -1,10 +1,10 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useResolveClassNames } from 'uniwind';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { colors } from '@/lib/theme';
 import type { ActionsProps } from './types';
 
 export function Actions({
@@ -17,6 +17,11 @@ export function Actions({
   voteState,
   onVote,
 }: ActionsProps) {
+  // Use useResolveClassNames for icon colors
+  const tertiaryStyle = useResolveClassNames('text-tertiary');
+  const successStyle = useResolveClassNames('text-success');
+  const destructiveStyle = useResolveClassNames('text-destructive');
+
   const handleCopy = () => {
     onCopy?.(content);
   };
@@ -40,7 +45,7 @@ export function Actions({
                 onPress={onEdit}
                 accessibilityLabel="Edit message"
               >
-                <Feather name="edit-2" size={16} color={colors.tertiary} />
+                <Feather name="edit-2" size={16} color={tertiaryStyle.color as string} />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -57,7 +62,7 @@ export function Actions({
               onPress={handleCopy}
               accessibilityLabel="Copy message"
             >
-              <Feather name="copy" size={16} color={colors.tertiary} />
+              <Feather name="copy" size={16} color={tertiaryStyle.color as string} />
             </Button>
           </TooltipTrigger>
           <TooltipContent>
@@ -80,7 +85,7 @@ export function Actions({
             onPress={handleCopy}
             accessibilityLabel="Copy response"
           >
-            <Feather name="copy" size={16} color={colors.tertiary} />
+            <Feather name="copy" size={16} color={tertiaryStyle.color as string} />
           </Button>
         </TooltipTrigger>
         <TooltipContent>
@@ -98,7 +103,7 @@ export function Actions({
               onPress={onRegenerate}
               accessibilityLabel="Regenerate response"
             >
-              <Feather name="refresh-cw" size={16} color={colors.tertiary} />
+              <Feather name="refresh-cw" size={16} color={tertiaryStyle.color as string} />
             </Button>
           </TooltipTrigger>
           <TooltipContent>
@@ -119,7 +124,7 @@ export function Actions({
             <Feather
               name="thumbs-up"
               size={16}
-              color={voteState === 'up' ? colors.success : colors.tertiary}
+              color={voteState === 'up' ? successStyle.color as string : tertiaryStyle.color as string}
             />
           </Button>
         </TooltipTrigger>
@@ -140,7 +145,7 @@ export function Actions({
             <Feather
               name="thumbs-down"
               size={16}
-              color={voteState === 'down' ? colors.destructive : colors.tertiary}
+              color={voteState === 'down' ? destructiveStyle.color as string : tertiaryStyle.color as string}
             />
           </Button>
         </TooltipTrigger>

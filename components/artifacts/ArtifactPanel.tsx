@@ -12,7 +12,6 @@
 import React, { memo, useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
-  StyleSheet,
   Animated,
   TouchableWithoutFeedback,
   Platform,
@@ -26,7 +25,6 @@ import { TextContent } from './TextContent';
 import { CodeContent } from './CodeContent';
 import { DiffView } from './DiffView';
 import { VersionFooter } from './VersionFooter';
-import { colors } from '@/lib/theme/colors';
 
 const ANIMATION_DURATION = 250;
 
@@ -42,7 +40,6 @@ interface ArtifactPanelProps {
 export const ArtifactPanel = memo(function ArtifactPanel({
   mode = 'overlay',
 }: ArtifactPanelProps) {
-  const styles = getStyles();
   const {
     artifact,
     hideArtifact,
@@ -71,9 +68,9 @@ export const ArtifactPanel = memo(function ArtifactPanel({
     }
   }, [artifact.isVisible, artifact.documentId, artifact.status, fetchVersions]);
 
-  // Calculate panel width based on screen size (for overlay mode)
+  // Calculate panel width based on screen size (for overlay mode, 50% on desktop)
   const isMobile = windowWidth < 768;
-  const panelWidth = isMobile ? windowWidth : Math.min(windowWidth * 0.5, 600);
+  const panelWidth = isMobile ? windowWidth : windowWidth * 0.5;
 
   // Animation values (only used in overlay mode)
   const slideAnim = useRef(new Animated.Value(panelWidth)).current;
@@ -186,7 +183,7 @@ export const ArtifactPanel = memo(function ArtifactPanel({
   // Inline mode - render directly without overlay/animation
   if (mode === 'inline') {
     return (
-      <View style={styles.inlinePanel}>
+      <View className="flex-1 bg-background">
         <ArtifactHeader
           title={artifact.title}
           kind={artifact.kind}
@@ -196,7 +193,7 @@ export const ArtifactPanel = memo(function ArtifactPanel({
           versionProps={versionProps}
         />
 
-        <View style={styles.content}>
+        <View className="flex-1">
           {showDiff ? (
             <DiffView
               oldContent={previousContent}
@@ -226,34 +223,45 @@ export const ArtifactPanel = memo(function ArtifactPanel({
 
   // Overlay mode - animated slide-in with backdrop
   return (
-    <View style={[styles.container, !isVisible && styles.hidden]} pointerEvents={isVisible ? 'auto' : 'none'}>
+    <View
+      className={`absolute inset-0 z-[1000] ${!isVisible ? 'pointer-events-none' : ''}`}
+      pointerEvents={isVisible ? 'auto' : 'none'}
+    >
       {/* Backdrop */}
       <TouchableWithoutFeedback onPress={handleClose}>
         <Animated.View
-          style={[
-            styles.backdrop,
-            {
-              opacity: fadeAnim.interpolate({
-                inputRange: [0, 1],
-                outputRange: [0, 0.5],
-              }),
-            },
-          ]}
+          className="absolute inset-0 bg-black"
+          style={{
+            opacity: fadeAnim.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0, 0.5],
+            }),
+          }}
         />
       </TouchableWithoutFeedback>
 
       {/* Panel */}
       <Animated.View
-        style={[
-          styles.panel,
-          {
-            width: panelWidth,
-            height: windowHeight,
-            paddingTop: insets.top,
-            paddingBottom: insets.bottom,
-            transform: [{ translateX: slideAnim }],
-          },
-        ]}
+        className="absolute right-0 top-0 border-l border-subtle bg-background"
+        style={{
+          width: panelWidth,
+          height: windowHeight,
+          paddingTop: insets.top,
+          paddingBottom: insets.bottom,
+          transform: [{ translateX: slideAnim }],
+          ...Platform.select({
+            web: {
+              boxShadow: '-4px 0 16px rgba(0, 0, 0, 0.2)',
+            },
+            default: {
+              shadowColor: '#000',
+              shadowOffset: { width: -4, height: 0 },
+              shadowOpacity: 0.2,
+              shadowRadius: 8,
+              elevation: 16,
+            },
+          }),
+        }}
       >
         <ArtifactHeader
           title={artifact.title}
@@ -264,7 +272,7 @@ export const ArtifactPanel = memo(function ArtifactPanel({
           versionProps={versionProps}
         />
 
-        <View style={styles.content}>
+        <View className="flex-1">
           {showDiff ? (
             <DiffView
               oldContent={previousContent}
@@ -293,56 +301,3 @@ export const ArtifactPanel = memo(function ArtifactPanel({
   );
 });
 
-// Lazy-initialized styles to avoid module evaluation order issues with colors import
-let _styles: ReturnType<typeof createStyles> | null = null;
-
-function getStyles() {
-  if (!_styles) {
-    _styles = createStyles();
-  }
-  return _styles;
-}
-
-function createStyles() {
-  return StyleSheet.create({
-    container: {
-      ...StyleSheet.absoluteFillObject,
-      zIndex: 1000,
-    },
-    hidden: {
-      pointerEvents: 'none',
-    },
-    backdrop: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'black',
-    },
-    panel: {
-      position: 'absolute',
-      right: 0,
-      top: 0,
-      backgroundColor: colors.background,
-      borderLeftWidth: 1,
-      borderLeftColor: colors.subtle,
-      ...Platform.select({
-        web: {
-          boxShadow: '-4px 0 16px rgba(0, 0, 0, 0.2)',
-        },
-        default: {
-          shadowColor: '#000',
-          shadowOffset: { width: -4, height: 0 },
-          shadowOpacity: 0.2,
-          shadowRadius: 8,
-          elevation: 16,
-        },
-      }),
-    },
-    // Inline mode styles (for side-by-side layout on desktop)
-    inlinePanel: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    content: {
-      flex: 1,
-    },
-  });
-}

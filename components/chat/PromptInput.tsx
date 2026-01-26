@@ -1,13 +1,13 @@
 import React, { useRef, useImperativeHandle, forwardRef } from 'react';
 import { View, TextInput, Platform, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useResolveClassNames } from 'uniwind';
 import { Button } from '@/components/ui/button';
 import { Text } from '@/components/ui/text';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AttachmentPreview } from './AttachmentPreview';
 import { ReasoningToggle } from './ReasoningToggle';
-import { colors } from '@/lib/theme';
 import type { PromptInputProps, PromptInputHandle } from './types';
 
 export const PromptInput = forwardRef<PromptInputHandle, PromptInputProps>(
@@ -31,6 +31,10 @@ export const PromptInput = forwardRef<PromptInputHandle, PromptInputProps>(
     ref
   ) {
     const inputRef = useRef<TextInput>(null);
+
+    // Use useResolveClassNames for icon colors and placeholderTextColor
+    const mutedForegroundStyle = useResolveClassNames('text-muted-foreground');
+    const tertiaryStyle = useResolveClassNames('text-tertiary');
 
     // Expose clear method to parent via ref
     // This handles the iOS autocorrect race condition (React Native issue #29073)
@@ -97,7 +101,7 @@ export const PromptInput = forwardRef<PromptInputHandle, PromptInputProps>(
               value={value}
               onChangeText={onChangeText}
               placeholder={placeholder}
-              placeholderTextColor={colors.mutedForeground}
+              placeholderTextColor={mutedForegroundStyle.color as string}
               blurOnSubmit={false}
               onKeyPress={handleKeyPress}
               editable={!isLoading}
@@ -119,7 +123,7 @@ export const PromptInput = forwardRef<PromptInputHandle, PromptInputProps>(
                       <Feather
                         name="paperclip"
                         size={18}
-                        color={isLoading ? colors.tertiary : colors.mutedForeground}
+                        color={isLoading ? tertiaryStyle.color as string : mutedForegroundStyle.color as string}
                       />
                     </Button>
                   </TooltipTrigger>

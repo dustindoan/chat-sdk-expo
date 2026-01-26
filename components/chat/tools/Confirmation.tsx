@@ -3,7 +3,6 @@ import { View, Platform } from 'react-native';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card';
-import { colors } from '@/lib/theme';
 import type { ToolUIProps } from './types';
 
 /**
@@ -118,10 +117,7 @@ export const ConfirmationApproved = memo(function ConfirmationApproved({
     .trim();
 
   return (
-    <View
-      className="my-2 flex-row items-center rounded-lg bg-secondary p-3"
-      style={{ borderLeftWidth: 3, borderLeftColor: colors.success }}
-    >
+    <View className="my-2 flex-row items-center rounded-lg border-l-[3px] border-l-success bg-secondary p-3">
       <Text className="mr-2 text-base">{'\u2705'}</Text>
       <Text className="text-sm font-medium text-green-500">{displayName} approved</Text>
     </View>
@@ -142,10 +138,7 @@ export const ConfirmationDenied = memo(function ConfirmationDenied({
     .trim();
 
   return (
-    <View
-      className="my-2 flex-row items-start rounded-lg bg-secondary p-3"
-      style={{ borderLeftWidth: 3, borderLeftColor: colors.destructive }}
-    >
+    <View className="my-2 flex-row items-start rounded-lg border-l-[3px] border-l-destructive bg-secondary p-3">
       <Text className="mr-2 text-base">{'\u274C'}</Text>
       <View className="flex-1">
         <Text className="text-sm font-medium text-red-500">{displayName} was denied</Text>

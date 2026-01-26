@@ -1,6 +1,7 @@
 import React, { useCallback, useMemo, useEffect, useRef, memo } from 'react';
 import { View, Pressable, Platform, ActivityIndicator, FlatList } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useResolveClassNames } from 'uniwind';
 import { Text } from '@/components/ui/text';
 import {
   Dialog,
@@ -10,7 +11,6 @@ import {
 } from '@/components/ui/dialog';
 import { allModels, localModels, type ChatModel } from '../../lib/ai/models';
 import { useLocalLLM } from '../../contexts/LocalLLMContext';
-import { colors } from '@/lib/theme';
 
 interface ModelSelectorProps {
   selectedModelId: string;
@@ -25,6 +25,11 @@ export const ModelSelector = memo(function ModelSelector({
   isOpen,
   onClose,
 }: ModelSelectorProps) {
+  // Use useResolveClassNames for icon colors
+  const tertiaryStyle = useResolveClassNames('text-tertiary');
+  const destructiveStyle = useResolveClassNames('text-destructive');
+  const primaryStyle = useResolveClassNames('text-primary');
+
   const {
     isDownloaded,
     isPrepared,
@@ -111,7 +116,7 @@ export const ModelSelector = memo(function ModelSelector({
       if (isLoading) {
         return (
           <View className="flex-row items-center gap-1 mr-2">
-            <ActivityIndicator size="small" color={colors.tertiary} />
+            <ActivityIndicator size="small" color={tertiaryStyle.color as string} />
             <Text className="text-xs text-muted-foreground">Loading...</Text>
           </View>
         );
@@ -121,7 +126,7 @@ export const ModelSelector = memo(function ModelSelector({
       if (localModelError) {
         return (
           <View className="flex-row items-center gap-1 mr-2">
-            <Feather name="alert-circle" size={14} color={colors.destructive} />
+            <Feather name="alert-circle" size={14} color={destructiveStyle.color as string} />
             <Text className="text-xs text-red-500" numberOfLines={1}>
               {localModelError}
             </Text>
@@ -133,7 +138,7 @@ export const ModelSelector = memo(function ModelSelector({
       if (!isDownloaded) {
         return (
           <View className="flex-row items-center gap-1 mr-2">
-            <Feather name="download" size={14} color={colors.tertiary} />
+            <Feather name="download" size={14} color={tertiaryStyle.color as string} />
             <Text className="text-xs text-muted-foreground">Download</Text>
           </View>
         );
@@ -156,7 +161,7 @@ export const ModelSelector = memo(function ModelSelector({
         </View>
       );
     },
-    [isLoading, downloadProgress, isDownloaded, isPrepared, localModelError]
+    [isLoading, downloadProgress, isDownloaded, isPrepared, localModelError, tertiaryStyle, destructiveStyle]
   );
 
   const renderItem = useCallback(
@@ -187,12 +192,12 @@ export const ModelSelector = memo(function ModelSelector({
           {renderLocalStatus(item)}
 
           {isSelected && canSelect && (
-            <Feather name="check" size={20} color={colors.primary} className="ml-2" />
+            <Feather name="check" size={20} color={primaryStyle.color as string} className="ml-2" />
           )}
         </Pressable>
       );
     },
-    [selectedModelId, isDownloaded, isPrepared, isLoading, renderLocalStatus]
+    [selectedModelId, isDownloaded, isPrepared, isLoading, renderLocalStatus, primaryStyle]
   );
 
   return (

@@ -14,6 +14,7 @@ import {
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
+import { useResolveClassNames } from 'uniwind';
 import { useChatHistory, type Chat, type GroupedChats } from '../hooks/useChatHistory';
 import { useAuth } from '../contexts/AuthContext';
 import { Text } from '@/components/ui/text';
@@ -27,7 +28,6 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { colors } from '@/lib/theme';
 
 // ============================================================================
 // TYPES
@@ -63,6 +63,10 @@ export function ChatHistoryList({
   const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const mutedForegroundStyle = useResolveClassNames('text-muted-foreground');
+  const tertiaryStyle = useResolveClassNames('text-tertiary');
+  const destructiveStyle = useResolveClassNames('text-destructive');
 
   const { user, isGuest, signOut } = useAuth();
   const history = useChatHistory({
@@ -147,7 +151,7 @@ export function ChatHistoryList({
                   className="h-9 w-9"
                   onPress={() => setShowDeleteAllConfirm(true)}
                 >
-                  <Feather name="trash-2" size={18} color={colors.mutedForeground} />
+                  <Feather name="trash-2" size={18} color={mutedForegroundStyle.color as string} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>
@@ -163,7 +167,7 @@ export function ChatHistoryList({
                 className="h-9 w-9"
                 onPress={onNewChat}
               >
-                <Feather name="plus" size={20} color={colors.mutedForeground} />
+                <Feather name="plus" size={20} color={mutedForegroundStyle.color as string} />
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -180,7 +184,7 @@ export function ChatHistoryList({
           className={`h-auto flex-row items-center justify-start gap-3 rounded-lg px-3 py-2.5 ${pathname === '/chats' ? 'bg-secondary' : ''}`}
           onPress={() => router.push('/chats')}
         >
-          <Feather name="message-square" size={18} color={colors.mutedForeground} />
+          <Feather name="message-square" size={18} color={mutedForegroundStyle.color as string} />
           <Text className="text-sm">Chats</Text>
         </Button>
       </View>
@@ -190,7 +194,7 @@ export function ChatHistoryList({
         {history.isLoading ? (
           <LoadingSkeleton />
         ) : history.chats.length === 0 ? (
-          <EmptyState />
+          <EmptyState tertiaryColor={tertiaryStyle.color as string} />
         ) : (
           <ChatGroups
             groups={history.groupedChats}
@@ -200,6 +204,8 @@ export function ChatHistoryList({
             onDeleteChat={handleDeleteChat}
             onRefresh={handlePullToRefresh}
             isRefreshing={isRefreshing}
+            tertiaryColor={tertiaryStyle.color as string}
+            destructiveColor={destructiveStyle.color as string}
           />
         )}
       </ScrollView>
@@ -230,12 +236,12 @@ export function ChatHistoryList({
             accessibilityLabel={isGuest ? 'Login to your account' : 'Sign out of your account'}
           >
             {isLoggingOut ? (
-              <ActivityIndicator size="small" color={colors.mutedForeground} />
+              <ActivityIndicator size="small" color={mutedForegroundStyle.color as string} />
             ) : (
               <Feather
                 name={isGuest ? 'log-in' : 'log-out'}
                 size={18}
-                color={colors.mutedForeground}
+                color={mutedForegroundStyle.color as string}
               />
             )}
           </Button>
@@ -285,6 +291,8 @@ function ChatGroups({
   onDeleteChat,
   onRefresh,
   isRefreshing,
+  tertiaryColor,
+  destructiveColor,
 }: {
   groups: GroupedChats;
   activeChatId?: string | null;
@@ -293,6 +301,8 @@ function ChatGroups({
   onDeleteChat: (chatId: string) => void;
   onRefresh: () => void;
   isRefreshing: boolean;
+  tertiaryColor: string;
+  destructiveColor: string;
 }) {
   // Determine which is the first non-empty group
   const firstGroup = groups.today.length > 0 ? 'today' :
@@ -314,6 +324,8 @@ function ChatGroups({
           showRefresh={firstGroup === 'today'}
           onRefresh={onRefresh}
           isRefreshing={isRefreshing}
+          tertiaryColor={tertiaryColor}
+          destructiveColor={destructiveColor}
         />
       )}
       {groups.yesterday.length > 0 && (
@@ -327,6 +339,8 @@ function ChatGroups({
           showRefresh={firstGroup === 'yesterday'}
           onRefresh={onRefresh}
           isRefreshing={isRefreshing}
+          tertiaryColor={tertiaryColor}
+          destructiveColor={destructiveColor}
         />
       )}
       {groups.lastWeek.length > 0 && (
@@ -340,6 +354,8 @@ function ChatGroups({
           showRefresh={firstGroup === 'lastWeek'}
           onRefresh={onRefresh}
           isRefreshing={isRefreshing}
+          tertiaryColor={tertiaryColor}
+          destructiveColor={destructiveColor}
         />
       )}
       {groups.lastMonth.length > 0 && (
@@ -353,6 +369,8 @@ function ChatGroups({
           showRefresh={firstGroup === 'lastMonth'}
           onRefresh={onRefresh}
           isRefreshing={isRefreshing}
+          tertiaryColor={tertiaryColor}
+          destructiveColor={destructiveColor}
         />
       )}
       {groups.older.length > 0 && (
@@ -366,6 +384,8 @@ function ChatGroups({
           showRefresh={firstGroup === 'older'}
           onRefresh={onRefresh}
           isRefreshing={isRefreshing}
+          tertiaryColor={tertiaryColor}
+          destructiveColor={destructiveColor}
         />
       )}
     </View>
@@ -382,6 +402,8 @@ function ChatGroup({
   showRefresh = false,
   onRefresh,
   isRefreshing = false,
+  tertiaryColor,
+  destructiveColor,
 }: {
   title: string;
   chats: Chat[];
@@ -392,6 +414,8 @@ function ChatGroup({
   showRefresh?: boolean;
   onRefresh?: () => void;
   isRefreshing?: boolean;
+  tertiaryColor: string;
+  destructiveColor: string;
 }) {
   return (
     <View className="gap-1">
@@ -408,9 +432,9 @@ function ChatGroup({
             disabled={isRefreshing}
           >
             {isRefreshing ? (
-              <ActivityIndicator size="small" color={colors.tertiary} />
+              <ActivityIndicator size="small" color={tertiaryColor} />
             ) : (
-              <Feather name="refresh-cw" size={14} color={colors.tertiary} />
+              <Feather name="refresh-cw" size={14} color={tertiaryColor} />
             )}
           </Button>
         )}
@@ -423,6 +447,8 @@ function ChatGroup({
           isDeleting={chat.id === deletingChatId}
           onSelect={() => onSelectChat(chat)}
           onDelete={() => onDeleteChat(chat.id)}
+          tertiaryColor={tertiaryColor}
+          destructiveColor={destructiveColor}
         />
       ))}
     </View>
@@ -435,12 +461,16 @@ function ChatItem({
   isDeleting,
   onSelect,
   onDelete,
+  tertiaryColor,
+  destructiveColor,
 }: {
   chat: Chat;
   isActive: boolean;
   isDeleting: boolean;
   onSelect: () => void;
   onDelete: () => void;
+  tertiaryColor: string;
+  destructiveColor: string;
 }) {
   const [showMenu, setShowMenu] = useState(false);
 
@@ -456,7 +486,7 @@ function ChatItem({
         {chat.title}
       </Text>
       {isDeleting ? (
-        <ActivityIndicator size="small" color={colors.tertiary} />
+        <ActivityIndicator size="small" color={tertiaryColor} />
       ) : (
         <Button
           variant="ghost"
@@ -464,7 +494,7 @@ function ChatItem({
           className="h-6 w-6 opacity-50"
           onPress={() => setShowMenu(!showMenu)}
         >
-          <Feather name="more-horizontal" size={16} color={colors.tertiary} />
+          <Feather name="more-horizontal" size={16} color={tertiaryColor} />
         </Button>
       )}
 
@@ -478,7 +508,7 @@ function ChatItem({
               onDelete();
             }}
           >
-            <Feather name="trash-2" size={14} color={colors.destructive} />
+            <Feather name="trash-2" size={14} color={destructiveColor} />
             <Text className="text-sm text-destructive">Delete</Text>
           </Button>
         </View>
@@ -500,10 +530,10 @@ function LoadingSkeleton() {
   );
 }
 
-function EmptyState() {
+function EmptyState({ tertiaryColor }: { tertiaryColor: string }) {
   return (
     <View className="items-center gap-3 p-8">
-      <Feather name="message-circle" size={32} color={colors.tertiary} />
+      <Feather name="message-circle" size={32} color={tertiaryColor} />
       <Text variant="muted" className="text-center">
         Your conversations will appear here once you start chatting!
       </Text>

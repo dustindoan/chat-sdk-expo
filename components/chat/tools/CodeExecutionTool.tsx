@@ -1,8 +1,8 @@
 import React, { memo, useState, useEffect, useCallback } from 'react';
 import { View, ActivityIndicator, ScrollView } from 'react-native';
+import { useResolveClassNames } from 'uniwind';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
-import { colors, languageColors } from '@/lib/theme';
 import type { ToolUIProps } from './types';
 import type { ExecuteCodeInput, ExecuteCodeResult } from '../../../lib/ai/tools/executeCode';
 import {
@@ -13,13 +13,11 @@ import {
 
 type CodeExecutionToolProps = ToolUIProps<ExecuteCodeInput, ExecuteCodeResult>;
 
-// Language display names and colors (lazy to avoid module evaluation order issues)
-function getLanguageConfig() {
-  return {
-    python: { name: 'Python', color: languageColors.python, icon: '\uD83D\uDC0D' },
-    javascript: { name: 'JavaScript', color: languageColors.javascript, icon: '\uD83D\uDFE8' },
-  };
-}
+// Language display config
+const LANGUAGE_CONFIG = {
+  python: { name: 'Python', bgClass: 'bg-[#3776ab]', icon: '\uD83D\uDC0D' },
+  javascript: { name: 'JavaScript', bgClass: 'bg-[#f7df1e]', icon: '\uD83D\uDFE8' },
+} as const;
 
 /**
  * CodeExecutionTool component
@@ -38,6 +36,9 @@ export const CodeExecutionTool = memo(function CodeExecutionTool({
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
   const [isExecuting, setIsExecuting] = useState(false);
   const [showFullCode, setShowFullCode] = useState(false);
+
+  // Use useResolveClassNames for ActivityIndicator colors
+  const primaryStyle = useResolveClassNames('text-primary');
 
   const isLoading = state === 'partial-call' || state === 'call';
   const isApprovalPending = state === 'approval-requested';
@@ -72,8 +73,7 @@ export const CodeExecutionTool = memo(function CodeExecutionTool({
   }, [wasApproved, args, executionResult, isExecuting]);
 
   const language = args?.language || 'javascript';
-  const languageConfig = getLanguageConfig();
-  const config = languageConfig[language] || languageConfig.javascript;
+  const config = LANGUAGE_CONFIG[language] || LANGUAGE_CONFIG.javascript;
   const code = args?.code || '';
   const codeLines = code.split('\n');
   const truncatedCode =
@@ -84,20 +84,14 @@ export const CodeExecutionTool = memo(function CodeExecutionTool({
   }, []);
 
   return (
-    <View
-      className="my-2 rounded-lg bg-secondary p-3"
-      style={{ borderLeftWidth: 3, borderLeftColor: colors.success }}
-    >
+    <View className="my-2 rounded-lg border-l-[3px] border-l-success bg-secondary p-3">
       {/* Header */}
       <View className="mb-3 flex-row items-center gap-2">
-        <View
-          className="flex-row items-center gap-1 rounded px-2 py-1"
-          style={{ backgroundColor: config.color }}
-        >
+        <View className={`flex-row items-center gap-1 rounded px-2 py-1 ${config.bgClass}`}>
           <Text className="text-sm">{config.icon}</Text>
           <Text className="text-xs font-semibold text-black">{config.name}</Text>
         </View>
-        <Text variant="muted" className="flex-1 text-sm font-semibold">Code Execution</Text>
+        <Text variant="muted" className="text-sm font-semibold">Code Execution</Text>
         {supportsInBrowserExecution() && (
           <View className="rounded bg-emerald-500/20 px-2 py-0.5">
             <Text className="text-xs font-medium text-emerald-500">In-Browser</Text>
@@ -108,7 +102,7 @@ export const CodeExecutionTool = memo(function CodeExecutionTool({
       {/* Loading state (streaming args) */}
       {isLoading && (
         <View className="flex-row items-center gap-2 py-2">
-          <ActivityIndicator size="small" color={colors.primary} />
+          <ActivityIndicator size="small" color={primaryStyle.color as string} />
           <Text variant="muted" className="text-sm">Preparing code...</Text>
         </View>
       )}
@@ -147,7 +141,7 @@ export const CodeExecutionTool = memo(function CodeExecutionTool({
       {/* Executing state */}
       {isExecuting && (
         <View className="flex-row items-center justify-center gap-2 py-3">
-          <ActivityIndicator size="small" color={colors.primary} />
+          <ActivityIndicator size="small" color={primaryStyle.color as string} />
           <Text variant="muted" className="text-sm">
             Executing {config.name} code...
           </Text>
@@ -160,7 +154,7 @@ export const CodeExecutionTool = memo(function CodeExecutionTool({
           {/* Code preview (collapsed) */}
           <Button
             variant="ghost"
-            className="h-auto flex-row items-center gap-2 p-0 py-1"
+            className="h-auto flex-row items-center gap-2 self-start p-0 py-1"
             onPress={toggleCodeView}
           >
             <Text variant="muted" className="text-sm font-medium">Code</Text>
@@ -182,8 +176,7 @@ export const CodeExecutionTool = memo(function CodeExecutionTool({
           {/* Status indicator */}
           <View className="mb-1 mt-2 flex-row items-center gap-2">
             <View
-              className="h-2 w-2 rounded-full"
-              style={{ backgroundColor: executionResult.success ? colors.success : colors.destructive }}
+              className={`h-2 w-2 rounded-full ${executionResult.success ? 'bg-success' : 'bg-destructive'}`}
             />
             <Text className="text-sm font-medium">
               {executionResult.success ? 'Success' : 'Error'}

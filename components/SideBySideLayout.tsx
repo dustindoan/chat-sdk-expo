@@ -33,9 +33,9 @@ export const SideBySideLayout = memo(function SideBySideLayout({
   const isDesktopWeb = Platform.OS === 'web' && windowWidth >= 768;
   const isArtifactVisible = artifact.isVisible && artifact.documentId;
 
-  // Calculate widths for side-by-side layout
+  // Calculate widths for side-by-side layout (50% on desktop)
   const artifactPanelWidth = isDesktopWeb
-    ? Math.min(windowWidth * 0.5, 600)
+    ? windowWidth * 0.5
     : windowWidth;
 
   // Use single render path to prevent children from remounting

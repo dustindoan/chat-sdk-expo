@@ -1,4 +1,4 @@
-import { View, StyleSheet, Platform } from 'react-native';
+import { View, Platform } from 'react-native';
 import { useCallback, useEffect } from 'react';
 import { ChatUI } from '../../components/ChatUI';
 import { useChatHistoryContext } from '../../contexts/ChatHistoryContext';
@@ -31,7 +31,7 @@ export default function NewChatScreen() {
   );
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1 bg-background">
       <ChatUI
         key={newChatKey}
         api={generateAPIUrl('/api/chat')}
@@ -45,10 +45,3 @@ export default function NewChatScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0a0a0a',
-  },
-});

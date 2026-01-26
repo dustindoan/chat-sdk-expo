@@ -8,8 +8,8 @@
 import React, { useMemo } from 'react';
 import { View, ScrollView } from 'react-native';
 import { diffWords, type Change } from 'diff';
+import { useResolveClassNames } from 'uniwind';
 import { Text } from '@/components/ui/text';
-import { colors } from '@/lib/theme';
 
 interface DiffViewProps {
   oldContent: string;
@@ -18,6 +18,9 @@ interface DiffViewProps {
 }
 
 export function DiffView({ oldContent, newContent, kind }: DiffViewProps) {
+  const successStyle = useResolveClassNames('text-success');
+  const destructiveStyle = useResolveClassNames('text-destructive');
+
   const changes = useMemo(() => {
     return diffWords(oldContent, newContent);
   }, [oldContent, newContent]);
@@ -29,7 +32,13 @@ export function DiffView({ oldContent, newContent, kind }: DiffViewProps) {
     >
       <View className={`flex-row flex-wrap ${kind === 'code' ? 'rounded-lg bg-secondary p-3' : ''}`}>
         {changes.map((change, index) => (
-          <DiffSegment key={index} change={change} kind={kind} />
+          <DiffSegment
+            key={index}
+            change={change}
+            kind={kind}
+            successColor={successStyle.color as string}
+            destructiveColor={destructiveStyle.color as string}
+          />
         ))}
       </View>
     </ScrollView>
@@ -39,9 +48,11 @@ export function DiffView({ oldContent, newContent, kind }: DiffViewProps) {
 interface DiffSegmentProps {
   change: Change;
   kind: 'text' | 'code';
+  successColor: string;
+  destructiveColor: string;
 }
 
-function DiffSegment({ change, kind }: DiffSegmentProps) {
+function DiffSegment({ change, kind, successColor, destructiveColor }: DiffSegmentProps) {
   const isAddition = change.added;
   const isDeletion = change.removed;
 
@@ -63,8 +74,8 @@ function DiffSegment({ change, kind }: DiffSegmentProps) {
             <Text
               className={`text-base leading-6 ${kind === 'code' ? 'font-mono text-sm' : ''}`}
               style={[
-                isAddition && { backgroundColor: 'rgba(34, 197, 94, 0.2)', color: colors.success },
-                isDeletion && { backgroundColor: 'rgba(239, 68, 68, 0.2)', color: colors.destructive, textDecorationLine: 'line-through' },
+                isAddition && { backgroundColor: 'rgba(34, 197, 94, 0.2)', color: successColor },
+                isDeletion && { backgroundColor: 'rgba(239, 68, 68, 0.2)', color: destructiveColor, textDecorationLine: 'line-through' },
               ]}
             >
               {line}

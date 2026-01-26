@@ -1,10 +1,17 @@
 import React, { memo } from 'react';
-import { View, ActivityIndicator, useWindowDimensions, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
 import { Text } from '@/components/ui/text';
-import { weatherColors } from '@/lib/theme';
 import type { ToolUIProps } from './types';
 import type { WeatherInput, WeatherAtLocation } from '../../../lib/ai/tools';
+
+// Weather-specific colors (only used in this component)
+const weatherColors = {
+  daySky: ['#7dd3fc', '#0ea5e9'], // sky-300 to sky-500
+  nightSky: ['#1e3a5f', '#0c1929'], // custom dark blue gradient
+  sunAccent: '#fbbf24', // amber-400
+  moonAccent: '#f5f5f4', // stone-100
+};
 
 type WeatherToolProps = ToolUIProps<WeatherInput, WeatherAtLocation>;
 

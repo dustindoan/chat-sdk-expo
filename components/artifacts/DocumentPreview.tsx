@@ -8,10 +8,10 @@
 import React, { memo, useCallback } from 'react';
 import { View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useResolveClassNames } from 'uniwind';
 import { useArtifact } from '../../contexts/ArtifactContext';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
-import { colors } from '@/lib/theme';
 import type { ArtifactKind } from '../../lib/artifacts/types';
 
 interface DocumentPreviewProps {
@@ -39,6 +39,8 @@ export const DocumentPreview = memo(function DocumentPreview({
   language,
 }: DocumentPreviewProps) {
   const { setArtifact, showArtifact } = useArtifact();
+  const primaryStyle = useResolveClassNames('text-primary');
+  const disabledStyle = useResolveClassNames('text-disabled');
 
   const handlePress = useCallback(() => {
     // Set the artifact state and show the panel
@@ -68,7 +70,7 @@ export const DocumentPreview = memo(function DocumentPreview({
     >
       {/* Icon */}
       <View className="h-11 w-11 items-center justify-center rounded-md bg-card">
-        <Feather name={kindIcon} size={24} color={colors.primary} />
+        <Feather name={kindIcon} size={24} color={primaryStyle.color as string} />
       </View>
 
       {/* Content */}
@@ -88,7 +90,7 @@ export const DocumentPreview = memo(function DocumentPreview({
 
       {/* Arrow */}
       <View className="p-1">
-        <Feather name="chevron-right" size={20} color={colors.disabled} />
+        <Feather name="chevron-right" size={20} color={disabledStyle.color as string} />
       </View>
     </Button>
   );

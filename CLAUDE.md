@@ -30,6 +30,7 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 - **[#1](https://github.com/dustindoan/chat-sdk-expo/issues/1):** Message Voting - Thumbs up/down feedback on assistant messages with database persistence
 - **Phase 17:** In-Browser Code Execution - Pyodide for Python, sandboxed iframe for JavaScript, server fallback for mobile
 - **Local LLM Integration:** On-device inference with `@react-native-ai/llama`, FunctionGemma 270M model, streaming fix via patch
+- **[#25](https://github.com/dustindoan/chat-sdk-expo/issues/25):** Complete Uniwind migration - Removed all `StyleSheet.create()` usage and `lib/theme` imports, replaced with Tailwind `className` and `useResolveClassNames` hook
 
 ### Local LLM Integration ✅
 
@@ -764,45 +765,58 @@ DATABASE_URL=postgres://postgres:postgres@localhost:5432/chat
 </View>
 ```
 
-**When to use theme constants (`lib/theme/colors.ts`):**
-- React Navigation options (headerStyle, drawerStyle, etc.)
-- Style props that don't accept className (placeholderTextColor, color for icons)
-- StyleSheet.create() objects
-- ActivityIndicator color prop
+**When to use `useResolveClassNames` hook:**
+For props that don't accept `className` (icon colors, ActivityIndicator, placeholderTextColor), use the `useResolveClassNames` hook from Uniwind to extract color values from Tailwind classes:
 
 ```tsx
-import { colors, spacing } from '@/lib/theme';
+import { useResolveClassNames } from 'uniwind';
 
-// React Navigation
-screenOptions={{
-  headerStyle: { backgroundColor: colors.background },
-  headerTintColor: colors.foreground,
-}}
+function MyComponent() {
+  // Extract color values from Tailwind classes
+  const primaryStyle = useResolveClassNames('text-primary');
+  const mutedStyle = useResolveClassNames('text-muted-foreground');
+  const bgStyle = useResolveClassNames('bg-background');
 
-// Icon colors
-<Feather name="copy" size={16} color={colors.tertiary} />
+  return (
+    <View className="flex-1 bg-background">
+      {/* ActivityIndicator color */}
+      <ActivityIndicator color={primaryStyle.color as string} />
 
-// ActivityIndicator
-<ActivityIndicator color={colors.primary} />
+      {/* Icon colors */}
+      <Feather name="copy" size={16} color={mutedStyle.color as string} />
+
+      {/* Placeholder text color */}
+      <TextInput
+        placeholder="Type here..."
+        placeholderTextColor={mutedStyle.color as string}
+      />
+
+      {/* Background color for web document body */}
+      {Platform.OS === 'web' && (
+        document.body.style.backgroundColor = bgStyle.backgroundColor as string
+      )}
+    </View>
+  );
+}
 ```
 
 **Semantic color tokens (use these, not zinc-*, slate-*, etc.):**
-| Token | Tailwind Class | Theme Constant | Use Case |
-|-------|---------------|----------------|----------|
-| background | `bg-background` | `colors.background` | Page backgrounds |
-| foreground | `text-foreground` | `colors.foreground` | Primary text |
-| card | `bg-card` | `colors.card` | Card backgrounds |
-| secondary | `bg-secondary` | `colors.secondary` | Secondary surfaces |
-| muted-foreground | `text-muted-foreground` | `colors.mutedForeground` | Secondary text |
-| tertiary | - | `colors.tertiary` | Icons, line numbers |
-| primary | `text-primary`, `bg-primary` | `colors.primary` | Accent color (blue) |
-| destructive | `text-destructive` | `colors.destructive` | Error states (red) |
-| success | - | `colors.success` | Success states (green) |
-| subtle | - | `colors.subtle` | Subtle borders/backgrounds |
+| Token | Tailwind Class | Use Case |
+|-------|---------------|----------|
+| background | `bg-background` | Page backgrounds |
+| foreground | `text-foreground` | Primary text |
+| card | `bg-card` | Card backgrounds |
+| secondary | `bg-secondary` | Secondary surfaces |
+| muted-foreground | `text-muted-foreground` | Secondary text |
+| tertiary | `text-tertiary` | Icons, line numbers |
+| primary | `text-primary`, `bg-primary` | Accent color (blue) |
+| destructive | `text-destructive` | Error states (red) |
+| success | `text-success`, `border-l-success` | Success states (green) |
+| subtle | `bg-subtle` | Subtle borders/backgrounds |
+| syntax-* | `text-syntax-keyword`, etc. | Code syntax highlighting |
 
 **Key files:**
-- `global.css` - CSS theme variables (source of truth)
-- `lib/theme/colors.ts` - Same values for style objects
+- `global.css` - CSS theme variables (source of truth for all colors)
 
 ### Adding New Components
 ```bash

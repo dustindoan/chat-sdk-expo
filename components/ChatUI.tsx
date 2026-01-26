@@ -3,7 +3,8 @@
  * Adapted from expo-gen-ui to work with @ai-sdk/react useChat hook
  */
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
-import { View, Platform, StyleSheet, type ViewStyle } from 'react-native';
+import { View, Platform } from 'react-native';
+import { useResolveClassNames } from 'uniwind';
 import { useChat, type UIMessage, type ChatTransport } from '@ai-sdk/react';
 import { DefaultChatTransport } from 'ai';
 import { fetch as expoFetch } from 'expo/fetch';
@@ -22,7 +23,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { generateAPIUrl } from '../utils';
 import { useLocalLLM } from '../contexts/LocalLLMContext';
 import { LocalChatTransport } from '../lib/local-llm';
-import { colors } from '../lib/theme';
 
 // Generate a random UUID
 function generateUUID(): string {
@@ -68,10 +68,12 @@ export function ChatUI({
   onRequestNewChat,
   initialModelId,
 }: ChatUIProps) {
-  const styles = getStyles();
   const insets = useSafeAreaInsets();
   const headerHeight = useHeaderHeight();
   const { showToast } = useToast();
+
+  // Use useResolveClassNames for background color (needed for web document body)
+  const backgroundStyle = useResolveClassNames('bg-background');
   const { copyToClipboard } = useClipboard();
   const { processStreamPart, openFirstDocument } = useArtifact();
   const { refreshSession } = useAuth();
@@ -153,10 +155,11 @@ export function ChatUI({
   // Set body background color on web
   useEffect(() => {
     if (Platform.OS === 'web' && typeof document !== 'undefined') {
-      document.body.style.backgroundColor = colors.background;
-      document.documentElement.style.backgroundColor = colors.background;
+      const bgColor = backgroundStyle.backgroundColor as string;
+      document.body.style.backgroundColor = bgColor;
+      document.documentElement.style.backgroundColor = bgColor;
     }
-  }, []);
+  }, [backgroundStyle.backgroundColor]);
 
   // Local state for input (works better with RN TextInput than useChat's input)
   const [localInput, setLocalInput] = useState('');
@@ -521,11 +524,11 @@ export function ChatUI({
 
   return (
     <KeyboardAvoidingView
-      style={styles.container}
+      className="flex-1 overflow-hidden bg-background"
       behavior="padding"
       keyboardVerticalOffset={Platform.OS === 'ios' ? headerHeight : 56 + insets.top}
     >
-      <View style={styles.mainContent}>
+      <View className="flex-1 flex-col overflow-hidden">
         <MessageList
           messages={messages}
           isLoading={isLoading}
@@ -568,31 +571,6 @@ export function ChatUI({
       />
     </KeyboardAvoidingView>
   );
-}
-
-// Lazy-initialized styles to avoid module evaluation order issues with colors import
-let _styles: ReturnType<typeof createStyles> | null = null;
-
-function getStyles() {
-  if (!_styles) {
-    _styles = createStyles();
-  }
-  return _styles;
-}
-
-function createStyles() {
-  return StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-      overflow: 'hidden',
-    } as ViewStyle,
-    mainContent: {
-      flex: 1,
-      flexDirection: 'column',
-      overflow: 'hidden',
-    },
-  });
 }
 
 ChatUI.displayName = 'ChatUI';

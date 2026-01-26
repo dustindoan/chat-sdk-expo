@@ -1,14 +1,7 @@
-import React, { memo } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  Pressable,
-  StyleSheet,
-  Platform,
-} from 'react-native';
+import React, { memo, useMemo } from 'react';
+import { View, Text, ScrollView, Pressable, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { colors, syntaxColors } from '@/lib/theme';
+import { useResolveClassNames } from 'uniwind';
 
 interface SimpleMarkdownProps {
   text: string;
@@ -21,7 +14,7 @@ interface SimpleMarkdownProps {
  * Much faster than full AST parsers like markdown-it.
  */
 export const SimpleMarkdown = memo(function SimpleMarkdown({ text, onCopyCode }: SimpleMarkdownProps) {
-  // First, extract code blocks (complete and streaming/partial)
+  // Extract code blocks (complete and streaming/partial)
   const parts = extractCodeBlocks(text);
 
   return (
@@ -95,7 +88,8 @@ function extractCodeBlocks(text: string) {
 
 // Render markdown text (without code blocks)
 function MarkdownText({ text }: { text: string }) {
-  const styles = getStyles();
+  const mutedForegroundStyle = useResolveClassNames('text-muted-foreground');
+
   const lines = text.split('\n');
   const elements: React.ReactNode[] = [];
   let inList = false;
@@ -104,11 +98,18 @@ function MarkdownText({ text }: { text: string }) {
   const flushList = () => {
     if (listItems.length > 0) {
       elements.push(
-        <View key={`list-${elements.length}`} style={styles.list}>
+        <View key={`list-${elements.length}`} className="my-2">
           {listItems.map((item, i) => (
-            <View key={i} style={styles.listItem}>
-              <Text style={styles.bullet}>•</Text>
-              <Text style={styles.listText}>{renderInlineMarkdown(item)}</Text>
+            <View key={i} className="my-0.5 flex-row">
+              <Text
+                className="mr-2 text-base"
+                style={{ color: mutedForegroundStyle.color as string }}
+              >
+                •
+              </Text>
+              <Text className="flex-1 text-base leading-6 text-foreground">
+                {renderInlineMarkdown(item)}
+              </Text>
             </View>
           ))}
         </View>
@@ -125,17 +126,23 @@ function MarkdownText({ text }: { text: string }) {
     if (line.startsWith('### ')) {
       flushList();
       elements.push(
-        <Text key={i} style={styles.h3}>{renderInlineMarkdown(line.slice(4))}</Text>
+        <Text key={i} className="mb-1 mt-2 text-lg font-semibold text-foreground">
+          {renderInlineMarkdown(line.slice(4))}
+        </Text>
       );
     } else if (line.startsWith('## ')) {
       flushList();
       elements.push(
-        <Text key={i} style={styles.h2}>{renderInlineMarkdown(line.slice(3))}</Text>
+        <Text key={i} className="mb-2 mt-3 text-xl font-semibold text-foreground">
+          {renderInlineMarkdown(line.slice(3))}
+        </Text>
       );
     } else if (line.startsWith('# ')) {
       flushList();
       elements.push(
-        <Text key={i} style={styles.h1}>{renderInlineMarkdown(line.slice(2))}</Text>
+        <Text key={i} className="mb-2 mt-3 text-2xl font-bold text-foreground">
+          {renderInlineMarkdown(line.slice(2))}
+        </Text>
       );
     }
     // List items (- or *)
@@ -151,13 +158,15 @@ function MarkdownText({ text }: { text: string }) {
     // Empty line
     else if (line.trim() === '') {
       flushList();
-      elements.push(<View key={i} style={styles.spacer} />);
+      elements.push(<View key={i} className="h-2" />);
     }
     // Regular paragraph
     else {
       flushList();
       elements.push(
-        <Text key={i} style={styles.paragraph}>{renderInlineMarkdown(line)}</Text>
+        <Text key={i} className="my-0.5 text-base leading-6 text-foreground">
+          {renderInlineMarkdown(line)}
+        </Text>
       );
     }
   }
@@ -168,7 +177,6 @@ function MarkdownText({ text }: { text: string }) {
 
 // Render inline markdown (bold, italic, inline code)
 function renderInlineMarkdown(text: string): React.ReactNode {
-  const styles = getStyles();
   const parts: React.ReactNode[] = [];
   let remaining = text;
   let key = 0;
@@ -177,7 +185,11 @@ function renderInlineMarkdown(text: string): React.ReactNode {
     // Bold: **text**
     const boldMatch = remaining.match(/^\*\*(.+?)\*\*/);
     if (boldMatch) {
-      parts.push(<Text key={key++} style={styles.bold}>{boldMatch[1]}</Text>);
+      parts.push(
+        <Text key={key++} className="font-bold text-foreground">
+          {boldMatch[1]}
+        </Text>
+      );
       remaining = remaining.slice(boldMatch[0].length);
       continue;
     }
@@ -185,7 +197,11 @@ function renderInlineMarkdown(text: string): React.ReactNode {
     // Italic: *text* or _text_
     const italicMatch = remaining.match(/^[*_](.+?)[*_]/);
     if (italicMatch && !remaining.startsWith('**')) {
-      parts.push(<Text key={key++} style={styles.italic}>{italicMatch[1]}</Text>);
+      parts.push(
+        <Text key={key++} className="italic text-foreground">
+          {italicMatch[1]}
+        </Text>
+      );
       remaining = remaining.slice(italicMatch[0].length);
       continue;
     }
@@ -193,7 +209,15 @@ function renderInlineMarkdown(text: string): React.ReactNode {
     // Inline code: `code`
     const codeMatch = remaining.match(/^`([^`]+)`/);
     if (codeMatch) {
-      parts.push(<Text key={key++} style={styles.inlineCode}>{codeMatch[1]}</Text>);
+      parts.push(
+        <Text
+          key={key++}
+          className="rounded bg-subtle px-1 text-sm text-syntax-normal"
+          style={{ fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier' }}
+        >
+          {codeMatch[1]}
+        </Text>
+      );
       remaining = remaining.slice(codeMatch[0].length);
       continue;
     }
@@ -228,42 +252,65 @@ function CodeBlock({
   isStreaming?: boolean;
   onCopy?: (code: string) => void;
 }) {
-  const styles = getStyles();
-  const lines = code.split('\n');
-  // Remove trailing empty line if present
-  if (lines[lines.length - 1] === '') {
-    lines.pop();
-  }
+  const mutedForegroundStyle = useResolveClassNames('text-muted-foreground');
+  const tertiaryStyle = useResolveClassNames('text-tertiary');
+
+  const lines = useMemo(() => {
+    const result = code.split('\n');
+    // Remove trailing empty line if present
+    if (result[result.length - 1] === '') {
+      result.pop();
+    }
+    return result;
+  }, [code]);
 
   return (
-    <View style={styles.codeBlockCard}>
-      <View style={styles.codeBlockHeader}>
-        <View style={styles.codeBlockHeaderLeft}>
-          <Feather name="file" size={14} color={colors.mutedForeground} />
-          <Text style={styles.codeBlockTitle}>{language}</Text>
+    <View className="my-3 overflow-hidden rounded-xl border border-subtle bg-subtle">
+      {/* Header */}
+      <View className="flex-row items-center justify-between border-b border-subtle-border bg-secondary px-3 py-2">
+        <View className="flex-row items-center gap-2">
+          <Feather name="file" size={14} color={mutedForegroundStyle.color as string} />
+          <Text
+            className="text-sm"
+            style={{ color: mutedForegroundStyle.color as string }}
+          >
+            {language}
+          </Text>
         </View>
         <Pressable
-          style={[
-            styles.codeBlockAction,
-            isStreaming && styles.codeBlockActionDisabled,
-            Platform.OS === 'web' && ({ cursor: isStreaming ? 'default' : 'pointer' } as any),
-          ]}
+          className={`p-1 ${isStreaming ? 'opacity-50' : ''}`}
+          style={Platform.OS === 'web' ? ({ cursor: isStreaming ? 'default' : 'pointer' } as any) : undefined}
           onPress={() => onCopy?.(code)}
           disabled={isStreaming}
         >
-          <Feather name="copy" size={14} color={colors.tertiary} />
+          <Feather name="copy" size={14} color={tertiaryStyle.color as string} />
         </Pressable>
       </View>
-      <View style={styles.codeBlockContent}>
-        <View style={styles.lineNumbers}>
+
+      {/* Content */}
+      <View className="flex-row bg-subtle">
+        {/* Line numbers */}
+        <View className="min-w-[40px] items-end border-r border-subtle-border bg-secondary px-2 py-3">
           {lines.map((_, i) => (
-            <Text key={i} style={styles.lineNumber}>{i + 1}</Text>
+            <Text
+              key={i}
+              className="text-[13px] leading-5 text-tertiary"
+              style={{ fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier' }}
+            >
+              {i + 1}
+            </Text>
           ))}
         </View>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.codeScrollView}>
+
+        {/* Code */}
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} className="flex-1 px-3 py-3">
           <View>
             {lines.map((line, i) => (
-              <Text key={i} style={styles.codeLine}>
+              <Text
+                key={i}
+                className="text-[13px] leading-5 text-syntax-normal"
+                style={{ fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier' }}
+              >
                 {highlightLine(line)}
               </Text>
             ))}
@@ -276,7 +323,6 @@ function CodeBlock({
 
 // Basic syntax highlighting
 function highlightLine(line: string): React.ReactNode {
-  const styles = getStyles();
   const keywords = [
     'function', 'const', 'let', 'var', 'return', 'if', 'else', 'for', 'while',
     'class', 'import', 'export', 'from', 'def', 'async', 'await', 'try', 'catch',
@@ -332,187 +378,22 @@ function highlightLine(line: string): React.ReactNode {
     return ' '; // Empty line
   }
 
-  return tokens.map((token, i) => {
-    const style =
-      token.type === 'keyword' ? styles.syntaxKeyword
-      : token.type === 'string' ? styles.syntaxString
-      : token.type === 'comment' ? styles.syntaxComment
-      : token.type === 'number' ? styles.syntaxNumber
-      : styles.codeLine;
+  // Map token types to Tailwind color classes
+  const tokenColorClass = {
+    keyword: 'text-syntax-keyword',
+    string: 'text-syntax-string',
+    comment: 'text-syntax-comment',
+    number: 'text-syntax-number',
+    normal: 'text-syntax-normal',
+  };
 
-    return <Text key={i} style={style}>{token.text}</Text>;
-  });
-}
-
-// Lazy-initialized styles to avoid module evaluation order issues with colors import
-let _styles: ReturnType<typeof createStyles> | null = null;
-
-function getStyles() {
-  if (!_styles) {
-    _styles = createStyles();
-  }
-  return _styles;
-}
-
-function createStyles() {
-  return StyleSheet.create({
-    // Text styles
-    paragraph: {
-      fontSize: 16,
-      lineHeight: 24,
-      color: colors.foreground,
-      marginVertical: 2,
-    },
-    h1: {
-      fontSize: 24,
-      fontWeight: '700',
-      color: colors.foreground,
-      marginTop: 12,
-      marginBottom: 8,
-    },
-    h2: {
-      fontSize: 20,
-      fontWeight: '600',
-      color: colors.foreground,
-      marginTop: 12,
-      marginBottom: 8,
-    },
-    h3: {
-      fontSize: 18,
-      fontWeight: '600',
-      color: colors.foreground,
-      marginTop: 8,
-      marginBottom: 4,
-    },
-    bold: {
-      fontWeight: '700',
-      color: colors.foreground,
-    },
-    italic: {
-      fontStyle: 'italic',
-      color: colors.foreground,
-    },
-    inlineCode: {
-      fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-      backgroundColor: colors.subtle,
-      paddingHorizontal: 4,
-      borderRadius: 4,
-      color: syntaxColors.normal,
-      fontSize: 14,
-    },
-
-    // List styles
-    list: {
-      marginVertical: 8,
-    },
-    listItem: {
-      flexDirection: 'row',
-      marginVertical: 2,
-    },
-    bullet: {
-      color: colors.mutedForeground,
-      marginRight: 8,
-      fontSize: 16,
-    },
-    listText: {
-      flex: 1,
-      fontSize: 16,
-      lineHeight: 24,
-      color: colors.foreground,
-    },
-    spacer: {
-      height: 8,
-    },
-
-    // Code block styles
-    codeBlockCard: {
-      backgroundColor: colors.subtle,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.subtle,
-      marginVertical: 12,
-      overflow: 'hidden',
-    },
-    codeBlockHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      backgroundColor: colors.secondary,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.subtleBorder,
-    },
-    codeBlockHeaderLeft: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
-    codeBlockTitle: {
-      fontSize: 14,
-      color: colors.mutedForeground,
-    },
-    codeBlockAction: {
-      padding: 4,
-    },
-    codeBlockActionDisabled: {
-      opacity: 0.5,
-    },
-    codeBlockContent: {
-      flexDirection: 'row',
-      backgroundColor: colors.subtle,
-    },
-    lineNumbers: {
-      paddingVertical: 12,
-      paddingHorizontal: 8,
-      backgroundColor: colors.secondary,
-      borderRightWidth: 1,
-      borderRightColor: colors.subtleBorder,
-      minWidth: 40,
-      alignItems: 'flex-end',
-    },
-    lineNumber: {
-      fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-      fontSize: 13,
-      lineHeight: 20,
-      color: colors.tertiary,
-    },
-    codeScrollView: {
-      flex: 1,
-      paddingVertical: 12,
-      paddingHorizontal: 12,
-    },
-    codeLine: {
-      fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-      fontSize: 13,
-      lineHeight: 20,
-      color: syntaxColors.normal,
-    },
-
-    // Syntax highlighting
-    syntaxKeyword: {
-      fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-      fontSize: 13,
-      lineHeight: 20,
-      color: syntaxColors.keyword,
-    },
-    syntaxString: {
-      fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-      fontSize: 13,
-      lineHeight: 20,
-      color: syntaxColors.string,
-    },
-    syntaxComment: {
-      fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-      fontSize: 13,
-      lineHeight: 20,
-      color: syntaxColors.comment,
-    },
-    syntaxNumber: {
-      fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-      fontSize: 13,
-      lineHeight: 20,
-      color: syntaxColors.number,
-    },
-  });
+  return tokens.map((token, i) => (
+    <Text
+      key={i}
+      className={`text-[13px] leading-5 ${tokenColorClass[token.type]}`}
+      style={{ fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier' }}
+    >
+      {token.text}
+    </Text>
+  ));
 }

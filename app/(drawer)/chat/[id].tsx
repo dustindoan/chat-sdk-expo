@@ -1,6 +1,8 @@
-import { View, StyleSheet, ActivityIndicator, Text } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
+import { useResolveClassNames } from 'uniwind';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
+import { Text } from '@/components/ui/text';
 import { ChatUI } from '../../../components/ChatUI';
 import { generateAPIUrl } from '../../../utils';
 import { useChatHistoryContext } from '../../../contexts/ChatHistoryContext';
@@ -27,6 +29,9 @@ export default function ChatScreen() {
   const [chatData, setChatData] = useState<ChatData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Use useResolveClassNames for ActivityIndicator color
+  const primaryStyle = useResolveClassNames('text-primary');
 
   // When model type changes, navigate to home to start a new chat with the new model
   const handleRequestNewChat = useCallback((modelId: string) => {
@@ -60,16 +65,16 @@ export default function ChatScreen() {
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#3b82f6" />
+      <View className="flex-1 items-center justify-center bg-background">
+        <ActivityIndicator size="large" color={primaryStyle.color as string} />
       </View>
     );
   }
 
   if (error || !chatData) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>{error || 'Chat not found'}</Text>
+      <View className="flex-1 items-center justify-center bg-background">
+        <Text className="text-base text-muted-foreground">{error || 'Chat not found'}</Text>
       </View>
     );
   }
@@ -83,7 +88,7 @@ export default function ChatScreen() {
   }));
 
   return (
-    <View style={styles.container}>
+    <View className="flex-1 bg-background">
       <ChatUI
         chatId={id}
         initialMessages={initialMessages}
@@ -96,20 +101,3 @@ export default function ChatScreen() {
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0a0a0a',
-  },
-  centered: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#0a0a0a',
-  },
-  errorText: {
-    color: '#a1a1aa',
-    fontSize: 16,
-  },
-});

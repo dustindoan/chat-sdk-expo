@@ -1,8 +1,8 @@
 import React, { memo, useState } from 'react';
 import { View, ActivityIndicator, Platform } from 'react-native';
+import { useResolveClassNames } from 'uniwind';
 import { Text } from '@/components/ui/text';
 import { Button } from '@/components/ui/button';
-import { colors } from '@/lib/theme';
 import type { ToolUIProps } from './types';
 
 /**
@@ -17,19 +17,20 @@ export const DefaultTool = memo(function DefaultTool({
   result,
 }: ToolUIProps) {
   const [isExpanded, setIsExpanded] = useState(false);
+
+  // Use useResolveClassNames for ActivityIndicator color
+  const primaryStyle = useResolveClassNames('text-primary');
+
   const isLoading = state === 'partial-call' || state === 'call';
   const hasResult = (state === 'result' || state === 'output-available') && result !== undefined;
 
   return (
-    <View
-      className="my-2 rounded-lg bg-secondary p-3"
-      style={{ borderLeftWidth: 3, borderLeftColor: colors.primary }}
-    >
+    <View className="my-2 rounded-lg border-l-[3px] border-l-primary bg-secondary p-3">
       {/* Header */}
       <View className="mb-2 flex-row items-center gap-2">
         <Text className="text-base">{'\uD83D\uDD27'}</Text>
         <Text className="flex-1 text-sm font-semibold text-primary">{toolName}</Text>
-        {isLoading && <ActivityIndicator size="small" color={colors.primary} />}
+        {isLoading && <ActivityIndicator size="small" color={primaryStyle.color as string} />}
       </View>
 
       {/* Input args */}

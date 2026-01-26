@@ -1,13 +1,13 @@
 import React, { memo, useState, useEffect, useRef } from 'react';
 import { View, Animated, Platform, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { useResolveClassNames } from 'uniwind';
 import { Text } from '@/components/ui/text';
 import {
   Collapsible,
   CollapsibleTrigger,
   CollapsibleContent,
 } from '@/components/ui/collapsible';
-import { colors } from '@/lib/theme';
 
 const AUTO_CLOSE_DELAY = 500;
 
@@ -27,6 +27,9 @@ export const Reasoning = memo(function Reasoning({
   const [hasAutoClosed, setHasAutoClosed] = useState(false);
   const startTimeRef = useRef<number | null>(null);
   const rotateAnim = useRef(new Animated.Value(defaultOpen ? 1 : 0)).current;
+
+  // Use useResolveClassNames for icon colors
+  const tertiaryStyle = useResolveClassNames('text-tertiary');
 
   // Track duration when streaming
   useEffect(() => {
@@ -77,13 +80,13 @@ export const Reasoning = memo(function Reasoning({
         className="flex-row items-center gap-1 py-0.5 px-1.5 rounded-md self-start"
         style={Platform.OS === 'web' ? ({ cursor: 'pointer' } as any) : undefined}
       >
-        <Feather name="cpu" size={12} color={colors.tertiary} />
+        <Feather name="cpu" size={12} color={tertiaryStyle.color as string} />
         <Text className="text-[11px] text-muted-foreground">
           {isStreaming || duration === 0 ? 'Thinking' : `${duration}s`}
         </Text>
         {isStreaming && <ShimmerDots />}
         <Animated.View style={{ transform: [{ rotate: rotation }] }}>
-          <Feather name="chevron-down" size={10} color={colors.tertiary} />
+          <Feather name="chevron-down" size={10} color={tertiaryStyle.color as string} />
         </Animated.View>
       </CollapsibleTrigger>
 
