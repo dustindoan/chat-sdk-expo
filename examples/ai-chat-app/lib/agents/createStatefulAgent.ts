@@ -7,7 +7,7 @@
  * Uses ToolLoopAgent with prepareStep for per-step state control.
  */
 
-import { ToolLoopAgent, stepCountIs, hasToolCall } from 'ai';
+import { ToolLoopAgent, stepCountIs, hasToolCall, convertToModelMessages } from 'ai';
 import type { ToolSet, StopCondition } from 'ai';
 
 import type {
@@ -218,9 +218,14 @@ export function createStatefulAgent<TStates extends string>(
 
       // Call the agent
       // Note: prompt and messages are mutually exclusive in AI SDK
+      // Convert UI messages to model messages format (parts -> content)
+      const modelMessages = params.messages
+        ? await convertToModelMessages(params.messages)
+        : undefined;
+
       const result = params.prompt
         ? await agent.generate({ prompt: params.prompt })
-        : await agent.generate({ messages: params.messages as any });
+        : await agent.generate({ messages: modelMessages as any });
 
       // Collect all tool results from all steps
       const allToolResults: ToolResult[] =
@@ -263,12 +268,39 @@ export function createStatefulAgent<TStates extends string>(
 
       // Call the agent with streaming
       // Note: prompt and messages are mutually exclusive
+      // Convert UI messages to model messages format (parts -> content)
+      const modelMessages = params.messages
+        ? await convertToModelMessages(params.messages)
+        : undefined;
+
       const result = params.prompt
         ? await agent.stream({ prompt: params.prompt })
-        : await agent.stream({ messages: params.messages as any });
+        : await agent.stream({ messages: modelMessages as any });
 
-      // Return as a Response that can be used with fetch-based clients
-      // Client can derive workflow state from tool calls in the stream
+      // If no onFinish callback, return the stream directly
+      if (!params.onFinish) {
+        return result.toUIMessageStreamResponse();
+      }
+
+      // With onFinish callback, consume the response.messages after stream ends
+      // Use consumeStream to ensure the stream is fully processed, then get messages
+      const responsePromise = result.response;
+
+      // Start consuming messages in the background
+      // Note: response.messages is only available after the stream completes
+      // Wrap in an async IIFE with try/catch since PromiseLike doesn't have .catch
+      (async () => {
+        try {
+          const response = await responsePromise;
+          // response.messages contains the assistant and tool messages from this call
+          const messages = response.messages as unknown as Message[];
+          await params.onFinish!(messages);
+        } catch (error) {
+          console.error('Error getting response messages for onFinish:', error);
+        }
+      })();
+
+      // Return the stream immediately so client can consume it
       return result.toUIMessageStreamResponse();
     },
 

@@ -79,6 +79,115 @@ function generateUUID(): string {
   });
 }
 
+/**
+ * Sanitize messages to remove orphaned tool calls.
+ *
+ * Anthropic API requires every tool_use to have a matching tool_result.
+ * When tool execution is interrupted (page refresh, error), we can end up
+ * with tool calls that have no results. This function filters them out.
+ */
+function sanitizeMessages(messages: any[]): any[] {
+  // First pass: collect all tool result IDs
+  const toolResultIds = new Set<string>();
+  for (const msg of messages) {
+    if (!msg.parts) continue;
+    for (const part of msg.parts) {
+      // Tool results can be identified by state='result' or state='output-available'
+      const isToolPart = part.type === 'tool-invocation' || part.toolCallId;
+      if (isToolPart && (part.state === 'result' || part.state === 'output-available')) {
+        toolResultIds.add(part.toolCallId);
+      }
+    }
+  }
+
+  // Second pass: filter out tool calls without matching results
+  return messages
+    .map((msg) => {
+      if (!msg.parts) return msg;
+
+      const filteredParts = msg.parts.filter((part: any) => {
+        // Check if this is a tool-related part
+        const isToolPart = part.type === 'tool-invocation' || part.toolCallId;
+
+        // Keep non-tool parts
+        if (!isToolPart) return true;
+
+        const toolId = part.toolCallId;
+
+        // Keep if it has a result state (it's complete)
+        if (part.state === 'result' || part.state === 'output-available') return true;
+
+        // For any other tool state (call, partial-call, approval-requested, approval-responded, output-denied)
+        // Only keep if there's a matching result somewhere in the message history
+        return toolResultIds.has(toolId);
+      });
+
+      return { ...msg, parts: filteredParts };
+    })
+    .filter((msg) => {
+      // Remove messages that became empty after filtering
+      if (!msg.parts || msg.parts.length === 0) return false;
+      return true;
+    });
+}
+
+/**
+ * Merge tool results into assistant messages for proper DB storage.
+ *
+ * The Anthropic API returns tool results in separate `role: 'tool'` messages,
+ * but the UI format expects tool results to be embedded in the tool part
+ * with state: 'output-available'.
+ */
+function mergeToolResultsIntoAssistantMessages(messages: any[], chatId: string): any[] {
+  // First, collect all tool results from tool role messages
+  const toolResults = new Map<string, any>();
+  for (const msg of messages) {
+    if (msg.role === 'tool' && Array.isArray(msg.content)) {
+      for (const part of msg.content) {
+        if (part.type === 'tool-result') {
+          toolResults.set(part.toolCallId, part.output);
+        }
+      }
+    }
+  }
+
+  // Now process assistant messages, merging tool results
+  const mergedMessages: any[] = [];
+  for (const msg of messages) {
+    if (msg.role !== 'assistant') continue;
+
+    const parts: any[] = [];
+    if (Array.isArray(msg.content)) {
+      for (const item of msg.content) {
+        if (item.type === 'text') {
+          parts.push({ type: 'text', text: item.text });
+        } else if (item.type === 'tool-call') {
+          const output = toolResults.get(item.toolCallId);
+          parts.push({
+            type: `tool-${item.toolName}`,
+            toolCallId: item.toolCallId,
+            toolName: item.toolName,
+            input: item.input,
+            output,
+            state: output !== undefined ? 'output-available' : 'input-available',
+          });
+        }
+      }
+    } else if (typeof msg.content === 'string') {
+      parts.push({ type: 'text', text: msg.content });
+    }
+
+    mergedMessages.push({
+      id: msg.id || generateUUID(),
+      chatId,
+      role: 'assistant' as const,
+      parts,
+    });
+  }
+
+  return mergedMessages;
+}
+
 export async function POST(request: Request) {
   const { user, error } = await requireAuth(request);
   if (error) return error;
@@ -147,19 +256,49 @@ export async function POST(request: Request) {
       prompt = message.content;
     }
 
+    // Check if chat exists, create if not (same pattern as regular chat)
+    let workflowChat = chatId ? await getChatById(chatId, user.id) : null;
+
+    if (!workflowChat && message?.role === 'user') {
+      // Create new chat with the first user message as title
+      const title = generateTitleFromMessage(message);
+      workflowChat = await saveChat({
+        id: chatId,
+        userId: user.id,
+        title,
+        model: modelName,
+      });
+    }
+
+    // If chatId was provided but chat doesn't exist/belong to user, return 404
+    if (chatId && !workflowChat) {
+      return Response.json({ error: 'Chat not found' }, { status: 404 });
+    }
+
+    // Save user message before loading history (so it's included in DB)
+    if (message?.role === 'user' && workflowChat) {
+      await saveMessages([
+        {
+          id: message.id || generateUUID(),
+          chatId: workflowChat.id,
+          role: 'user',
+          parts: message.parts || [{ type: 'text', text: prompt }],
+        },
+      ]);
+    }
+
     // Load previous messages if this is a continuation
     // This allows the workflow to derive state from previous tool calls
     let previousMessages: any[] = [];
-    if (chatId) {
-      const chat = await getChatById(chatId, user.id);
-      if (chat) {
-        const dbMessages = await getMessagesByChatId(chat.id);
-        previousMessages = dbMessages.map((dbMsg) => ({
-          id: dbMsg.id,
-          role: dbMsg.role,
-          parts: dbMsg.parts,
-        }));
-      }
+    if (workflowChat) {
+      const dbMessages = await getMessagesByChatId(workflowChat.id);
+      previousMessages = dbMessages.map((dbMsg) => ({
+        id: dbMsg.id,
+        role: dbMsg.role,
+        parts: dbMsg.parts,
+      }));
+      // Sanitize messages to remove orphaned tool calls
+      previousMessages = sanitizeMessages(previousMessages);
     }
 
     // Create the stateful agent
@@ -167,22 +306,44 @@ export async function POST(request: Request) {
       apiKey: getApiKey(),
     });
 
+    // Capture chat reference for onFinish callback
+    const chatForOnFinish = workflowChat;
+
     // If we have previous messages, use messages mode; otherwise use prompt mode
     // This allows the workflow to continue from previous state
     if (previousMessages.length > 0) {
-      // Add the new user message to the history
-      const allMessages = [
-        ...previousMessages,
-        {
-          role: 'user',
-          parts: message.parts || [{ type: 'text', text: prompt }],
+      return agent.stream({
+        messages: previousMessages,
+        onFinish: async (responseMessages) => {
+          if (chatForOnFinish) {
+            // Merge tool results into assistant messages for proper DB format
+            const messagesToSave = mergeToolResultsIntoAssistantMessages(
+              responseMessages,
+              chatForOnFinish.id
+            );
+            if (messagesToSave.length > 0) {
+              await saveMessages(messagesToSave);
+            }
+          }
         },
-      ];
-      return agent.stream({ messages: allMessages });
+      });
     }
 
     // First message - use prompt mode
-    return agent.stream({ prompt });
+    return agent.stream({
+      prompt,
+      onFinish: async (responseMessages) => {
+        if (chatForOnFinish) {
+          const messagesToSave = mergeToolResultsIntoAssistantMessages(
+            responseMessages,
+            chatForOnFinish.id
+          );
+          if (messagesToSave.length > 0) {
+            await saveMessages(messagesToSave);
+          }
+        }
+      },
+    });
   }
 
   // Check if chat exists, create if not

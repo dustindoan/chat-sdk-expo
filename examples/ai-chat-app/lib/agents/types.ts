@@ -218,6 +218,12 @@ export interface AgentCallParams {
 
   /** Callback after each step completes */
   onStepFinish?: (context: WorkflowContext) => void | Promise<void>;
+
+  /**
+   * Callback when stream finishes, receiving the response messages.
+   * Used for persisting assistant messages after streaming completes.
+   */
+  onFinish?: (messages: Message[]) => void | Promise<void>;
 }
 
 /**
