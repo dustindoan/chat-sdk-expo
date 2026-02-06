@@ -1,0 +1,164 @@
+diff --git a/node_modules/@react-native-ai/llama/lib/commonjs/ai-sdk.js b/node_modules/@react-native-ai/llama/lib/commonjs/ai-sdk.js
+index 64bdf0b..4c6c1bb 100644
+--- a/node_modules/@react-native-ai/llama/lib/commonjs/ai-sdk.js
++++ b/node_modules/@react-native-ai/llama/lib/commonjs/ai-sdk.js
+@@ -235,11 +235,18 @@ class LlamaLanguageModel {
+       start: async controller => {
+         try {
+           let textId = (0, _providerUtils.generateId)();
+-          let state = 'none';
++          // FIX: Start in 'text' state and emit text-start early (before completion callback)
++          // This creates an async boundary so AI SDK can process text-start before text-delta
++          // See: https://github.com/callstackincubator/ai/pull/178
++          let state = 'text';
+           controller.enqueue({
+             type: 'stream-start',
+             warnings: []
+           });
++          controller.enqueue({
++            type: 'text-start',
++            id: textId
++          });
+           const result = await context.completion(completionOptions, tokenData => {
+             if (streamFinished || isCancelled) {
+               return;
+@@ -273,21 +280,17 @@ class LlamaLanguageModel {
+                       id: textId
+                     });
+                   }
+-                  state = 'none';
++                  // FIX: After reasoning ends, start new text block immediately
++                  state = 'text';
++                  textId = (0, _providerUtils.generateId)();
++                  controller.enqueue({
++                    type: 'text-start',
++                    id: textId
++                  });
+                   break;
+                 default:
+                   // process regular token
+-
+                   switch (state) {
+-                    case 'none':
+-                      // start text block
+-                      state = 'text';
+-                      textId = (0, _providerUtils.generateId)();
+-                      controller.enqueue({
+-                        type: 'text-start',
+-                        id: textId
+-                      });
+-                      break;
+                     case 'text':
+                       // continue text block
+                       controller.enqueue({
+diff --git a/node_modules/@react-native-ai/llama/lib/module/ai-sdk.js b/node_modules/@react-native-ai/llama/lib/module/ai-sdk.js
+index 7f7c920..08650ac 100644
+--- a/node_modules/@react-native-ai/llama/lib/module/ai-sdk.js
++++ b/node_modules/@react-native-ai/llama/lib/module/ai-sdk.js
+@@ -231,11 +231,18 @@ export class LlamaLanguageModel {
+       start: async controller => {
+         try {
+           let textId = generateId();
+-          let state = 'none';
++          // FIX: Start in 'text' state and emit text-start early (before completion callback)
++          // This creates an async boundary so AI SDK can process text-start before text-delta
++          // See: https://github.com/callstackincubator/ai/pull/178
++          let state = 'text';
+           controller.enqueue({
+             type: 'stream-start',
+             warnings: []
+           });
++          controller.enqueue({
++            type: 'text-start',
++            id: textId
++          });
+           const result = await context.completion(completionOptions, tokenData => {
+             if (streamFinished || isCancelled) {
+               return;
+@@ -269,21 +276,17 @@ export class LlamaLanguageModel {
+                       id: textId
+                     });
+                   }
+-                  state = 'none';
++                  // FIX: After reasoning ends, start new text block immediately
++                  state = 'text';
++                  textId = generateId();
++                  controller.enqueue({
++                    type: 'text-start',
++                    id: textId
++                  });
+                   break;
+                 default:
+                   // process regular token
+-
+                   switch (state) {
+-                    case 'none':
+-                      // start text block
+-                      state = 'text';
+-                      textId = generateId();
+-                      controller.enqueue({
+-                        type: 'text-start',
+-                        id: textId
+-                      });
+-                      break;
+                     case 'text':
+                       // continue text block
+                       controller.enqueue({
+diff --git a/node_modules/@react-native-ai/llama/src/ai-sdk.ts b/node_modules/@react-native-ai/llama/src/ai-sdk.ts
+index 90407d2..ca89d72 100644
+--- a/node_modules/@react-native-ai/llama/src/ai-sdk.ts
++++ b/node_modules/@react-native-ai/llama/src/ai-sdk.ts
+@@ -317,13 +317,21 @@ export class LlamaLanguageModel implements LanguageModelV2 {
+         try {
+           let textId = generateId()
+ 
+-          let state: LLMState = 'none' as LLMState
++          // FIX: Start in 'text' state and emit text-start early (before completion callback)
++          // This creates an async boundary so AI SDK can process text-start before text-delta
++          // See: https://github.com/callstackincubator/ai/pull/178
++          let state: LLMState = 'text' as LLMState
+ 
+           controller.enqueue({
+             type: 'stream-start',
+             warnings: [],
+           })
+ 
++          controller.enqueue({
++            type: 'text-start',
++            id: textId,
++          })
++
+           const result = await context.completion(
+             completionOptions,
+             (tokenData: TokenData) => {
+@@ -363,23 +371,18 @@ export class LlamaLanguageModel implements LanguageModelV2 {
+                       })
+                     }
+ 
+-                    state = 'none'
++                    // FIX: After reasoning ends, start new text block immediately
++                    state = 'text'
++                    textId = generateId()
++                    controller.enqueue({
++                      type: 'text-start',
++                      id: textId,
++                    })
+                     break
+ 
+                   default:
+                     // process regular token
+-
+                     switch (state) {
+-                      case 'none':
+-                        // start text block
+-                        state = 'text'
+-                        textId = generateId()
+-                        controller.enqueue({
+-                          type: 'text-start',
+-                          id: textId,
+-                        })
+-                        break
+-
+                       case 'text':
+                         // continue text block
+                         controller.enqueue({

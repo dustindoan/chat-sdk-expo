@@ -1,0 +1,59 @@
+{
+  "name": "@chat-sdk-expo/agents",
+  "version": "0.1.0",
+  "description": "Stateful agent infrastructure for AI chat applications using AI SDK v6 ToolLoopAgent",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "ai",
+    "agents",
+    "chat",
+    "react-native",
+    "expo",
+    "ai-sdk",
+    "workflow",
+    "state-machine"
+  ],
+  "author": "Dustin Doan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dustindoan/chat-sdk-expo.git",
+    "directory": "packages/agents"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "peerDependencies": {
+    "@ai-sdk/anthropic": ">=3.0.0",
+    "ai": ">=6.0.0",
+    "zod": ">=3.0.0"
+  },
+  "devDependencies": {
+    "@ai-sdk/anthropic": "^3.0.15",
+    "@ai-sdk/provider": "^3.0.0",
+    "@types/node": "^22.0.0",
+    "ai": "^6.0.39",
+    "tsup": "^8.4.0",
+    "typescript": "~5.9.2",
+    "zod": "^4.3.5"
+  }
+}

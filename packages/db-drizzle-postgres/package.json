@@ -1,0 +1,61 @@
+{
+  "name": "@chat-sdk-expo/db-drizzle-postgres",
+  "version": "0.1.0",
+  "description": "Drizzle + PostgreSQL adapter for @chat-sdk-expo/db",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./schema": {
+      "types": "./dist/schema.d.ts",
+      "import": "./dist/schema.mjs",
+      "require": "./dist/schema.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "database",
+    "drizzle",
+    "postgres",
+    "postgresql",
+    "chat",
+    "ai-sdk"
+  ],
+  "author": "Dustin Doan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dustindoan/chat-sdk-expo.git",
+    "directory": "packages/db-drizzle-postgres"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@chat-sdk-expo/db": "workspace:*"
+  },
+  "peerDependencies": {
+    "drizzle-orm": ">=0.30.0",
+    "postgres": ">=3.0.0"
+  },
+  "devDependencies": {
+    "drizzle-orm": "^0.45.1",
+    "postgres": "^3.4.8",
+    "tsup": "^8.4.0",
+    "typescript": "~5.9.2"
+  }
+}

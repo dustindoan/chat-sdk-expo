@@ -1,0 +1,28 @@
+
+> @chat-sdk-expo/artifacts@0.1.0 build /Users/dustindoan/Dev/personal/scratch/2026jan18/ai-chat-app/packages/artifacts
+> tsup
+
+CLI Building entry: src/index.ts, src/handlers/index.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/dustindoan/Dev/personal/scratch/2026jan18/ai-chat-app/packages/artifacts/tsup.config.ts
+CLI Target: es2020
+CLI Cleaning output folder
+CJS Build start
+ESM Build start
+CJS dist/handlers/index.js     8.50 KB
+CJS dist/index.js              9.34 KB
+CJS dist/handlers/index.js.map 13.97 KB
+CJS dist/index.js.map          20.41 KB
+CJS ⚡️ Build success in 11ms
+ESM dist/index.mjs              7.83 KB
+ESM dist/handlers/index.mjs     7.10 KB
+ESM dist/index.mjs.map          19.55 KB
+ESM dist/handlers/index.mjs.map 13.90 KB
+ESM ⚡️ Build success in 11ms
+DTS Build start
+DTS ⚡️ Build success in 1028ms
+DTS dist/handlers/index.d.ts  6.25 KB
+DTS dist/index.d.ts           462.00 B
+DTS dist/handlers/index.d.mts 6.25 KB
+DTS dist/index.d.mts          463.00 B

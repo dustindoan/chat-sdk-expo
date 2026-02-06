@@ -1,0 +1,22 @@
+
+> @chat-sdk-expo/db@0.1.0 build /Users/dustindoan/Dev/personal/scratch/2026jan18/ai-chat-app/packages/db
+> tsup
+
+CLI Building entry: src/index.ts
+CLI Using tsconfig: tsconfig.json
+CLI tsup v8.5.1
+CLI Using tsup config: /Users/dustindoan/Dev/personal/scratch/2026jan18/ai-chat-app/packages/db/tsup.config.ts
+CLI Target: es2020
+CLI Cleaning output folder
+CJS Build start
+ESM Build start
+ESM dist/index.mjs     34.00 B
+ESM dist/index.mjs.map 71.00 B
+ESM ⚡️ Build success in 11ms
+CJS dist/index.js     791.00 B
+CJS dist/index.js.map 945.00 B
+CJS ⚡️ Build success in 11ms
+DTS Build start
+DTS ⚡️ Build success in 164ms
+DTS dist/index.d.ts  6.54 KB
+DTS dist/index.d.mts 6.54 KB

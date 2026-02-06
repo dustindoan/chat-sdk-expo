@@ -1,0 +1,44 @@
+/**
+ * Tool UI Registry
+ *
+ * Maps tool names to their custom UI components.
+ * Tools without a custom component will use DefaultTool.
+ */
+
+import { WeatherTool } from './WeatherTool';
+import { TemperatureTool } from './TemperatureTool';
+import { DocumentTool } from './DocumentTool';
+import { CodeExecutionTool } from './CodeExecutionTool';
+import { SessionsTool } from './SessionsTool';
+import { DefaultTool } from './DefaultTool';
+import type { ToolUIRegistry, ToolUIComponent } from './types';
+
+/**
+ * Registry of tool-specific UI components
+ */
+export const toolRegistry: ToolUIRegistry = {
+  weather: WeatherTool,
+  convertTemperature: TemperatureTool,
+  createDocument: DocumentTool,
+  updateDocument: DocumentTool,
+  executeCode: CodeExecutionTool,
+  getTodaySessions: SessionsTool,
+};
+
+/**
+ * Get the UI component for a tool by name
+ * Falls back to DefaultTool if no custom component exists
+ */
+export function getToolComponent(toolName: string): ToolUIComponent {
+  return toolRegistry[toolName] || DefaultTool;
+}
+
+// Re-export types and components
+export type { ToolUIProps, ToolState, ToolUIComponent, ToolUIRegistry, ToolApproval } from './types';
+export { WeatherTool } from './WeatherTool';
+export { TemperatureTool } from './TemperatureTool';
+export { DocumentTool } from './DocumentTool';
+export { CodeExecutionTool } from './CodeExecutionTool';
+export { SessionsTool } from './SessionsTool';
+export { DefaultTool } from './DefaultTool';
+export { Confirmation, ConfirmationApproved, ConfirmationDenied } from './Confirmation';
