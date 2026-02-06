@@ -1,5 +1,5 @@
 /**
- * @chat-sdk-expo/db-drizzle-postgres
+ * @chat-sdk-expo/drizzle-postgres
  *
  * Drizzle + PostgreSQL adapter for @chat-sdk-expo/db.
  *
@@ -7,8 +7,8 @@
  * ```ts
  * import { drizzle } from 'drizzle-orm/postgres-js';
  * import postgres from 'postgres';
- * import { createDrizzlePostgresAdapter } from '@chat-sdk-expo/db-drizzle-postgres';
- * import * as schema from '@chat-sdk-expo/db-drizzle-postgres/schema';
+ * import { createDrizzlePostgresAdapter } from '@chat-sdk-expo/drizzle-postgres';
+ * import * as schema from '@chat-sdk-expo/drizzle-postgres/schema';
  *
  * const client = postgres(process.env.DATABASE_URL!);
  * const db = drizzle(client, { schema });

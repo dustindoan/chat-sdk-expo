@@ -32,9 +32,9 @@ importers:
       '@chat-sdk-expo/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@chat-sdk-expo/db-drizzle-postgres':
+      '@chat-sdk-expo/drizzle-postgres':
         specifier: workspace:*
-        version: link:../../packages/db-drizzle-postgres
+        version: link:../../packages/drizzle-postgres
       '@chat-sdk-expo/tools':
         specifier: workspace:*
         version: link:../../packages/tools
@@ -330,9 +330,9 @@ importers:
       '@chat-sdk-expo/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@chat-sdk-expo/db-drizzle-postgres':
+      '@chat-sdk-expo/drizzle-postgres':
         specifier: workspace:*
-        version: link:../../packages/db-drizzle-postgres
+        version: link:../../packages/drizzle-postgres
       '@chat-sdk-expo/tools':
         specifier: workspace:*
         version: link:../../packages/tools
@@ -662,7 +662,7 @@ importers:
         specifier: ~5.9.2
         version: 5.9.3
 
-  packages/db-drizzle-postgres:
+  packages/drizzle-postgres:
     dependencies:
       '@chat-sdk-expo/db':
         specifier: workspace:*

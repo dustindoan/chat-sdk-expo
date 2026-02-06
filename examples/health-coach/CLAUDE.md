@@ -84,7 +84,7 @@ Wally uses the shared `DatabaseAdapter` from `@chat-sdk-expo/db`:
 
 ```typescript
 // lib/db/client.ts
-import { createDrizzlePostgresAdapter } from '@chat-sdk-expo/db-drizzle-postgres';
+import { createDrizzlePostgresAdapter } from '@chat-sdk-expo/drizzle-postgres';
 export const dbAdapter = createDrizzlePostgresAdapter(db);
 
 // lib/db/queries.ts - Type-safe wrappers
@@ -149,7 +149,7 @@ Wally imports from these `@chat-sdk-expo/*` packages:
 | Package | Usage in Wally |
 |---------|----------------|
 | `@chat-sdk-expo/db` | Types (`Chat`, `Message`, `Document`), `DatabaseAdapter` interface |
-| `@chat-sdk-expo/db-drizzle-postgres` | `createDrizzlePostgresAdapter`, `schema` |
+| `@chat-sdk-expo/drizzle-postgres` | `createDrizzlePostgresAdapter`, `schema` |
 | `@chat-sdk-expo/tools` | Base tool definitions |
 | `@chat-sdk-expo/artifacts` | Artifact handlers (text, code) |
 | `@chat-sdk-expo/agents` | (planned) Shared agent patterns |

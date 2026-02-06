@@ -8,7 +8,7 @@
 
 import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
-import { createDrizzlePostgresAdapter, schema } from '@chat-sdk-expo/db-drizzle-postgres';
+import { createDrizzlePostgresAdapter, schema } from '@chat-sdk-expo/drizzle-postgres';
 import type { DatabaseAdapter } from '@chat-sdk-expo/db';
 
 // Read database URL from environment

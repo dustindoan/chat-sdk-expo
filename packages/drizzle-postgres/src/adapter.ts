@@ -1,5 +1,5 @@
 /**
- * @chat-sdk-expo/db-drizzle-postgres - Adapter
+ * @chat-sdk-expo/drizzle-postgres - Adapter
  *
  * Drizzle + PostgreSQL implementation of DatabaseAdapter.
  */

@@ -1,5 +1,5 @@
 {
-  "name": "@chat-sdk-expo/db-drizzle-postgres",
+  "name": "@chat-sdk-expo/drizzle-postgres",
   "version": "0.1.0",
   "description": "Drizzle + PostgreSQL adapter for @chat-sdk-expo/db",
   "main": "./dist/index.js",

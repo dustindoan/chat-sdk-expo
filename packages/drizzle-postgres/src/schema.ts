@@ -1,5 +1,5 @@
 /**
- * @chat-sdk-expo/db-drizzle-postgres - Schema
+ * @chat-sdk-expo/drizzle-postgres - Schema
  *
  * Drizzle ORM schema for PostgreSQL.
  * Defines tables for users, chats, messages, documents, and votes.

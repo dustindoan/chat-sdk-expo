@@ -43,10 +43,10 @@ export type DocumentKind = 'text' | 'code';  // Base kinds
 export type HealthCoachDocumentKind = 'text' | 'code' | 'training-block';
 ```
 
-### @chat-sdk-expo/db-drizzle-postgres
+### @chat-sdk-expo/drizzle-postgres
 Drizzle ORM + PostgreSQL implementation of `DatabaseAdapter`. Apps create an adapter instance:
 ```typescript
-import { createDrizzlePostgresAdapter, schema } from '@chat-sdk-expo/db-drizzle-postgres';
+import { createDrizzlePostgresAdapter, schema } from '@chat-sdk-expo/drizzle-postgres';
 import { drizzle } from 'drizzle-orm/postgres-js';
 
 const db = drizzle(postgres(process.env.DATABASE_URL!), { schema });

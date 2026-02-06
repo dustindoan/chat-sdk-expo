@@ -7,7 +7,7 @@
  * - Type definitions for chat, message, document, vote entities
  * - DatabaseAdapter interface for implementing persistence layers
  *
- * Use with a concrete adapter like @chat-sdk-expo/db-drizzle-postgres
+ * Use with a concrete adapter like @chat-sdk-expo/drizzle-postgres
  */
 
 // Types

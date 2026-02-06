@@ -1,14 +1,14 @@
 /**
  * Database Schema
  *
- * Re-exports schema tables from @chat-sdk-expo/db-drizzle-postgres
+ * Re-exports schema tables from @chat-sdk-expo/drizzle-postgres
  * and types from @chat-sdk-expo/db
  *
  * Wally extends document kinds with 'training-block'.
  */
 
 // Import schema namespace from the package
-import { schema } from '@chat-sdk-expo/db-drizzle-postgres';
+import { schema } from '@chat-sdk-expo/drizzle-postgres';
 
 // Re-export schema tables
 export const user = schema.user;

@@ -20,7 +20,7 @@
     "@chat-sdk-expo/agents": "workspace:*",
     "@chat-sdk-expo/artifacts": "workspace:*",
     "@chat-sdk-expo/db": "workspace:*",
-    "@chat-sdk-expo/db-drizzle-postgres": "workspace:*",
+    "@chat-sdk-expo/drizzle-postgres": "workspace:*",
     "@chat-sdk-expo/tools": "workspace:*",
     "@expo/vector-icons": "^15.0.3",
     "@monaco-editor/react": "^4.7.0",
