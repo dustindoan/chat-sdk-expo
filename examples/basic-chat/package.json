@@ -1,5 +1,5 @@
 {
-  "name": "@chat-sdk-expo/app",
+  "name": "@chat-sdk-expo/basic-chat",
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {

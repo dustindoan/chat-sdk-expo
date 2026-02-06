@@ -16,8 +16,8 @@ chat-sdk-expo/
 │   ├── artifacts/               # Artifact system (document handlers, streaming)
 │   └── tools/                   # AI SDK tool definitions
 ├── examples/                    # Example applications
-│   ├── ai-chat-app/             # General-purpose chat application
-│   └── wally/                   # Fitness coaching assistant
+│   ├── basic-chat/              # General-purpose chat application
+│   └── health-coach/            # Fitness coaching assistant
 └── pnpm-workspace.yaml          # Workspace configuration
 ```
 
@@ -39,8 +39,8 @@ The `Document.kind` field is `string` (not an enum) to allow apps to define cust
 // In @chat-sdk-expo/db
 export type DocumentKind = 'text' | 'code';  // Base kinds
 
-// In your app (e.g., wally)
-export type WallyDocumentKind = 'text' | 'code' | 'training-block';
+// In your app (e.g., health-coach)
+export type HealthCoachDocumentKind = 'text' | 'code' | 'training-block';
 ```
 
 ### @chat-sdk-expo/db-drizzle-postgres

@@ -1,20 +1,20 @@
-# Wally - AI Fitness Coaching Assistant
+# Health Coach - AI Fitness Coaching Assistant
 
 ## Overview
 
-Wally is an AI-powered fitness coaching app built on chat-sdk-expo. It demonstrates:
+Health Coach (internally "Wally") is an AI-powered fitness coaching app built on chat-sdk-expo. It demonstrates:
 - **Stateful agent workflows** - Multi-state conversation flows for goal-based coaching
 - **Extended document kinds** - Custom `'training-block'` artifact type
 - **Domain-specific UI** - Calendar views, workout sessions, training plans
 
-**Part of:** [chat-sdk-expo](https://github.com/dustindoan/chat-sdk-expo) monorepo (`examples/wally/`)
+**Part of:** [chat-sdk-expo](https://github.com/dustindoan/chat-sdk-expo) monorepo (`examples/health-coach/`)
 
 ---
 
-## Key Differentiators from ai-chat-app
+## Key Differentiators from basic-chat
 
-| Feature | ai-chat-app | wally |
-|---------|-------------|-------|
+| Feature | basic-chat | health-coach |
+|---------|------------|--------------|
 | Document kinds | `'text' \| 'code'` | `'text' \| 'code' \| 'training-block'` |
 | Agent type | Stateless chat | Stateful workflow (6 states) |
 | Domain | General-purpose | Fitness coaching |
@@ -115,17 +115,17 @@ Standard chat-sdk-expo chat with fitness-focused empty state and Wally branding.
 
 ## Development
 
-### Running Wally
+### Running Health Coach
 
 ```bash
 # From monorepo root
-cd examples/wally
+cd examples/health-coach
 pnpm dev --port 8082
 ```
 
 ### Environment
 
-Create `.env` in `examples/wally/`:
+Create `.env` in `examples/health-coach/`:
 ```
 ANTHROPIC_API_KEY=sk-ant-...
 DATABASE_URL=postgres://postgres:postgres@localhost:5432/chat
