@@ -100,6 +100,12 @@ export default function DrawerLayout() {
             drawerItemStyle: { display: 'none' },
           }}
         />
+        <Drawer.Screen
+          name="agent-test"
+          options={{
+            title: 'Agent Test',
+          }}
+        />
       </Drawer>
     </ChatHistoryProvider>
   );

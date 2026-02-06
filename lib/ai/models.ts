@@ -63,6 +63,18 @@ export const allModels: ChatModel[] = [...chatModels, ...localModels];
 
 export const DEFAULT_MODEL_ID = 'claude-haiku-4-5-20251001';
 
+/**
+ * Model shorthand identifiers for agents
+ * Single source of truth for shorthand → model ID mapping
+ */
+export type ModelShorthand = 'haiku' | 'sonnet' | 'opus';
+
+export const MODEL_SHORTHAND_MAP: Record<ModelShorthand, string> = {
+  haiku: 'claude-haiku-4-5-20251001',
+  sonnet: 'claude-sonnet-4-5-20250115',
+  opus: 'claude-opus-4-5-20250115',
+};
+
 export function getModelById(id: string): ChatModel | undefined {
   return allModels.find((model) => model.id === id);
 }

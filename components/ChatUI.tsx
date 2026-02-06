@@ -104,6 +104,10 @@ export function ChatUI({
   const [reasoningEnabled, setReasoningEnabled] = useState(false);
   const reasoningEnabledRef = useRef(reasoningEnabled);
 
+  // Active workflow state (null = normal chat, 'research' = research workflow, etc.)
+  const [activeWorkflow, setActiveWorkflow] = useState<string | null>(null);
+  const activeWorkflowRef = useRef(activeWorkflow);
+
   // Check if current model supports reasoning
   const supportsReasoning = modelSupportsReasoning(selectedModelId);
 
@@ -121,6 +125,10 @@ export function ChatUI({
   useEffect(() => {
     reasoningEnabledRef.current = reasoningEnabled;
   }, [reasoningEnabled]);
+
+  useEffect(() => {
+    activeWorkflowRef.current = activeWorkflow;
+  }, [activeWorkflow]);
 
   // Reset reasoning toggle when switching to a model that doesn't support it
   useEffect(() => {
@@ -203,9 +211,9 @@ export function ChatUI({
   });
 
   // Create transport based on model type
-  // Dependencies include selectedModelId to ensure transport updates when model changes
+  // Dependencies include selectedModelId and activeWorkflow to ensure transport updates
   const transport: ChatTransport = useMemo(() => {
-    console.log('[ChatUI] Creating transport:', { isUsingLocalModel, selectedModelId, isLocalModelPrepared, hasLocalModel: !!localModel });
+    console.log('[ChatUI] Creating transport:', { isUsingLocalModel, selectedModelId, isLocalModelPrepared, hasLocalModel: !!localModel, activeWorkflow });
 
     if (isUsingLocalModel && localModel) {
       console.log('[ChatUI] Using LocalChatTransport');
@@ -239,12 +247,13 @@ export function ChatUI({
               : { message: lastMessage }),
             model: selectedModelIdRef.current,
             reasoning: reasoningEnabledRef.current,
+            workflow: activeWorkflowRef.current,
             ...request.body,
           },
         };
       },
     });
-  }, [isUsingLocalModel, localModel, api, transportFetch, selectedModelId, isLocalModelPrepared]);
+  }, [isUsingLocalModel, localModel, api, transportFetch, selectedModelId, isLocalModelPrepared, activeWorkflow]);
 
   // Chat state using @ai-sdk/react
   const { messages, sendMessage, setMessages, regenerate, status, error, stop, addToolApprovalResponse } = useChat({
@@ -375,6 +384,10 @@ export function ChatUI({
 
   const handleToggleReasoning = useCallback(() => {
     setReasoningEnabled((prev) => !prev);
+  }, []);
+
+  const handleToggleResearch = useCallback(() => {
+    setActiveWorkflow((prev) => (prev === 'research' ? null : 'research'));
   }, []);
 
   // Handle editing a user message
@@ -560,6 +573,8 @@ export function ChatUI({
           reasoningEnabled={reasoningEnabled}
           onToggleReasoning={handleToggleReasoning}
           supportsReasoning={supportsReasoning}
+          researchEnabled={activeWorkflow === 'research'}
+          onToggleResearch={handleToggleResearch}
         />
       </View>
 

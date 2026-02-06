@@ -8,6 +8,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AttachmentPreview } from './AttachmentPreview';
 import { ReasoningToggle } from './ReasoningToggle';
+import { ResearchToggle } from './ResearchToggle';
 import type { PromptInputProps, PromptInputHandle } from './types';
 
 export const PromptInput = forwardRef<PromptInputHandle, PromptInputProps>(
@@ -27,6 +28,8 @@ export const PromptInput = forwardRef<PromptInputHandle, PromptInputProps>(
       reasoningEnabled = false,
       onToggleReasoning,
       supportsReasoning = false,
+      researchEnabled = false,
+      onToggleResearch,
     },
     ref
   ) {
@@ -138,6 +141,15 @@ export const PromptInput = forwardRef<PromptInputHandle, PromptInputProps>(
                 <ReasoningToggle
                   enabled={reasoningEnabled}
                   onToggle={onToggleReasoning}
+                  disabled={isLoading}
+                />
+              )}
+
+              {/* Research Toggle - enable research mode */}
+              {onToggleResearch && (
+                <ResearchToggle
+                  enabled={researchEnabled}
+                  onToggle={onToggleResearch}
                   disabled={isLoading}
                 />
               )}

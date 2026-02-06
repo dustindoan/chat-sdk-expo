@@ -156,6 +156,9 @@ export interface PromptInputProps {
   reasoningEnabled?: boolean;
   onToggleReasoning?: () => void;
   supportsReasoning?: boolean;
+  // Research mode toggle
+  researchEnabled?: boolean;
+  onToggleResearch?: () => void;
 }
 
 // Ref handle for PromptInput to allow imperative control

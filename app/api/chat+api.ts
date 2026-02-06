@@ -30,6 +30,7 @@ import {
 import { modelSupportsReasoning } from '../../lib/ai/models';
 import type { DataStreamWriter } from '../../lib/artifacts/types';
 import { requireAuth } from '../../lib/auth/api';
+import { createStatefulAgent, getWorkflow } from '../../lib/agents';
 
 // Load API key from .env file
 function getApiKey(): string {
@@ -114,6 +115,7 @@ export async function POST(request: Request) {
     messages,
     model: modelId,
     reasoning: reasoningEnabled,
+    workflow: workflowId,
   } = body;
 
   const modelName = modelId || 'claude-haiku-4-5-20251001';
@@ -124,6 +126,61 @@ export async function POST(request: Request) {
   // Detect if this is a tool approval continuation flow
   // When `messages` array is provided, it means user approved/denied a tool
   const isToolApprovalFlow = Boolean(messages);
+
+  // Handle workflow mode - use registered workflow
+  const registeredWorkflow = workflowId ? getWorkflow(workflowId) : undefined;
+
+  if (registeredWorkflow) {
+    const { workflow, tools } = registeredWorkflow;
+
+    // Extract the prompt from the new message
+    let prompt = '';
+    if (message?.parts) {
+      prompt = message.parts
+        .filter((p: any) => p.type === 'text')
+        .map((p: any) => p.text)
+        .join(' ');
+    } else if (message?.content) {
+      prompt = message.content;
+    }
+
+    // Load previous messages if this is a continuation
+    // This allows the workflow to derive state from previous tool calls
+    let previousMessages: any[] = [];
+    if (chatId) {
+      const chat = await getChatById(chatId, user.id);
+      if (chat) {
+        const dbMessages = await getMessagesByChatId(chat.id);
+        previousMessages = dbMessages.map((dbMsg) => ({
+          id: dbMsg.id,
+          role: dbMsg.role,
+          parts: dbMsg.parts,
+        }));
+      }
+    }
+
+    // Create the stateful agent
+    const agent = createStatefulAgent(workflow, tools, {
+      apiKey: getApiKey(),
+    });
+
+    // If we have previous messages, use messages mode; otherwise use prompt mode
+    // This allows the workflow to continue from previous state
+    if (previousMessages.length > 0) {
+      // Add the new user message to the history
+      const allMessages = [
+        ...previousMessages,
+        {
+          role: 'user',
+          parts: message.parts || [{ type: 'text', text: prompt }],
+        },
+      ];
+      return agent.stream({ messages: allMessages });
+    }
+
+    // First message - use prompt mode
+    return agent.stream({ prompt });
+  }
 
   // Check if chat exists, create if not
   let chat = chatId ? await getChatById(chatId, user.id) : null;

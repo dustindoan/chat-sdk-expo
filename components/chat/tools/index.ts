@@ -9,6 +9,7 @@ import { WeatherTool } from './WeatherTool';
 import { TemperatureTool } from './TemperatureTool';
 import { DocumentTool } from './DocumentTool';
 import { CodeExecutionTool } from './CodeExecutionTool';
+import { ResearchAnswerTool } from './ResearchAnswerTool';
 import { DefaultTool } from './DefaultTool';
 import type { ToolUIRegistry, ToolUIComponent } from './types';
 
@@ -21,6 +22,8 @@ export const toolRegistry: ToolUIRegistry = {
   createDocument: DocumentTool,
   updateDocument: DocumentTool,
   executeCode: CodeExecutionTool,
+  // Research workflow tools
+  provideAnswer: ResearchAnswerTool,
 };
 
 /**
@@ -38,4 +41,5 @@ export { TemperatureTool } from './TemperatureTool';
 export { DocumentTool } from './DocumentTool';
 export { CodeExecutionTool } from './CodeExecutionTool';
 export { DefaultTool } from './DefaultTool';
+export { ResearchAnswerTool } from './ResearchAnswerTool';
 export { Confirmation, ConfirmationApproved, ConfirmationDenied } from './Confirmation';

@@ -11,4 +11,5 @@ export { ModelSelector } from './ModelSelector';
 export { AttachmentPreview } from './AttachmentPreview';
 export { ImagePreview } from './ImagePreview';
 export { ReasoningToggle } from './ReasoningToggle';
+export { ResearchToggle } from './ResearchToggle';
 export { Reasoning } from './Reasoning';
