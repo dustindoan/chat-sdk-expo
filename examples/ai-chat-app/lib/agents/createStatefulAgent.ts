@@ -219,8 +219,11 @@ export function createStatefulAgent<TStates extends string>(
       // Call the agent
       // Note: prompt and messages are mutually exclusive in AI SDK
       // Convert UI messages to model messages format (parts -> content)
+      // Use ignoreIncompleteToolCalls to skip orphaned tool calls without results
       const modelMessages = params.messages
-        ? await convertToModelMessages(params.messages)
+        ? await convertToModelMessages(params.messages, {
+            ignoreIncompleteToolCalls: true,
+          })
         : undefined;
 
       const result = params.prompt
@@ -269,8 +272,11 @@ export function createStatefulAgent<TStates extends string>(
       // Call the agent with streaming
       // Note: prompt and messages are mutually exclusive
       // Convert UI messages to model messages format (parts -> content)
+      // Use ignoreIncompleteToolCalls to skip orphaned tool calls without results
       const modelMessages = params.messages
-        ? await convertToModelMessages(params.messages)
+        ? await convertToModelMessages(params.messages, {
+            ignoreIncompleteToolCalls: true,
+          })
         : undefined;
 
       const result = params.prompt

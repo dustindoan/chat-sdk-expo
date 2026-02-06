@@ -80,58 +80,6 @@ function generateUUID(): string {
 }
 
 /**
- * Sanitize messages to remove orphaned tool calls.
- *
- * Anthropic API requires every tool_use to have a matching tool_result.
- * When tool execution is interrupted (page refresh, error), we can end up
- * with tool calls that have no results. This function filters them out.
- */
-function sanitizeMessages(messages: any[]): any[] {
-  // First pass: collect all tool result IDs
-  const toolResultIds = new Set<string>();
-  for (const msg of messages) {
-    if (!msg.parts) continue;
-    for (const part of msg.parts) {
-      // Tool results can be identified by state='result' or state='output-available'
-      const isToolPart = part.type === 'tool-invocation' || part.toolCallId;
-      if (isToolPart && (part.state === 'result' || part.state === 'output-available')) {
-        toolResultIds.add(part.toolCallId);
-      }
-    }
-  }
-
-  // Second pass: filter out tool calls without matching results
-  return messages
-    .map((msg) => {
-      if (!msg.parts) return msg;
-
-      const filteredParts = msg.parts.filter((part: any) => {
-        // Check if this is a tool-related part
-        const isToolPart = part.type === 'tool-invocation' || part.toolCallId;
-
-        // Keep non-tool parts
-        if (!isToolPart) return true;
-
-        const toolId = part.toolCallId;
-
-        // Keep if it has a result state (it's complete)
-        if (part.state === 'result' || part.state === 'output-available') return true;
-
-        // For any other tool state (call, partial-call, approval-requested, approval-responded, output-denied)
-        // Only keep if there's a matching result somewhere in the message history
-        return toolResultIds.has(toolId);
-      });
-
-      return { ...msg, parts: filteredParts };
-    })
-    .filter((msg) => {
-      // Remove messages that became empty after filtering
-      if (!msg.parts || msg.parts.length === 0) return false;
-      return true;
-    });
-}
-
-/**
  * Merge tool results into assistant messages for proper DB storage.
  *
  * The Anthropic API returns tool results in separate `role: 'tool'` messages,
@@ -297,8 +245,6 @@ export async function POST(request: Request) {
         role: dbMsg.role,
         parts: dbMsg.parts,
       }));
-      // Sanitize messages to remove orphaned tool calls
-      previousMessages = sanitizeMessages(previousMessages);
     }
 
     // Create the stateful agent
@@ -493,7 +439,10 @@ Do not update document right after creating it. Wait for user feedback or reques
 
       // Convert UI messages to model format using AI SDK's built-in converter
       // This properly handles tool calls and results across messages
-      const modelMessages = await convertToModelMessages(uiMessages);
+      // Use ignoreIncompleteToolCalls to skip orphaned tool calls without results
+      const modelMessages = await convertToModelMessages(uiMessages, {
+        ignoreIncompleteToolCalls: true,
+      });
 
       const result = streamText({
         model: anthropic(modelName),
