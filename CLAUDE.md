@@ -5,11 +5,58 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 
 **Repository:** https://github.com/dustindoan/chat-sdk-expo
 
-**Reference projects:**
-- `../chat-sdk` - Vercel's original chat-sdk (Next.js) - **PRIMARY REFERENCE**
-- `../previous-attempt` - Earlier implementation (different approaches, NOT to be followed)
+## Monorepo Structure
 
-**Key principle:** Follow chat-sdk patterns, not previous-attempt patterns.
+```
+chat-sdk-expo/
+├── packages/                    # Shared packages (@chat-sdk-expo/*)
+│   ├── db/                      # Core types & DatabaseAdapter interface
+│   ├── db-drizzle-postgres/     # Drizzle + PostgreSQL implementation
+│   ├── agents/                  # Agent definitions
+│   ├── artifacts/               # Artifact system (document handlers, streaming)
+│   └── tools/                   # AI SDK tool definitions
+├── examples/                    # Example applications
+│   ├── ai-chat-app/             # General-purpose chat application
+│   └── wally/                   # Fitness coaching assistant
+└── pnpm-workspace.yaml          # Workspace configuration
+```
+
+**Key principle:** Follow Vercel's chat-sdk patterns. Share code via `@chat-sdk-expo/*` packages.
+
+---
+
+## Shared Packages
+
+### @chat-sdk-expo/db
+Core database types and `DatabaseAdapter` interface. Apps import types from here:
+```typescript
+import type { Chat, Message, Document, DatabaseAdapter } from '@chat-sdk-expo/db';
+```
+
+**Extensible Document Kinds:**
+The `Document.kind` field is `string` (not an enum) to allow apps to define custom kinds:
+```typescript
+// In @chat-sdk-expo/db
+export type DocumentKind = 'text' | 'code';  // Base kinds
+
+// In your app (e.g., wally)
+export type WallyDocumentKind = 'text' | 'code' | 'training-block';
+```
+
+### @chat-sdk-expo/db-drizzle-postgres
+Drizzle ORM + PostgreSQL implementation of `DatabaseAdapter`. Apps create an adapter instance:
+```typescript
+import { createDrizzlePostgresAdapter, schema } from '@chat-sdk-expo/db-drizzle-postgres';
+import { drizzle } from 'drizzle-orm/postgres-js';
+
+const db = drizzle(postgres(process.env.DATABASE_URL!), { schema });
+export const dbAdapter = createDrizzlePostgresAdapter(db);
+```
+
+### @chat-sdk-expo/tools, @chat-sdk-expo/artifacts, @chat-sdk-expo/agents
+Shared AI tools, artifact handlers, and agent definitions. Import and use in apps.
+
+---
 
 ## Progress
 
@@ -31,6 +78,7 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 - **Phase 17:** In-Browser Code Execution - Pyodide for Python, sandboxed iframe for JavaScript, server fallback for mobile
 - **Local LLM Integration:** On-device inference with `@react-native-ai/llama`, FunctionGemma 270M model, streaming fix via patch
 - **[#25](https://github.com/dustindoan/chat-sdk-expo/issues/25):** Complete Uniwind migration - Removed all `StyleSheet.create()` usage and `lib/theme` imports, replaced with Tailwind `className` and `useResolveClassNames` hook
+- **[#24](https://github.com/dustindoan/chat-sdk-expo/issues/24) + [#29](https://github.com/dustindoan/chat-sdk-expo/issues/29):** Monorepo extraction - Extracted 5 shared packages (`@chat-sdk-expo/db`, `db-drizzle-postgres`, `tools`, `artifacts`, `agents`), extensible Document kinds, DatabaseAdapter pattern
 
 ### Local LLM Integration ✅
 
