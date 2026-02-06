@@ -5,13 +5,15 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 
 **Repository:** https://github.com/dustindoan/chat-sdk-expo
 
+**Contributing:** See [CONTRIBUTING.md](./CONTRIBUTING.md) - all changes must reference a GitHub issue.
+
 ## Monorepo Structure
 
 ```
 chat-sdk-expo/
 ├── packages/                    # Shared packages (@chat-sdk-expo/*)
 │   ├── db/                      # Core types & DatabaseAdapter interface
-│   ├── db-drizzle-postgres/     # Drizzle + PostgreSQL implementation
+│   ├── drizzle-postgres/        # Drizzle + PostgreSQL implementation
 │   ├── agents/                  # Agent definitions
 │   ├── artifacts/               # Artifact system (document handlers, streaming)
 │   └── tools/                   # AI SDK tool definitions
