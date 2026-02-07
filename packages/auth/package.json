@@ -1,0 +1,54 @@
+{
+  "name": "@chat-sdk-expo/auth",
+  "version": "0.1.0",
+  "description": "Auth types, context, and helpers for chat applications",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist"
+  },
+  "keywords": [
+    "auth",
+    "chat",
+    "types",
+    "react-native",
+    "expo"
+  ],
+  "author": "Dustin Doan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dustindoan/chat-sdk-expo.git",
+    "directory": "packages/auth"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@chat-sdk-expo/db": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": ">=19.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "~19.1.10",
+    "react": "19.1.0",
+    "tsup": "^8.4.0",
+    "typescript": "~5.9.2"
+  }
+}

@@ -36,6 +36,8 @@ chat-sdk-expo/
 ├── packages/                    # Shared packages (@chat-sdk-expo/*)
 │   ├── db/                      # Core types & DatabaseAdapter interface
 │   ├── drizzle-postgres/        # Drizzle + PostgreSQL implementation
+│   ├── auth/                    # Auth types, context (useAuth), helpers
+│   ├── better-auth/             # Better Auth implementation (source-only)
 │   ├── agents/                  # Stateful agent workflows
 │   ├── artifacts/               # Document handlers, streaming
 │   └── tools/                   # AI SDK tool definitions

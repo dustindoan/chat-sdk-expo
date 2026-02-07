@@ -18,6 +18,8 @@
     "@ai-sdk/react": "^3.0.41",
     "@better-auth/expo": "^1.4.17",
     "@chat-sdk-expo/artifacts": "workspace:*",
+    "@chat-sdk-expo/auth": "workspace:*",
+    "@chat-sdk-expo/better-auth": "workspace:*",
     "@chat-sdk-expo/db": "workspace:*",
     "@chat-sdk-expo/drizzle-postgres": "workspace:*",
     "@chat-sdk-expo/tools": "workspace:*",

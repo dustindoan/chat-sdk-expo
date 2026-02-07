@@ -1,13 +1,13 @@
 /**
  * User entitlements based on user type
  * Following chat-sdk pattern: different limits for guest vs regular users
+ *
+ * Types imported from @chat-sdk-expo/auth, values defined per-app.
  */
 
-export type UserType = 'guest' | 'regular';
+import type { UserType, UserEntitlements } from '@chat-sdk-expo/auth';
 
-export interface UserEntitlements {
-  maxMessagesPerDay: number;
-}
+export type { UserType, UserEntitlements };
 
 export const entitlementsByUserType: Record<UserType, UserEntitlements> = {
   guest: {

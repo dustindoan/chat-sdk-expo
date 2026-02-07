@@ -1,0 +1,57 @@
+{
+  "name": "@chat-sdk-expo/better-auth",
+  "version": "0.1.0",
+  "description": "Better Auth implementation for @chat-sdk-expo/auth",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./server": "./src/server/index.ts",
+    "./client": "./src/client/index.ts",
+    "./context": "./src/context/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "auth",
+    "better-auth",
+    "chat",
+    "react-native",
+    "expo"
+  ],
+  "author": "Dustin Doan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dustindoan/chat-sdk-expo.git",
+    "directory": "packages/better-auth"
+  },
+  "dependencies": {
+    "@chat-sdk-expo/auth": "workspace:*"
+  },
+  "peerDependencies": {
+    "@better-auth/expo": ">=1.2.0",
+    "better-auth": ">=1.2.0",
+    "drizzle-orm": ">=0.30.0",
+    "expo-constants": ">=17.0.0",
+    "expo-secure-store": ">=15.0.0",
+    "react": ">=19.0.0",
+    "react-native": ">=0.81.0",
+    "swr": ">=2.0.0"
+  },
+  "devDependencies": {
+    "@better-auth/expo": "^1.2.8",
+    "@types/node": "^22.0.0",
+    "@types/react": "~19.1.10",
+    "better-auth": "^1.2.8",
+    "drizzle-orm": "^0.45.1",
+    "expo-constants": "~17.1.6",
+    "expo-secure-store": "~15.0.2",
+    "react": "19.1.0",
+    "react-native": "0.81.5",
+    "swr": "^2.3.3",
+    "typescript": "~5.9.2"
+  },
+  "private": true
+}

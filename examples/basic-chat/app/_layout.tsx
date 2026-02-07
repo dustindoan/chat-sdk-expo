@@ -8,7 +8,10 @@ import { PortalHost } from '@rn-primitives/portal';
 import { SWRConfig } from 'swr';
 import { ToastProvider } from '@chat-sdk-expo/ui/toast';
 import { ArtifactProvider } from '../contexts/ArtifactContext';
-import { AuthProvider, useAuth } from '../contexts/AuthContext';
+import { AuthProvider } from '@chat-sdk-expo/better-auth/context';
+import { useAuth } from '@chat-sdk-expo/auth';
+import { authClient, AUTH_STORAGE_PREFIX } from '../lib/auth/client';
+import { generateAPIUrl } from '../utils';
 import { LocalLLMProvider } from '../contexts/LocalLLMContext';
 import { SideBySideLayout } from '../components/SideBySideLayout';
 import { authFetcher } from '../lib/swr';
@@ -43,7 +46,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardProvider>
-        <AuthProvider>
+        <AuthProvider authClient={authClient} storagePrefix={AUTH_STORAGE_PREFIX} generateAPIUrl={generateAPIUrl}>
           <LocalLLMProvider>
             <SWRConfig value={swrConfig}>
               <ToastProvider>

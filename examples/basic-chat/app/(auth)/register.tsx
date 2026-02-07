@@ -6,7 +6,7 @@ import {
   Platform,
 } from 'react-native';
 import { Link, useRouter, useLocalSearchParams } from 'expo-router';
-import { useAuth } from '../../contexts/AuthContext';
+import { useAuth } from '@chat-sdk-expo/auth';
 import { Text, Button, Input, Card, CardContent, CardHeader, CardTitle, CardDescription } from '@chat-sdk-expo/ui/primitives';
 
 export default function RegisterScreen() {
