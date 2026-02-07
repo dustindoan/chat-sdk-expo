@@ -8,6 +8,25 @@ Expo/React Native implementation of Vercel's chat-sdk features, targeting iOS, A
 **Contributing:** See [CONTRIBUTING.md](./CONTRIBUTING.md) - all changes must reference a GitHub issue.
 **Roadmap:** [GitHub Project](https://github.com/users/dustindoan/projects/1)
 
+### GitHub CLI Notes
+
+`gh issue view` (without `--json`) triggers a deprecated Projects Classic error. Always use JSON output:
+
+```bash
+# View a single issue
+gh issue view <N> --json title,body,labels,state
+
+# View issue comments
+gh issue view <N> --json comments
+
+# View roadmap (sorted by start date, with priority)
+gh project item-list 1 --owner dustindoan --format json
+# Fields available: title, status, priority, complexity, value, startDate
+
+# Add an issue to the roadmap (do this when creating new issues)
+gh project item-add 1 --owner dustindoan --url https://github.com/dustindoan/chat-sdk-expo/issues/<N>
+```
+
 ---
 
 ## Monorepo Structure
