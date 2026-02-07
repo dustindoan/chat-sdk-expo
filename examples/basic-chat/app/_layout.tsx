@@ -6,7 +6,7 @@ import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { PortalHost } from '@rn-primitives/portal';
 import { SWRConfig } from 'swr';
-import { ToastProvider } from '../components/toast';
+import { ToastProvider } from '@chat-sdk-expo/ui/toast';
 import { ArtifactProvider } from '../contexts/ArtifactContext';
 import { AuthProvider, useAuth } from '../contexts/AuthContext';
 import { LocalLLMProvider } from '../contexts/LocalLLMContext';

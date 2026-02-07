@@ -9,10 +9,10 @@ import React, { memo, useCallback, useState } from 'react';
 import { View, Pressable, ActivityIndicator, Platform } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useResolveClassNames } from 'uniwind';
-import { Text } from '@/components/ui/text';
+import { Text } from '@chat-sdk-expo/ui/primitives';
 import { useArtifact } from '../../../contexts/ArtifactContext';
-import { CodeContent } from '../../artifacts/CodeContent';
-import { TextContent } from '../../artifacts/TextContent';
+import { CodeContent } from '@chat-sdk-expo/ui/artifacts';
+import { TextContent } from '@chat-sdk-expo/ui/artifacts';
 import type { ToolUIProps } from './types';
 import type { ArtifactKind } from '../../../lib/artifacts/types';
 

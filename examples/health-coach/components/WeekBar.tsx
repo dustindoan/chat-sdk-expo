@@ -4,7 +4,7 @@
  */
 import React, { memo, useMemo } from 'react';
 import { View, Pressable, Platform } from 'react-native';
-import { Text } from '@/components/ui/text';
+import { Text } from '@chat-sdk-expo/ui/primitives';
 
 interface WeekBarProps {
   /** Currently selected date */

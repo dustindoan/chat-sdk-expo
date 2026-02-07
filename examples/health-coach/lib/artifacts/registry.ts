@@ -14,9 +14,8 @@ import type {
 import { extractDataValue } from './types';
 import type { Dispatch, SetStateAction } from 'react';
 
-// Import content components (to be created)
-import { TextContent } from '../../components/artifacts/TextContent';
-import { CodeContent } from '../../components/artifacts/CodeContent';
+// Import content components from shared UI package
+import { TextContent, CodeContent } from '@chat-sdk-expo/ui/artifacts';
 
 /**
  * Text artifact definition

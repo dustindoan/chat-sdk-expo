@@ -20,11 +20,13 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useArtifact } from '../../contexts/ArtifactContext';
-import { ArtifactHeader } from './ArtifactHeader';
-import { TextContent } from './TextContent';
-import { CodeContent } from './CodeContent';
-import { DiffView } from './DiffView';
-import { VersionFooter } from './VersionFooter';
+import {
+  ArtifactHeader,
+  TextContent,
+  CodeContent,
+  DiffView,
+  VersionFooter,
+} from '@chat-sdk-expo/ui/artifacts';
 
 const ANIMATION_DURATION = 250;
 

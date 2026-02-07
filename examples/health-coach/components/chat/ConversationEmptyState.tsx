@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Text } from '@/components/ui/text';
+import { Text } from '@chat-sdk-expo/ui/primitives';
 import { SessionsTool } from './tools/SessionsTool';
 import { useTodaySessions } from '@/hooks/useTodaySessions';
 import type { ConversationEmptyStateProps } from './types';
@@ -18,6 +18,8 @@ export function ConversationEmptyState({
     return (
       <View className="flex-1 pt-4">
         <SessionsTool
+          toolName="getTodaySessions"
+          toolCallId="empty-state-preview"
           state="output-available"
           result={sessionsData}
         />

@@ -17,8 +17,8 @@ export const auth = betterAuth({
   plugins: [expo()],
   trustedOrigins: [
     'ai-chat-app://',
-    'http://localhost:8081',
-    'exp://localhost:8081',
+    'http://localhost:*',
+    'exp://localhost:*',
   ],
   session: {
     expiresIn: 60 * 60 * 24 * 30, // 30 days (matches NextAuth default)

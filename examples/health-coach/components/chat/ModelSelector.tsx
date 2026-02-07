@@ -2,13 +2,13 @@ import React, { useCallback, useMemo, useEffect, useRef, memo } from 'react';
 import { View, Pressable, Platform, ActivityIndicator, FlatList } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useResolveClassNames } from 'uniwind';
-import { Text } from '@/components/ui/text';
+import { Text } from '@chat-sdk-expo/ui/primitives';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog';
+} from '@chat-sdk-expo/ui/primitives';
 import { allModels, localModels, type ChatModel } from '../../lib/ai/models';
 import { useLocalLLM } from '../../contexts/LocalLLMContext';
 

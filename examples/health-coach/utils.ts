@@ -25,12 +25,8 @@ export function generateAPIUrl(relativePath: string) {
   const path = relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
 
   if (process.env.NODE_ENV === 'development') {
-    // In development on web, use the current window location (Expo serves API on same port)
-    // On native, replace port with 8082 (Wally's configured port)
-    if (Platform.OS === 'web') {
-      return origin + path;
-    }
-    return origin.replace(/:\d+/, ':8082') + path;
+    // In development, use the origin as-is (derived from window.location or experienceUrl)
+    return origin + path;
   }
 
   return origin + path;

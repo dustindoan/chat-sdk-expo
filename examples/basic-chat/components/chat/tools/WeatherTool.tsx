@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
-import { View, ActivityIndicator, useWindowDimensions } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, useWindowDimensions } from 'react-native';
 import Svg, { Circle, Line, Path } from 'react-native-svg';
-import { Text } from '@/components/ui/text';
+import { Text } from '@chat-sdk-expo/ui/primitives';
 import type { ToolUIProps } from './types';
 import type { WeatherInput, WeatherAtLocation } from '../../../lib/ai/tools';
 
@@ -178,7 +178,7 @@ export const WeatherTool = memo(function WeatherTool({
       style={{ backgroundColor: gradientColors[1] }}
     >
       {/* Overlay for glass effect */}
-      <View style={StyleSheet.absoluteFill} className="bg-white/10" />
+      <View style={StyleSheet.absoluteFillObject} className="bg-white/10" />
 
       {/* Loading state */}
       {isLoading && (

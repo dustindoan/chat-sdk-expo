@@ -1,15 +1,8 @@
-export * from './types';
+// Re-export shared chat components from @chat-sdk-expo/ui
+export * from '@chat-sdk-expo/ui/chat';
+
+// App-specific components (not in shared UI package)
+export { CoachingToggle } from './CoachingToggle';
 export { ConversationEmptyState } from './ConversationEmptyState';
 export { Tool } from './Tool';
-export { SimpleMarkdown } from './SimpleMarkdown';
-export { Actions } from './Actions';
-export { Message } from './Message';
-export { MessageEditor } from './MessageEditor';
-export { PromptInput } from './PromptInput';
-export { MessageList } from './MessageList';
 export { ModelSelector } from './ModelSelector';
-export { AttachmentPreview } from './AttachmentPreview';
-export { ImagePreview } from './ImagePreview';
-export { ReasoningToggle } from './ReasoningToggle';
-export { Reasoning } from './Reasoning';
-export { CoachingToggle } from './CoachingToggle';

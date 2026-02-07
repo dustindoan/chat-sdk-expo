@@ -5,8 +5,8 @@
 import React, { memo } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useResolveClassNames } from 'uniwind';
-import { Text } from '@/components/ui/text';
-import type { ToolUIProps, ToolState } from './types';
+import { Text } from '@chat-sdk-expo/ui/primitives';
+import type { ToolUIProps, ToolState } from '@chat-sdk-expo/ui/tools';
 
 /** Session data from the getTodaySessions tool */
 export interface Session {

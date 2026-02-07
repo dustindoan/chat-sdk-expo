@@ -2,7 +2,7 @@ import { View, ActivityIndicator } from 'react-native';
 import { useResolveClassNames } from 'uniwind';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useState, useCallback } from 'react';
-import { Text } from '@/components/ui/text';
+import { Text } from '@chat-sdk-expo/ui/primitives';
 import { ChatUI } from '../../../components/ChatUI';
 import { generateAPIUrl } from '../../../utils';
 import { useChatHistoryContext } from '../../../contexts/ChatHistoryContext';

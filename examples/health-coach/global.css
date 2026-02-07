@@ -1,6 +1,9 @@
 @import 'tailwindcss';
 @import 'uniwind';
 
+/* Scan the shared UI package for Tailwind classes */
+@source "../../packages/ui/src";
+
 @theme {
   /* Dark mode colors (default for this app) */
   --color-background: hsl(0 0% 4%);

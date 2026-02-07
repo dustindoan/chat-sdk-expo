@@ -7,10 +7,7 @@ import {
 } from 'react-native';
 import { Link, useRouter, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../contexts/AuthContext';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Text, Button, Input, Card, CardContent, CardHeader, CardTitle, CardDescription } from '@chat-sdk-expo/ui/primitives';
 
 export default function LoginScreen() {
   const router = useRouter();

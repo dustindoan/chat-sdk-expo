@@ -12,7 +12,7 @@ export const AUTH_STORAGE_PREFIX = 'ai-chat-app';
 // Better-auth requires a full URL, not a relative path
 function getAuthBaseURL(): string {
   if (Platform.OS === 'web') {
-    // On web, use current origin
+    // On web, use current origin (works regardless of port)
     if (typeof window !== 'undefined' && window.location?.origin) {
       return `${window.location.origin}/api/auth`;
     }
@@ -24,19 +24,18 @@ function getAuthBaseURL(): string {
   // Constants.experienceUrl looks like: exp://192.168.4.127:8081
   const experienceUrl = Constants.experienceUrl;
   if (experienceUrl) {
-    // Extract host and port, convert to http URL
+    // Extract host and port, convert to http URL (preserving actual port)
     const match = experienceUrl.match(/exp:\/\/([^:]+):(\d+)/);
     if (match) {
       const [, host, port] = match;
-      return `http://${host}:8081/api/auth`;
+      return `http://${host}:${port}/api/auth`;
     }
     // Try simpler replacement
     const origin = experienceUrl.replace('exp://', 'http://');
-    return `${origin.replace(/:\d+$/, ':8081')}/api/auth`;
+    return `${origin}/api/auth`;
   }
 
   // Fallback for production or when experienceUrl is not available
-  // Use localhost - this works when running on same machine
   return 'http://localhost:8081/api/auth';
 }
 

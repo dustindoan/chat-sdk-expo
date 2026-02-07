@@ -63,7 +63,8 @@ You need the document ID from a previous createDocument call.`,
         };
       }
 
-      const { title, kind, content, language } = existingDoc;
+      const { title, kind: rawKind, content, language } = existingDoc;
+      const kind = rawKind as ArtifactKind;
 
       // Wrap dataStream to include docId in compound format for concurrent stream handling
       const wrappedDataStream: DataStreamWriter = {

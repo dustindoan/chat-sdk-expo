@@ -1,7 +1,7 @@
 import React, { memo } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { useResolveClassNames } from 'uniwind';
-import { Text } from '@/components/ui/text';
+import { Text } from '@chat-sdk-expo/ui/primitives';
 import type { ToolUIProps } from './types';
 import type { TemperatureInput, TemperatureResult } from '../../../lib/ai/tools';
 

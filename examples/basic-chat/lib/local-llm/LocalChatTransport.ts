@@ -1,5 +1,4 @@
-import { streamText, type ChatTransport, type UIMessage, type UIMessageChunk } from 'ai';
-import type { ModelMessage } from '@ai-sdk/provider-utils';
+import { streamText, type ChatTransport, type UIMessage, type UIMessageChunk, type ModelMessage } from 'ai';
 
 /**
  * Custom transport that runs inference locally via @react-native-ai/llama.

@@ -20,12 +20,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Clipboard from 'expo-clipboard';
 import { useArtifact } from '../../contexts/ArtifactContext';
+import { TextContent, CodeContent, DiffView, VersionFooter } from '@chat-sdk-expo/ui/artifacts';
 import { ArtifactHeader } from './ArtifactHeader';
-import { TextContent } from './TextContent';
-import { CodeContent } from './CodeContent';
 import { TrainingBlockContent } from './TrainingBlockContent';
-import { DiffView } from './DiffView';
-import { VersionFooter } from './VersionFooter';
 
 const ANIMATION_DURATION = 250;
 
@@ -208,7 +205,7 @@ export const ArtifactPanel = memo(function ArtifactPanel({
             <DiffView
               oldContent={previousContent}
               newContent={displayContent}
-              kind={artifact.kind}
+              kind={artifact.kind === 'code' ? 'code' : 'text'}
             />
           ) : (
             <ContentComponent
@@ -289,7 +286,7 @@ export const ArtifactPanel = memo(function ArtifactPanel({
             <DiffView
               oldContent={previousContent}
               newContent={displayContent}
-              kind={artifact.kind}
+              kind={artifact.kind === 'code' ? 'code' : 'text'}
             />
           ) : (
             <ContentComponent

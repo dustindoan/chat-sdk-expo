@@ -42,10 +42,9 @@ async function loadPyodide(): Promise<any> {
     }
 
     // Dynamically load Pyodide from CDN
-    const { loadPyodide: loadPyodideFromCDN } = await import(
-      /* webpackIgnore: true */
-      'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.mjs'
-    );
+    const pyodideUrl = 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.mjs';
+    // @ts-ignore - CDN import not resolvable by TypeScript
+    const { loadPyodide: loadPyodideFromCDN } = await import(/* webpackIgnore: true */ pyodideUrl);
 
     pyodideInstance = await loadPyodideFromCDN({
       indexURL: 'https://cdn.jsdelivr.net/pyodide/v0.26.4/full/',

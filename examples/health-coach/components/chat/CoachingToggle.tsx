@@ -1,9 +1,7 @@
 import React from 'react';
 import { Feather } from '@expo/vector-icons';
 import { useResolveClassNames } from 'uniwind';
-import { Button } from '@/components/ui/button';
-import { Text } from '@/components/ui/text';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { Button, Text, Tooltip, TooltipContent, TooltipTrigger } from '@chat-sdk-expo/ui/primitives';
 
 interface CoachingToggleProps {
   enabled: boolean;

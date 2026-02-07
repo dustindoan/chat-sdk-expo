@@ -2,44 +2,54 @@
  * Tool UI Registry
  *
  * Maps tool names to their custom UI components.
- * Tools without a custom component will use DefaultTool.
+ * Generic tools (DefaultTool, Confirmation) come from @chat-sdk-expo/ui.
+ * App-specific tools are defined locally.
  */
 
+import {
+  createToolRegistry,
+  getToolComponent as getToolComponentBase,
+  type ToolUIRegistry,
+  type ToolUIComponent,
+} from '@chat-sdk-expo/ui/tools';
 import { WeatherTool } from './WeatherTool';
 import { TemperatureTool } from './TemperatureTool';
 import { DocumentTool } from './DocumentTool';
 import { CodeExecutionTool } from './CodeExecutionTool';
 import { ResearchAnswerTool } from './ResearchAnswerTool';
-import { DefaultTool } from './DefaultTool';
-import type { ToolUIRegistry, ToolUIComponent } from './types';
 
 /**
- * Registry of tool-specific UI components
+ * App tool registry with all tool UI mappings
  */
-export const toolRegistry: ToolUIRegistry = {
+const appTools: ToolUIRegistry = {
   weather: WeatherTool,
   convertTemperature: TemperatureTool,
   createDocument: DocumentTool,
   updateDocument: DocumentTool,
   executeCode: CodeExecutionTool,
-  // Research workflow tools
   provideAnswer: ResearchAnswerTool,
 };
+
+export const toolRegistry = createToolRegistry(appTools);
 
 /**
  * Get the UI component for a tool by name
  * Falls back to DefaultTool if no custom component exists
  */
 export function getToolComponent(toolName: string): ToolUIComponent {
-  return toolRegistry[toolName] || DefaultTool;
+  return getToolComponentBase(toolName, toolRegistry);
 }
 
-// Re-export types and components
-export type { ToolUIProps, ToolState, ToolUIComponent, ToolUIRegistry, ToolApproval } from './types';
+// Re-export types and shared generic components
+export type { ToolUIProps, ToolState, ToolUIComponent, ToolUIRegistry, ToolApproval } from '@chat-sdk-expo/ui/tools';
+export {
+  DefaultTool,
+  Confirmation,
+  ConfirmationApproved,
+  ConfirmationDenied,
+} from '@chat-sdk-expo/ui/tools';
 export { WeatherTool } from './WeatherTool';
 export { TemperatureTool } from './TemperatureTool';
 export { DocumentTool } from './DocumentTool';
 export { CodeExecutionTool } from './CodeExecutionTool';
-export { DefaultTool } from './DefaultTool';
 export { ResearchAnswerTool } from './ResearchAnswerTool';
-export { Confirmation, ConfirmationApproved, ConfirmationDenied } from './Confirmation';

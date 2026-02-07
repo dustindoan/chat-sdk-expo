@@ -10,9 +10,8 @@ import { extractDataValue } from '@chat-sdk-expo/artifacts';
 import type { ArtifactKind, ArtifactDataType, UIArtifact } from '@chat-sdk-expo/artifacts';
 import type { ArtifactDefinition } from './types';
 
-// Import content components (to be created)
-import { TextContent } from '../../components/artifacts/TextContent';
-import { CodeContent } from '../../components/artifacts/CodeContent';
+// Import content components from shared UI package
+import { TextContent, CodeContent } from '@chat-sdk-expo/ui/artifacts';
 
 /**
  * Text artifact definition

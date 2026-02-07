@@ -9,10 +9,8 @@ import React, { memo } from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useResolveClassNames } from 'uniwind';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
-import type { ArtifactKind, ArtifactStatus } from '../../lib/artifacts/types';
-import { VersionNavigation } from './VersionNavigation';
+import { Text, Button } from '@chat-sdk-expo/ui/primitives';
+import { VersionNavigation, type ArtifactKind, type ArtifactStatus } from '@chat-sdk-expo/ui/artifacts';
 
 interface VersionProps {
   currentIndex: number;

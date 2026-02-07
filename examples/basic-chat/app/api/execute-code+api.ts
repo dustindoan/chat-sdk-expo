@@ -76,7 +76,7 @@ function executeJavaScript(
 
   try {
     const context = vm.createContext(sandbox);
-    const script = new vm.Script(code, { timeout });
+    const script = new vm.Script(code);
     const result = script.runInContext(context, { timeout });
 
     let output = outputs.join('\n');

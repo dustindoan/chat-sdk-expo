@@ -6,9 +6,9 @@
 
 import React from 'react';
 import { View } from 'react-native';
-import { Text } from '@/components/ui/text';
-import { SimpleMarkdown } from '../SimpleMarkdown';
-import type { ToolUIProps, ToolState } from './types';
+import { Text } from '@chat-sdk-expo/ui/primitives';
+import { SimpleMarkdown } from '@chat-sdk-expo/ui/chat';
+import type { ToolUIProps, ToolState } from '@chat-sdk-expo/ui/tools';
 
 interface ProvideAnswerArgs {
   answer: string;

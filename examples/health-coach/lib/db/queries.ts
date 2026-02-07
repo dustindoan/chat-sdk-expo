@@ -15,10 +15,6 @@ import type {
 } from '@chat-sdk-expo/db';
 import type { Document, WallyDocumentKind } from './schema';
 
-// Re-export types for backward compatibility
-export type { ChatWithSnippet } from '@chat-sdk-expo/db';
-export type DBMessage = Message;
-
 // ============================================================================
 // CHAT QUERIES (delegated to adapter)
 // ============================================================================

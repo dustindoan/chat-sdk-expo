@@ -17,17 +17,19 @@ import { useRouter, usePathname } from 'expo-router';
 import { useResolveClassNames } from 'uniwind';
 import { useChatHistory, type Chat, type GroupedChats } from '../hooks/useChatHistory';
 import { useAuth } from '../contexts/AuthContext';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
 import {
+  Text,
+  Button,
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
   DialogFooter,
-} from '@/components/ui/dialog';
-import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '@chat-sdk-expo/ui/primitives';
 
 // ============================================================================
 // TYPES

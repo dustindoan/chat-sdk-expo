@@ -9,8 +9,8 @@ import React, { memo, useMemo } from 'react';
 import { View, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useResolveClassNames } from 'uniwind';
-import { Text } from '@/components/ui/text';
-import type { ArtifactStatus } from '../../lib/artifacts/types';
+import { Text } from '@chat-sdk-expo/ui/primitives';
+import type { ArtifactStatus } from '@chat-sdk-expo/ui/artifacts';
 import type {
   TrainingBlock,
   TrainingWeek,

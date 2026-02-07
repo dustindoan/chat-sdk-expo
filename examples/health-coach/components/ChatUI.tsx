@@ -5,18 +5,21 @@
 import React, { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { View, Platform } from 'react-native';
 import { useResolveClassNames } from 'uniwind';
-import { useChat, type UIMessage, type ChatTransport } from '@ai-sdk/react';
-import { DefaultChatTransport } from 'ai';
+import { useChat, type UIMessage } from '@ai-sdk/react';
+import { DefaultChatTransport, type ChatTransport } from 'ai';
 import { fetch as expoFetch } from 'expo/fetch';
 import { KeyboardAvoidingView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHeaderHeight } from '@react-navigation/elements';
-import { MessageList, PromptInput, ModelSelector } from './chat';
-import type { VoteMap, PromptInputHandle } from './chat/types';
+import { MessageList, PromptInput } from '@chat-sdk-expo/ui/chat';
+import type { VoteMap, PromptInputHandle, ToolPart, ToolApprovalResponseFn } from '@chat-sdk-expo/ui/chat';
+import { useToast } from '@chat-sdk-expo/ui/toast';
+import { useClipboard, useAttachments } from '@chat-sdk-expo/ui/hooks';
 import { WeekBar } from './WeekBar';
-import { useToast } from './toast';
-import { useClipboard } from '../hooks/useClipboard';
-import { useAttachments } from '../hooks/useAttachments';
+import { CoachingToggle } from './chat/CoachingToggle';
+import { ConversationEmptyState } from './chat/ConversationEmptyState';
+import { Tool } from './chat/Tool';
+import { ModelSelector } from './chat/ModelSelector';
 import { DEFAULT_MODEL_ID, getModelById, getModelName, modelSupportsReasoning } from '../lib/ai/models';
 import { useArtifact } from '../contexts/ArtifactContext';
 import { getAuthCookie, authFetchWithRetry } from '../lib/auth/client';
@@ -212,7 +215,7 @@ export function ChatUI({
 
   // Create transport based on model type
   // Dependencies include selectedModelId to ensure transport updates when model changes
-  const transport: ChatTransport = useMemo(() => {
+  const transport: ChatTransport<UIMessage> = useMemo(() => {
     console.log('[ChatUI] Creating transport:', { isUsingLocalModel, selectedModelId, isLocalModelPrepared, hasLocalModel: !!localModel });
 
     if (isUsingLocalModel && localModel) {
@@ -481,6 +484,14 @@ export function ChatUI({
     [currentChatId, showToast]
   );
 
+  // Render tool parts using the app's tool registry
+  const renderTool = useCallback(
+    (part: ToolPart, onApprovalResponse?: ToolApprovalResponseFn) => (
+      <Tool part={part} onApprovalResponse={onApprovalResponse} />
+    ),
+    []
+  );
+
   // Handle regenerating an assistant response
   const handleRegenerate = useCallback(
     async (messageId: string) => {
@@ -553,13 +564,20 @@ export function ChatUI({
           onApprovalResponse={handleApprovalResponse}
           votes={votes}
           onVote={handleVote}
+          renderTool={renderTool}
           header={
             <WeekBar
               selectedDate={selectedDate}
               onSelectDate={setSelectedDate}
             />
           }
-          selectedDate={selectedDate}
+          emptyState={
+            <ConversationEmptyState
+              title={welcomeMessage}
+              subtitle={welcomeSubtitle}
+              selectedDate={selectedDate}
+            />
+          }
         />
 
         <PromptInput

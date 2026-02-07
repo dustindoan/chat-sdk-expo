@@ -16,12 +16,6 @@ import type {
   ChatWithSnippet,
 } from '@chat-sdk-expo/db';
 
-// Re-export types for backward compatibility
-export type { ChatWithSnippet } from '@chat-sdk-expo/db';
-
-// Alias for backward compatibility
-export type DBMessage = Message;
-
 // ============================================================================
 // CHAT QUERIES
 // ============================================================================

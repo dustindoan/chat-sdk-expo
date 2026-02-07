@@ -24,10 +24,5 @@ export function generateAPIUrl(relativePath: string) {
 
   const path = relativePath.startsWith('/') ? relativePath : `/${relativePath}`;
 
-  if (process.env.NODE_ENV === 'development') {
-    // In development, use the Expo dev server on port 8081
-    return origin.replace(/:\d+/, ':8081') + path;
-  }
-
   return origin + path;
 }

@@ -1,4 +1,2 @@
-export { Button, buttonVariants, buttonTextVariants, type ButtonProps } from './button';
-export { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from './card';
-export { Input } from './input';
-export { Text, TextClassContext } from './text';
+// Re-export all UI primitives from @chat-sdk-expo/ui
+export * from '@chat-sdk-expo/ui/primitives';

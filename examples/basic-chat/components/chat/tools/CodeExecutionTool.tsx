@@ -1,10 +1,10 @@
 import React, { memo, useState, useEffect, useCallback } from 'react';
 import { View, ActivityIndicator, ScrollView } from 'react-native';
 import { useResolveClassNames } from 'uniwind';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
+import { Text } from '@chat-sdk-expo/ui/primitives';
+import { Button } from '@chat-sdk-expo/ui/primitives';
 import type { ToolUIProps } from './types';
-import type { ExecuteCodeInput, ExecuteCodeResult } from '../../../lib/ai/tools/executeCode';
+import type { ExecuteCodeInput, ExecuteCodeResult } from '../../../lib/ai/tools';
 import {
   executeCode,
   supportsInBrowserExecution,

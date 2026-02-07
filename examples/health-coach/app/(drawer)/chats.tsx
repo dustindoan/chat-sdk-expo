@@ -10,10 +10,7 @@ import {
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { useResolveClassNames } from 'uniwind';
-import { Text } from '@/components/ui/text';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { ContentLayout } from '@/components/ui/content-layout';
+import { Text, Button, Input, ContentLayout } from '@chat-sdk-expo/ui/primitives';
 import { useChats, type ChatWithSnippet } from '@/hooks/useChats';
 import { generateAPIUrl } from '@/utils';
 
