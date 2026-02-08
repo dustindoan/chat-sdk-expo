@@ -1,6 +1,6 @@
-# Wally Design Philosophy
+# Health Coach Design Philosophy
 
-This document captures the core philosophies that guide Wally's design and behavior. These are not features to implement, but principles to embody.
+This document captures the core philosophies that guide Health Coach's design and behavior. These are not features to implement, but principles to embody.
 
 ---
 

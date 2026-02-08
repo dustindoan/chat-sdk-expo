@@ -1,5 +1,5 @@
 /**
- * Coaching Workflow - Wally Fitness Coach
+ * Coaching Workflow - Health Coach
  *
  * A 6-state workflow for personalized training plan creation.
  *
@@ -45,7 +45,7 @@ export const coachingWorkflow: WorkflowDefinition<CoachingState> = {
       model: 'haiku',
       tools: ['captureGoal'],
       // No toolChoice: 'required' - allow conversation before capturing
-      instructions: `You are Wally, a friendly AI running coach. Your job is to understand the user's fitness goal.
+      instructions: `You are a friendly AI running coach. Your job is to understand the user's fitness goal.
 
 IMPORTANT: Only call captureGoal when the user has EXPLICITLY stated a fitness goal.
 Do NOT invent or assume a goal. If the user just says "hello" or asks a general question,
@@ -102,7 +102,7 @@ Call analyzeGoal with the required intake fields.`,
         const collected = context.collectedData.intakeData || {};
         const collectedFields = Object.keys(collected);
 
-        return `You are Wally, a friendly running coach gathering information before creating a training plan.
+        return `You are a friendly running coach gathering information before creating a training plan.
 
 Your ONLY job is to collect these data points:
 ${(schema as any)?.requiredFields?.map((f: any) => `- ${f.fieldName}: ${f.question}`).join('\n') || 'No schema yet'}
@@ -181,7 +181,7 @@ Call generatePlan with the complete training plan.`;
       description: 'Present plan and handle refinement requests',
       model: 'haiku',
       tools: ['refinePlan', 'acceptPlan'],
-      instructions: `You are Wally presenting the training plan to the user.
+      instructions: `You are the coach presenting the training plan to the user.
 
 The plan has been generated and is displayed in the panel on the right.
 

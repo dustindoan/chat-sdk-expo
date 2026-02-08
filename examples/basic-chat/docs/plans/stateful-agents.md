@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document describes the general-purpose infrastructure for building stateful agent workflows in ai-chat-app. This infrastructure is domain-agnostic and provides the primitives that domain-specific implementations (like Wally's coaching workflow) can build upon.
+This document describes the general-purpose infrastructure for building stateful agent workflows in ai-chat-app. This infrastructure is domain-agnostic and provides the primitives that domain-specific implementations (like Health Coach's coaching workflow) can build upon.
 
 **Design Goal:** Provide the minimal abstraction layer over AI SDK v6's `ToolLoopAgent` that enables:
 1. Declarative workflow definition
@@ -462,12 +462,12 @@ ai-chat-app/
 
 ---
 
-## What This Enables for Wally
+## What This Enables for Health Coach
 
-With this infrastructure, Wally can define its coaching workflow declaratively:
+With this infrastructure, Health Coach can define its coaching workflow declaratively:
 
 ```typescript
-// wally/lib/coaching/workflow.ts
+// health-coach/lib/coaching/workflow.ts
 
 import { WorkflowDefinition } from 'ai-chat-app/lib/agents';
 
@@ -475,12 +475,12 @@ export const coachingWorkflow: WorkflowDefinition<CoachingState> = {
   id: 'coaching',
   name: 'Fitness Coaching',
   states: {
-    GOAL_CAPTURE: { /* Wally-specific config */ },
-    ANALYST: { /* Wally-specific config */ },
-    INTAKE: { /* Wally-specific config */ },
+    GOAL_CAPTURE: { /* Health Coach-specific config */ },
+    ANALYST: { /* Health Coach-specific config */ },
+    INTAKE: { /* Health Coach-specific config */ },
     SAFETY: { hidden: true, /* ... */ },
-    PLAN: { /* Wally-specific config */ },
-    PRESENT: { /* Wally-specific config */ },
+    PLAN: { /* Health Coach-specific config */ },
+    PRESENT: { /* Health Coach-specific config */ },
   },
   // ... transitions, etc.
 };
@@ -489,7 +489,7 @@ export const coachingWorkflow: WorkflowDefinition<CoachingState> = {
 And use the shared infrastructure:
 
 ```typescript
-// wally/app/api/chat+api.ts
+// health-coach/app/api/chat+api.ts
 
 import { createStatefulAgent } from 'ai-chat-app/lib/agents';
 import { coachingWorkflow } from '../../lib/coaching/workflow';
@@ -525,4 +525,4 @@ const agent = createStatefulAgent(coachingWorkflow, coachingTools);
 3. **Test with a simple workflow** (not coaching, something generic)
 4. **Integrate with existing chat API**
 5. **Build `StateIndicator` component**
-6. **Hand off to Wally** for coaching-specific implementation
+6. **Hand off to Health Coach** for coaching-specific implementation

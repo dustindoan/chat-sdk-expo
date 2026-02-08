@@ -1,5 +1,5 @@
 /**
- * Stateful Agents - Wally Fitness App
+ * Stateful Agents - Health Coach
  *
  * Infrastructure for building multi-state agent workflows.
  *

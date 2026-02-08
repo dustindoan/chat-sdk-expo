@@ -2,7 +2,7 @@
 
 ## Overview
 
-Health Coach (internally "Wally") is an AI-powered fitness coaching app built on chat-sdk-expo. It demonstrates:
+Health Coach is an AI-powered fitness coaching app built on chat-sdk-expo. It demonstrates:
 - **Stateful agent workflows** - Multi-state conversation flows for goal-based coaching
 - **Extended document kinds** - Custom `'training-block'` artifact type
 - **Domain-specific UI** - Calendar views, workout sessions, training plans
@@ -24,7 +24,7 @@ Health Coach (internally "Wally") is an AI-powered fitness coaching app built on
 
 ## Stateful Agent Workflow
 
-Wally uses a 6-state coaching workflow:
+Health Coach uses a 6-state coaching workflow:
 
 ```
 GOAL_CAPTURE → ANALYST → INTAKE → SAFETY → PLAN → PRESENT
@@ -66,11 +66,11 @@ const result = await agent.generate({ prompt: 'I want to run a 4:25 1500m' });
 
 ## Extended Document Kinds
 
-Wally defines a custom document kind for training plans:
+Health Coach defines a custom document kind for training plans:
 
 ```typescript
 // lib/db/schema.ts
-export type WallyDocumentKind = 'text' | 'code' | 'training-block';
+export type HealthCoachDocumentKind = 'text' | 'code' | 'training-block';
 ```
 
 The `training-block` kind represents structured training plans that can be:
@@ -80,7 +80,7 @@ The `training-block` kind represents structured training plans that can be:
 
 ### Database Pattern
 
-Wally uses the shared `DatabaseAdapter` from `@chat-sdk-expo/db`:
+Health Coach uses the shared `DatabaseAdapter` from `@chat-sdk-expo/db`:
 
 ```typescript
 // lib/db/client.ts
@@ -90,7 +90,7 @@ export const dbAdapter = createDrizzlePostgresAdapter(db);
 // lib/db/queries.ts - Type-safe wrappers
 export async function getLatestDocumentByKind(
   userId: string,
-  kind: WallyDocumentKind  // Type-safe!
+  kind: HealthCoachDocumentKind  // Type-safe!
 ): Promise<Document | undefined> {
   return dbAdapter.getLatestDocumentByKind(userId, kind);
 }
@@ -109,7 +109,7 @@ Cards showing workouts scheduled for the current day:
 - Full Body Strength (duration)
 
 ### Chat Interface
-Standard chat-sdk-expo chat with fitness-focused empty state and Wally branding.
+Standard chat-sdk-expo chat with fitness-focused empty state.
 
 ---
 
@@ -144,10 +144,10 @@ BETTER_AUTH_SECRET=your-secret-key
 
 ## Relationship to Shared Packages
 
-Wally imports from these `@chat-sdk-expo/*` packages:
+Health Coach imports from these `@chat-sdk-expo/*` packages:
 
-| Package | Usage in Wally |
-|---------|----------------|
+| Package | Usage in Health Coach |
+|---------|----------------------|
 | `@chat-sdk-expo/db` | Types (`Chat`, `Message`, `Document`), `DatabaseAdapter` interface |
 | `@chat-sdk-expo/drizzle-postgres` | `createDrizzlePostgresAdapter`, `schema` |
 | `@chat-sdk-expo/tools` | Base tool definitions |

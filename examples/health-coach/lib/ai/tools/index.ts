@@ -20,8 +20,8 @@ export type { UpdateDocumentResult } from './updateDocument';
 export { executeCodeTool } from './executeCode';
 export type { ExecuteCodeInput, ExecuteCodeResult } from './executeCode';
 
-// Session tool (Wally-specific)
-export { getTodaySessionsTool, getMockSessions } from './getTodaySessions';
+// Session tool (Health Coach-specific)
+export { getTodaySessionsTool } from './getTodaySessions';
 export type { Session, SessionType, GetTodaySessionsInput, GetTodaySessionsResult } from './getTodaySessions';
 
 // All tools object for use in streamText

@@ -50,7 +50,7 @@ export const workflowRegistry: Record<string, RegisteredWorkflow> = {
     icon: 'search',
     label: 'Research',
   },
-  // Future workflows for wally:
+  // Future workflows for health-coach:
   // coaching: {
   //   workflow: coachingWorkflow,
   //   tools: coachingTools,

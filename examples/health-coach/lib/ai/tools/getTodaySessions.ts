@@ -13,15 +13,13 @@ import { z } from 'zod';
 import { getLatestDocumentByKind } from '../../db/queries';
 import type { TrainingBlock } from '../../artifacts/handlers/training-block';
 import {
-  getMockSessions,
   type Session,
   type SessionType,
   type GetTodaySessionsResult,
   type GetTodaySessionsInput,
 } from './sessions.shared';
 
-// Re-export shared types and functions for backwards compatibility
-export { getMockSessions };
+// Re-export shared types for backwards compatibility
 export type { Session, SessionType, GetTodaySessionsResult, GetTodaySessionsInput };
 
 /**
@@ -113,12 +111,10 @@ Returns the sessions for the requested date (defaults to today).`,
         // Fall through to mock data
       }
 
-      // No training block found, use mock data
-      const sessions = getMockSessions(targetDate);
-
+      // No training block found - return empty sessions
       return {
         date: targetDate,
-        sessions,
+        sessions: [],
         fromTrainingBlock: false,
       };
     },

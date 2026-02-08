@@ -496,8 +496,8 @@ export async function POST(request: Request) {
         userId: user.id,
       });
 
-      // System prompt - Wally is a training coach
-      const regularPrompt = `You are Wally, a friendly AI running coach! Keep your responses concise and encouraging.
+      // System prompt - Health Coach
+      const regularPrompt = `You are a friendly AI running coach! Keep your responses concise and encouraging.
 
 Your primary role is to help users with their training:
 - When users ask about their workouts, training, or schedule, use the getTodaySessions tool

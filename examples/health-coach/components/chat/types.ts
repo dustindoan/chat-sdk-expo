@@ -118,7 +118,7 @@ export interface ToolProps {
 export interface ConversationEmptyStateProps {
   title: string;
   subtitle: string;
-  /** Selected date for showing sessions (Wally-specific) */
+  /** Selected date for showing sessions (Health Coach-specific) */
   selectedDate?: Date;
 }
 
@@ -141,7 +141,7 @@ export interface MessageListProps {
   onVote?: (messageId: string, type: 'up' | 'down') => void;
   // Optional header component rendered inside the max-width container
   header?: React.ReactNode;
-  // Selected date for empty state sessions display (Wally-specific)
+  // Selected date for empty state sessions display (Health Coach-specific)
   selectedDate?: Date;
 }
 

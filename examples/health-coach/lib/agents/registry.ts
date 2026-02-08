@@ -1,7 +1,7 @@
 /**
- * Workflow Registry - Wally Fitness App
+ * Workflow Registry - Health Coach
  *
- * Central registry for available workflows in the Wally app.
+ * Central registry for available workflows in the Health Coach app.
  * Currently includes:
  * - coaching: Full fitness coaching workflow (goal → plan)
  */
@@ -9,7 +9,7 @@
 import type { ToolSet } from 'ai';
 import type { WorkflowDefinition } from './types';
 
-// Import wally-specific workflows
+// Import app-specific workflows
 import { coachingWorkflow, coachingTools } from './examples/coaching-workflow';
 
 /**
@@ -29,7 +29,7 @@ export interface RegisteredWorkflow<TStates extends string = string> {
 }
 
 /**
- * Registry of available workflows for Wally
+ * Registry of available workflows for Health Coach
  */
 export const workflowRegistry: Record<string, RegisteredWorkflow> = {
   coaching: {

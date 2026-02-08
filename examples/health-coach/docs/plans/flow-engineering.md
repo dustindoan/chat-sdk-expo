@@ -1,8 +1,8 @@
-# Wally Flow Engineering Architecture
+# Health Coach Flow Engineering Architecture
 
 ## Overview
 
-This document describes the "Flow Engineering" architecture for Wally's coaching system, implementing the principles from the Gemini deep research on structured agent workflows.
+This document describes the "Flow Engineering" architecture for Health Coach's coaching system, implementing the principles from the Gemini deep research on structured agent workflows.
 
 **Core Principles:**
 
@@ -347,7 +347,7 @@ Create a periodized training plan that:
 Output the plan as a structured TrainingBlock artifact.
 ```
 
-**Output:** `TrainingBlock` artifact (using existing Wally artifact system)
+**Output:** `TrainingBlock` artifact (using existing Health Coach artifact system)
 
 **Transition:** Automatic → PRESENT
 
@@ -772,9 +772,9 @@ const acceptPlan = tool({
 
 **Recommendation:** Use `ToolLoopAgent` with `prepareStep` - it's the intended pattern and provides all the primitives we need.
 
-### Integration with Existing Wally Architecture
+### Integration with Existing Health Coach Architecture
 
-The `ToolLoopAgent` integrates with Wally's existing systems:
+The `ToolLoopAgent` integrates with Health Coach's existing systems:
 
 1. **Artifact System** - The `generatePlan` tool triggers `training-block` artifact creation via `dataStream.write()`
 

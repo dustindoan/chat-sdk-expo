@@ -35,9 +35,9 @@ export default function NewChatScreen() {
       <ChatUI
         key={newChatKey}
         api={generateAPIUrl('/api/chat')}
-        welcomeMessage="Hey! I'm Wally"
-        welcomeSubtitle="Your AI running coach. Ask about today's workout!"
-        placeholder="Ask Wally..."
+        welcomeMessage="Hey! I'm your Health Coach"
+        welcomeSubtitle="What's your goal?"
+        placeholder="Ask your coach..."
         onChatCreated={handleChatCreated}
         onRequestNewChat={requestNewChat}
         initialModelId={pendingModelId || undefined}

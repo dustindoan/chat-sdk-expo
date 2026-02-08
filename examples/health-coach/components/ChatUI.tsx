@@ -15,9 +15,7 @@ import { MessageList, PromptInput } from '@chat-sdk-expo/ui/chat';
 import type { VoteMap, PromptInputHandle, ToolPart, ToolApprovalResponseFn } from '@chat-sdk-expo/ui/chat';
 import { useToast } from '@chat-sdk-expo/ui/toast';
 import { useClipboard, useAttachments } from '@chat-sdk-expo/ui/hooks';
-import { WeekBar } from './WeekBar';
 import { CoachingToggle } from './chat/CoachingToggle';
-import { ConversationEmptyState } from './chat/ConversationEmptyState';
 import { Tool } from './chat/Tool';
 import { ModelSelector } from './chat/ModelSelector';
 import { DEFAULT_MODEL_ID, getModelById, getModelName, modelSupportsReasoning } from '../lib/ai/models';
@@ -108,7 +106,7 @@ export function ChatUI({
   const [reasoningEnabled, setReasoningEnabled] = useState(false);
   const reasoningEnabledRef = useRef(reasoningEnabled);
 
-  // Wally always uses the coaching workflow
+  // Health Coach always uses the coaching workflow
   const activeWorkflowRef = useRef<string | null>('coaching');
 
   // Check if current model supports reasoning
@@ -171,9 +169,6 @@ export function ChatUI({
 
   // Local state for input (works better with RN TextInput than useChat's input)
   const [localInput, setLocalInput] = useState('');
-
-  // Selected date for week bar
-  const [selectedDate, setSelectedDate] = useState(new Date());
 
   // Wrapper for transport fetch that uses expo/fetch with auth and 401 retry
   const transportFetch = useCallback(async (url: RequestInfo | URL, options?: RequestInit): Promise<Response> => {
@@ -565,19 +560,6 @@ export function ChatUI({
           votes={votes}
           onVote={handleVote}
           renderTool={renderTool}
-          header={
-            <WeekBar
-              selectedDate={selectedDate}
-              onSelectDate={setSelectedDate}
-            />
-          }
-          emptyState={
-            <ConversationEmptyState
-              title={welcomeMessage}
-              subtitle={welcomeSubtitle}
-              selectedDate={selectedDate}
-            />
-          }
         />
 
         <PromptInput

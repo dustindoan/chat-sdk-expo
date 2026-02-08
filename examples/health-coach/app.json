@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Wally",
-    "slug": "wally",
+    "name": "Health Coach",
+    "slug": "health-coach",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.wally"
+      "bundleIdentifier": "com.anonymous.healthcoach"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,13 +23,13 @@
       },
       "edgeToEdgeEnabled": true,
       "softwareKeyboardLayoutMode": "resize",
-      "package": "com.anonymous.wally"
+      "package": "com.anonymous.healthcoach"
     },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro",
       "output": "server"
     },
-    "scheme": "wally"
+    "scheme": "health-coach"
   }
 }

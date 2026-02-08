@@ -4,7 +4,7 @@
  * Re-exports schema tables from @chat-sdk-expo/drizzle-postgres
  * and types from @chat-sdk-expo/db
  *
- * Wally extends document kinds with 'training-block'.
+ * Health Coach extends document kinds with 'training-block'.
  */
 
 // Import schema namespace from the package
@@ -34,8 +34,8 @@ export type {
   ChatWithSnippet,
 } from '@chat-sdk-expo/db';
 
-// Wally-specific document kinds (extends base 'text' | 'code')
-export type WallyDocumentKind = 'text' | 'code' | 'training-block';
+// Health Coach document kinds (extends base 'text' | 'code')
+export type HealthCoachDocumentKind = 'text' | 'code' | 'training-block';
 
 // Alias for backward compatibility with existing code
 export type { Message as DBMessage } from '@chat-sdk-expo/db';

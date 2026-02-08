@@ -2,7 +2,7 @@
  * Database Queries
  *
  * Delegates to the database adapter.
- * Wally extends document kinds with 'training-block'.
+ * Health Coach extends document kinds with 'training-block'.
  */
 
 import { dbAdapter } from './client';
@@ -13,7 +13,7 @@ import type {
   MessagePart,
   ChatWithSnippet,
 } from '@chat-sdk-expo/db';
-import type { Document, WallyDocumentKind } from './schema';
+import type { Document, HealthCoachDocumentKind } from './schema';
 
 // ============================================================================
 // CHAT QUERIES (delegated to adapter)
@@ -118,7 +118,7 @@ export async function saveDocument(data: {
   userId: string;
   title: string;
   content: string;
-  kind: WallyDocumentKind;
+  kind: HealthCoachDocumentKind;
   language?: string;
 }): Promise<Document> {
   const result = await dbAdapter.saveDocument(data);
@@ -139,7 +139,7 @@ export async function getDocumentsById(
  */
 export async function getLatestDocumentByKind(
   userId: string,
-  kind: WallyDocumentKind
+  kind: HealthCoachDocumentKind
 ): Promise<Document | undefined> {
   // Adapter now accepts any string kind
   const result = await dbAdapter.getLatestDocumentByKind(userId, kind);
