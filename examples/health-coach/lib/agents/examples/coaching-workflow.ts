@@ -1,34 +1,188 @@
 /**
  * Coaching Workflow - Health Coach
  *
- * A 6-state workflow for personalized training plan creation.
+ * An EXTRACT → ASSESS → RESPOND loop for personalized training plan creation.
  *
- * States:
- * - GOAL_CAPTURE: User states high-level goal
- * - ANALYST: Determine what information is needed + implicit goal reframing
- * - INTAKE: Gather additional profile/fitness data
- * - SAFETY: Gate unsafe training approaches
- * - PLAN: Generate training block
- * - PRESENT: Display plan for user review/refinement
+ * Architecture:
+ * Each user message triggers a 3-step loop (all within one ToolLoopAgent round):
+ *   1. EXTRACT (silent) — pull structured data from conversation into working memory
+ *   2. ASSESS  (silent) — analyze gaps, flag safety, determine what's missing
+ *   3. RESPOND (conversational) — say one thing, ask one thing
  *
- * Key Principle: "The system should know without telling"
- * - Apply age-based frameworks implicitly
- * - Reframe goals through questions, not explanations
+ * When enough data is gathered, RESPOND exits the loop into:
+ *   4. PLAN    — generate training plan
+ *   5. PRESENT — present plan for review/refinement
+ *
+ * Key Principle: States serve the understanding process, not the conversation flow.
+ * Information arrives whenever the user gives it. The machine keeps up.
  */
 
 import { tool } from 'ai';
 import { z } from 'zod';
-import type { WorkflowDefinition } from '../types';
+import type { WorkflowDefinition, WorkflowContext, ToolResult } from '../types';
+import type { UIMessage } from 'ai';
+
+// =============================================================================
+// WORKING MEMORY
+// =============================================================================
+
+export interface SafetyFlag {
+  flag: string;
+  acknowledged: boolean;
+}
+
+export interface CoachingMemory {
+  goal?: { event: string; target: string; raw: string };
+  currentFitness?: {
+    times: Record<string, string>;
+    weeklyVolume?: string;
+    raw: string;
+  };
+  motivation?: string;
+  athleteBackground?: string;
+  constraints?: {
+    injuries: string[];
+    schedule: string;
+    age?: number;
+  };
+  safetyFlags: SafetyFlag[];
+  readyToPlan: boolean;
+}
+
+const EMPTY_MEMORY: CoachingMemory = {
+  safetyFlags: [],
+  readyToPlan: false,
+};
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+/**
+ * Get the latest CoachingMemory from the current round's tool results.
+ */
+function getMemoryFromToolResults(toolResults: ToolResult[]): CoachingMemory {
+  for (let i = toolResults.length - 1; i >= 0; i--) {
+    if (toolResults[i].toolName === 'updateMemory') {
+      const output = toolResults[i].output as Record<string, unknown> | undefined;
+      if (output?.memory) {
+        return output.memory as CoachingMemory;
+      }
+    }
+  }
+  return { ...EMPTY_MEMORY };
+}
+
+/**
+ * Get the latest CoachingMemory from previous rounds' message history.
+ * Scans backward through messages for the most recent updateMemory tool result.
+ */
+function getMemoryFromMessages(messages: UIMessage[]): CoachingMemory {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role !== 'assistant' || !msg.parts) continue;
+    for (const part of msg.parts as any[]) {
+      // Check both the toolName field and the type prefix
+      const name = part.toolName || part.type?.replace('tool-', '');
+      if (name === 'updateMemory') {
+        const output = part.output || part.result;
+        if (output?.memory) {
+          return output.memory as CoachingMemory;
+        }
+      }
+    }
+  }
+  return { ...EMPTY_MEMORY };
+}
+
+/**
+ * Get the latest assessment from the current round's tool results.
+ */
+function getAssessmentFromToolResults(
+  toolResults: ToolResult[]
+): { gapAnalysis?: string; missingData: string[]; safetyFlags: string[]; notes: string } | null {
+  for (let i = toolResults.length - 1; i >= 0; i--) {
+    if (toolResults[i].toolName === 'updateAssessment') {
+      return toolResults[i].output as any;
+    }
+  }
+  return null;
+}
+
+/**
+ * Check if a plan has already been generated in message history.
+ */
+function hasPlanInHistory(messages: UIMessage[]): boolean {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role !== 'assistant' || !msg.parts) continue;
+    for (const part of msg.parts as any[]) {
+      const name = part.toolName || part.type?.replace('tool-', '');
+      if (name === 'generatePlan') return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Deterministic coordinator: pick response directive based on memory gaps.
+ * This is NOT an LLM call — it's a simple function that drives what RESPOND says.
+ */
+function getResponseDirective(memory: CoachingMemory, planExists: boolean): string {
+  // Post-plan mode: handle refinement
+  if (planExists) {
+    return `A training plan has already been generated. Handle the athlete's feedback about the plan. If they want changes, use refinePlan. If they're satisfied, use acceptPlan. Otherwise just answer their question about the plan.`;
+  }
+
+  // Pre-plan: work through what's missing. Do not call any tools.
+  const noTools = 'Do not call any tools.';
+
+  if (!memory.goal) {
+    return `The athlete hasn't shared their goal yet. Ask what they're working toward. Be a coach meeting someone for the first time. ${noTools}`;
+  }
+  if (!memory.currentFitness) {
+    return `The athlete wants: "${memory.goal.raw}". You don't know where they are now. Ask about their current level — recent times, how much they're running. ${noTools}`;
+  }
+  if (!memory.motivation) {
+    return `You know their goal and current fitness. Ask why this goal matters to them — what's the story behind it? ${noTools}`;
+  }
+  if (!memory.constraints?.schedule) {
+    return `You have their goal, fitness, and motivation. Ask about training availability — how many days a week they can train. ${noTools}`;
+  }
+
+  // Unacknowledged safety flags need to be addressed once, then folded into context
+  const unacknowledged = memory.safetyFlags.filter(f => !f.acknowledged);
+  if (unacknowledged.length > 0 && !memory.readyToPlan) {
+    return `There are safety considerations: ${unacknowledged.map(f => f.flag).join('; ')}. Acknowledge these as a caring coach — tell them how you'll account for it in the plan. Then ask about the next missing piece. ${noTools}`;
+  }
+
+  // Ready to plan — safety flags (acknowledged or not) inform the plan, they don't block it
+  if (memory.readyToPlan) {
+    const safetyNote = memory.safetyFlags.length > 0
+      ? ` The plan must account for: ${memory.safetyFlags.map(f => f.flag).join('; ')}.`
+      : '';
+    return `You have everything needed. Briefly summarize what you know about this athlete, then call beginPlan to start building their training plan.${safetyNote}`;
+  }
+
+  // Fallback: check for missing optional fields
+  const missing: string[] = [];
+  if (!memory.constraints?.age) missing.push('age');
+  if (!memory.athleteBackground) missing.push('running background');
+  if (missing.length > 0) {
+    return `Almost ready to build the plan. Ask about: ${missing[0]}. ${noTools}`;
+  }
+
+  return `Continue the conversation naturally. Ask if they have any other details before you build the plan. ${noTools}`;
+}
 
 // =============================================================================
 // WORKFLOW DEFINITION
 // =============================================================================
 
 export type CoachingState =
-  | 'GOAL_CAPTURE'
-  | 'ANALYST'
-  | 'INTAKE'
-  | 'SAFETY'
+  | 'EXTRACT'
+  | 'ASSESS'
+  | 'RESPOND'
   | 'PLAN'
   | 'PRESENT';
 
@@ -36,198 +190,174 @@ export const coachingWorkflow: WorkflowDefinition<CoachingState> = {
   id: 'coaching',
   name: 'Fitness Coaching',
   description:
-    'Personalized training plan creation through goal capture, analysis, intake, safety check, and plan generation',
+    'Personalized training plan creation through conversational coaching with structured understanding',
 
   states: {
-    GOAL_CAPTURE: {
-      name: 'Goal Capture',
-      description: 'Capture the user\'s high-level fitness goal',
+    // =========================================================================
+    // EXTRACT — Silent. Pull structured data from the latest conversation.
+    // =========================================================================
+    EXTRACT: {
+      name: 'Understanding',
+      description: 'Extract structured data from the conversation into working memory',
       model: 'haiku',
-      tools: ['captureGoal'],
-      // No toolChoice: 'required' - allow conversation before capturing
-      instructions: `You are a friendly AI running coach. Your job is to understand the user's fitness goal.
-
-IMPORTANT: Only call captureGoal when the user has EXPLICITLY stated a fitness goal.
-Do NOT invent or assume a goal. If the user just says "hello" or asks a general question,
-respond conversationally and ask what fitness goal they'd like to work toward.
-
-Examples of clear goals that warrant calling captureGoal:
-- "I want to run a 4:25 1500m"
-- "I want to complete my first marathon"
-- "I want to lose 10 pounds through running"
-- "I want to improve my 5K time"
-
-Examples where you should NOT call captureGoal yet:
-- "Hello" / "Hi there" - greet them and ask about their goals
-- "Can you help me?" - ask what they'd like help with
-- Vague statements without a specific goal
-
-Be warm and encouraging. When you clearly understand their goal, call captureGoal.`,
-    },
-
-    ANALYST: {
-      name: 'Analyzing',
-      description: 'Determine what information is needed for safe, effective plan creation',
-      model: 'haiku', // Using haiku for testing (switch to sonnet for better analysis)
-      tools: ['analyzeGoal'],
+      tools: ['updateMemory'],
       toolChoice: 'required',
-      instructions: (context) => `You are a sports science analyst. Given the user's goal, determine the MINIMUM data points required to create a safe, personalized training plan.
+      hidden: true,
+      instructions: (context: WorkflowContext) => {
+        const previousMemory = getMemoryFromMessages(context.messages);
+        return `Extract structured data from the conversation into the coaching memory. Return the COMPLETE updated memory.
 
-User's Goal: ${context.collectedData.goal || 'Not yet captured'}
-
-Consider:
-- Physiological factors (age, sex, injury history)
-- Current fitness indicators (recent times, weekly volume)
-- Contextual factors (timeline, equipment access, schedule constraints)
-- Safety factors (any red flags that need medical clearance)
-- Life stage appropriateness (is this goal aligned with sustainable health?)
-
-IMPORTANT: Apply age-based coaching frameworks IMPLICITLY:
-- Ages 10-25: Challenge-driven, growth mindset
-- Ages 25-35: Essentialism, focus on what matters most
-- Ages 35+: Longevity focus, sustainable systems
-
-Do NOT name these frameworks to the user. Let them discover constraints through your questions.
-
-Call analyzeGoal with the required intake fields.`,
-    },
-
-    INTAKE: {
-      name: 'Getting to Know You',
-      description: 'Gather required information in a conversational way',
-      model: 'haiku',
-      tools: ['collectData', 'intakeComplete'],
-      instructions: (context) => {
-        const schema = context.collectedData.intakeSchema;
-        const collected = context.collectedData.intakeData || {};
-        const collectedFields = Object.keys(collected);
-
-        return `You are a friendly running coach gathering information before creating a training plan.
-
-Your ONLY job is to collect these data points:
-${(schema as any)?.requiredFields?.map((f: any) => `- ${f.fieldName}: ${f.question}`).join('\n') || 'No schema yet'}
-
-Already collected: ${collectedFields.length > 0 ? collectedFields.join(', ') : 'Nothing yet'}
+Previous memory:
+${JSON.stringify(previousMemory, null, 2)}
 
 Rules:
-1. Ask questions naturally, not like a form. Acknowledge what the user shares.
-2. You may ask multiple related questions in one turn if it flows naturally.
-3. If the user provides information unprompted, acknowledge and use collectData to record it.
-4. Do NOT offer training advice. Do NOT generate a plan yet.
-5. If the user asks for a plan, say: "I want to make sure I build you the right plan - let me just get a few more details first."
-6. When all required fields are gathered, summarize what you know and call intakeComplete.
+- Only extract what was EXPLICITLY stated. Do not infer or assume.
+- Carry forward all previous values unchanged unless the user corrected something.
+- If the user gave new information, add it to the appropriate field.
+- safetyFlags are objects with {flag, acknowledged}. Set acknowledged: true when the coach has already addressed this concern in a previous response. New flags start as acknowledged: false.
+- Set readyToPlan to true ONLY when ALL of these are present: goal, currentFitness, motivation, AND constraints.schedule.
 
-Use collectData for EACH piece of information gathered.`;
+Call updateMemory with the complete updated memory.`;
       },
     },
 
-    SAFETY: {
-      name: 'Safety Check',
-      description: 'Validate collected data against safety rules',
+    // =========================================================================
+    // ASSESS — Silent. Analyze the memory, compute gaps, flag safety.
+    // =========================================================================
+    ASSESS: {
+      name: 'Analyzing',
+      description: 'Analyze memory state, compute gaps, flag safety concerns',
       model: 'haiku',
-      tools: ['safetyCheck'],
+      tools: ['updateAssessment'],
       toolChoice: 'required',
-      instructions: (context) => {
-        const profile = context.collectedData.intakeData || {};
-        return `Review the athlete profile and run safety checks.
+      hidden: true,
+      instructions: (context: WorkflowContext) => {
+        const memory = getMemoryFromToolResults(context.toolResults);
+        return `Analyze this athlete's data. Compute gaps and flag safety concerns.
 
-Profile:
-${JSON.stringify(profile, null, 2)}
+Memory:
+${JSON.stringify(memory, null, 2)}
 
-Call safetyCheck with the profile data. The tool will run safety rules and return any warnings or contraindications.
+Rules:
+- If goal and currentFitness both exist, compute the gap precisely. Example: goal is 4:20, current is 4:47, gap is "27 seconds to drop" (NOT "dropped 27 seconds").
+- Flag safety concerns: age + high intensity, injury history, unrealistic timelines.
+- List what data is still missing for a training plan.
+- Be precise with direction: the gap is what they NEED TO CLOSE, not what they've achieved.
 
-Present any warnings as a caring coach, not a liability waiver.
-Example: "Six days is solid. I want to make sure you've got at least one full recovery day—that's where the adaptation actually happens."`;
+Call updateAssessment with your analysis.`;
       },
     },
 
+    // =========================================================================
+    // RESPOND — Conversational. Say one thing, ask one thing.
+    // =========================================================================
+    RESPOND: {
+      name: 'Coaching',
+      description: 'Generate one conversational coaching response',
+      model: 'haiku',
+      tools: ['beginPlan', 'refinePlan', 'acceptPlan'],
+      instructions: (context: WorkflowContext) => {
+        const memory = getMemoryFromToolResults(context.toolResults);
+        const assessment = getAssessmentFromToolResults(context.toolResults);
+        const planExists = hasPlanInHistory(context.messages);
+        const directive = getResponseDirective(memory, planExists);
+
+        return `You are a running coach in conversation. ${directive}
+
+${assessment?.notes ? `Internal notes (do NOT share directly, use to inform your response): ${assessment.notes}` : ''}
+
+Style:
+- 2-3 sentences max. React to what they said, then ask or advise.
+- ONE question at a time. No lists.
+- Talk like a person, not a manual.`;
+      },
+    },
+
+    // =========================================================================
+    // PLAN — Generate training plan from accumulated memory.
+    // =========================================================================
     PLAN: {
       name: 'Building Your Plan',
       description: 'Generate personalized training plan',
-      model: 'haiku', // Using haiku for testing (switch to sonnet for better plans)
+      model: 'haiku',
       tools: ['generatePlan'],
       toolChoice: 'required',
-      instructions: (context) => {
-        const profile = context.collectedData.intakeData || {};
-        const safety = context.collectedData.safetyResult || {};
-        const goal = context.collectedData.goal || '';
+      instructions: (context: WorkflowContext) => {
+        const memory = getMemoryFromToolResults(context.toolResults)
+          || getMemoryFromMessages(context.messages);
+        const assessment = getAssessmentFromToolResults(context.toolResults);
 
-        return `You are an expert running coach creating a personalized training plan.
+        return `Create a personalized training plan for this athlete.
 
-Athlete Profile:
-${JSON.stringify(profile, null, 2)}
+Athlete:
+${JSON.stringify(memory, null, 2)}
 
-Goal: ${goal}
+${assessment ? `Analysis: ${assessment.notes}` : ''}
+${assessment?.gapAnalysis ? `Gap: ${assessment.gapAnalysis}` : ''}
+${memory.safetyFlags.length > 0 ? `Safety flags: ${memory.safetyFlags.map(f => f.flag).join(', ')}` : ''}
 
-Safety Constraints:
-- Warnings: ${(safety as any).warnings?.join(', ') || 'None'}
-- Contraindications: ${(safety as any).contraindications?.join(', ') || 'None'}
-- Recommendations: ${(safety as any).recommendations?.join(', ') || 'None'}
-
-Create a periodized training plan that:
-1. Respects the athlete's current fitness level and available time
-2. Incorporates appropriate progressions (no more than 10% weekly increase)
-3. Avoids all contraindicated activities
-4. Addresses the safety warnings appropriately
-5. Includes a mix of workout types (easy, tempo, intervals, long run)
-6. Has 1-2 rest days per week
+Plan requirements:
+1. Respect current fitness level and available time
+2. No more than 10% weekly volume increase
+3. Account for any safety flags
+4. Mix of workout types (easy, tempo, intervals, long run)
+5. 1-2 rest days per week
 
 Call generatePlan with the complete training plan.`;
       },
     },
 
+    // =========================================================================
+    // PRESENT — Present plan, handle refinement.
+    // =========================================================================
     PRESENT: {
       name: 'Your Plan',
-      description: 'Present plan and handle refinement requests',
+      description: 'Present plan for review and refinement',
       model: 'haiku',
       tools: ['refinePlan', 'acceptPlan'],
-      instructions: `You are the coach presenting the training plan to the user.
-
-The plan has been generated and is displayed in the panel on the right.
+      instructions: `You are the coach presenting the training plan.
 
 Your job:
 1. Briefly summarize the plan structure and key workouts
-2. Explain the reasoning behind any important decisions
-3. Answer questions: "Why did you include X?" "Can I swap Y for Z?"
-4. If they request changes, use refinePlan to modify the plan
-5. If they're happy with it, ask if they want to accept and use acceptPlan
+2. Explain reasoning behind important decisions
+3. If they request changes, use refinePlan
+4. If they're happy, use acceptPlan
 
-Be encouraging! This is an exciting moment - they're about to start their training journey.`,
+Be encouraging — they're about to start their training journey.`,
     },
   },
 
   transitions: [
-    // GOAL_CAPTURE -> ANALYST
+    // Loop: EXTRACT → ASSESS → RESPOND
     {
-      from: 'GOAL_CAPTURE',
-      to: 'ANALYST',
-      trigger: { type: 'tool', toolName: 'captureGoal' },
+      from: 'EXTRACT',
+      to: 'ASSESS',
+      trigger: { type: 'tool', toolName: 'updateMemory' },
     },
-    // ANALYST -> INTAKE
     {
-      from: 'ANALYST',
-      to: 'INTAKE',
-      trigger: { type: 'tool', toolName: 'analyzeGoal' },
+      from: 'ASSESS',
+      to: 'RESPOND',
+      trigger: { type: 'tool', toolName: 'updateAssessment' },
     },
-    // INTAKE -> SAFETY
+    // Loop exit: RESPOND → PLAN (when readyToPlan)
     {
-      from: 'INTAKE',
-      to: 'SAFETY',
-      trigger: { type: 'tool', toolName: 'intakeComplete' },
-    },
-    // SAFETY -> PLAN
-    {
-      from: 'SAFETY',
+      from: 'RESPOND',
       to: 'PLAN',
-      trigger: { type: 'tool', toolName: 'safetyCheck' },
+      trigger: { type: 'tool', toolName: 'beginPlan' },
     },
-    // PLAN -> PRESENT
+    // Plan generation → presentation
     {
       from: 'PLAN',
       to: 'PRESENT',
       trigger: { type: 'tool', toolName: 'generatePlan' },
     },
-    // PRESENT -> PLAN (refinement)
+    // Post-plan refinement from RESPOND (after loop processes refinement message)
+    {
+      from: 'RESPOND',
+      to: 'PLAN',
+      trigger: { type: 'tool', toolName: 'refinePlan' },
+    },
+    // Refinement from PRESENT
     {
       from: 'PRESENT',
       to: 'PLAN',
@@ -235,8 +365,8 @@ Be encouraging! This is an exciting moment - they're about to start their traini
     },
   ],
 
-  initialState: 'GOAL_CAPTURE',
-  terminalStates: ['PRESENT'], // Stops when acceptPlan is called
+  initialState: 'EXTRACT',
+  terminalStates: ['PRESENT'],
   defaultModel: 'haiku',
   maxSteps: 30,
 };
@@ -246,196 +376,130 @@ Be encouraging! This is an exciting moment - they're about to start their traini
 // =============================================================================
 
 /**
- * GOAL_CAPTURE: Capture the user's fitness goal
+ * EXTRACT: Update the coaching working memory with extracted data.
  */
-export const captureGoal = tool({
-  description: 'Capture the user\'s fitness goal',
+export const updateMemory = tool({
+  description:
+    'Update the coaching working memory with structured data extracted from the conversation',
   inputSchema: z.object({
-    goal: z.string().describe('The user\'s stated fitness goal'),
-    goalType: z
-      .enum(['performance', 'endurance', 'weight_loss', 'general_fitness', 'first_race'])
-      .describe('Category of the goal'),
-    sport: z.string().default('running').describe('Primary sport'),
-    event: z.string().optional().describe('Specific event (e.g., "1500m", "marathon")'),
-    targetMetric: z.string().optional().describe('Target time/pace/distance if specified'),
+    goal: z
+      .object({
+        event: z.string().describe('The event, e.g. "1500m", "marathon"'),
+        target: z.string().describe('The target, e.g. "4:20", "sub-3"'),
+        raw: z.string().describe('The user\'s original words about their goal'),
+      })
+      .optional()
+      .describe('Athletic goal if stated'),
+    currentFitness: z
+      .object({
+        times: z
+          .record(z.string(), z.string())
+          .describe('Event -> time mappings, e.g. {"1500m": "4:47", "5K": "19:49"}'),
+        weeklyVolume: z.string().optional().describe('Weekly training volume if stated'),
+        raw: z.string().describe('The user\'s original words about current fitness'),
+      })
+      .optional()
+      .describe('Current fitness data if stated'),
+    motivation: z
+      .string()
+      .optional()
+      .describe('Why this goal matters to them'),
+    athleteBackground: z
+      .string()
+      .optional()
+      .describe('Running or athletic history'),
+    constraints: z
+      .object({
+        injuries: z.array(z.string()).default([]).describe('Current or past injuries'),
+        schedule: z.string().describe('Training availability, e.g. "5 days/week"'),
+        age: z.number().optional().describe('Age if stated'),
+      })
+      .optional()
+      .describe('Physical and schedule constraints'),
+    safetyFlags: z
+      .array(z.object({
+        flag: z.string().describe('The safety concern'),
+        acknowledged: z.boolean().describe('True if the coach already addressed this in a previous response'),
+      }))
+      .default([])
+      .describe('Safety concerns with tracking of whether the coach has addressed them'),
+    readyToPlan: z
+      .boolean()
+      .describe(
+        'True ONLY when goal, currentFitness, motivation, AND constraints.schedule are ALL present'
+      ),
   }),
   execute: async (params) => {
-    return {
-      captured: true,
+    const memory: CoachingMemory = {
       goal: params.goal,
-      goalType: params.goalType,
-      sport: params.sport,
-      event: params.event,
-      targetMetric: params.targetMetric,
+      currentFitness: params.currentFitness,
+      motivation: params.motivation,
+      athleteBackground: params.athleteBackground,
+      constraints: params.constraints,
+      safetyFlags: params.safetyFlags || [],
+      readyToPlan: params.readyToPlan,
     };
+    return { memory, timestamp: new Date().toISOString() };
   },
 });
 
 /**
- * ANALYST: Analyze goal and generate intake schema
+ * ASSESS: Record gap analysis and safety assessment.
  */
-export const analyzeGoal = tool({
-  description: 'Analyze the goal and determine what intake data is needed',
+export const updateAssessment = tool({
+  description: 'Record gap analysis, safety assessment, and missing data analysis',
   inputSchema: z.object({
-    goalType: z.string().describe('Type of goal'),
-    sport: z.string().describe('Primary sport'),
-    event: z.string().optional().describe('Specific event'),
-    targetMetric: z.string().optional().describe('Target metric'),
-    estimatedDifficulty: z.enum(['beginner', 'intermediate', 'advanced']).describe('Difficulty level'),
-    suggestedTimeframe: z.string().optional().describe('Suggested timeframe'),
-    requiredFieldsJson: z.string().describe('JSON array of required intake fields with fieldName, question, reason, priority'),
-    implicitReframe: z.string().optional().describe('Internal note about goal reframing - not shared with user'),
-  }),
-  execute: async (params) => {
-    // Parse the JSON string for required fields
-    let requiredFields: Array<{fieldName: string; question: string; reason: string; priority: string}> = [];
-    try {
-      requiredFields = JSON.parse(params.requiredFieldsJson);
-    } catch (e) {
-      console.error('Failed to parse requiredFieldsJson:', e);
-    }
-    return {
-      analyzed: true,
-      intakeSchema: {
-        goalAnalysis: {
-          goalType: params.goalType,
-          sport: params.sport,
-          event: params.event,
-          targetMetric: params.targetMetric,
-          estimatedDifficulty: params.estimatedDifficulty,
-          suggestedTimeframe: params.suggestedTimeframe,
-        },
-        requiredFields,
-        implicitReframe: params.implicitReframe,
-      },
-    };
-  },
-});
-
-/**
- * INTAKE: Collect individual data points
- */
-export const collectData = tool({
-  description: 'Record a piece of information provided by the user',
-  inputSchema: z.object({
-    fieldName: z.string().describe('The field being collected'),
-    value: z.string().describe('The value provided (as a string)'),
-    confidence: z
-      .enum(['explicit', 'inferred'])
-      .describe('Whether user stated this directly or it was inferred'),
+    gapAnalysis: z
+      .string()
+      .optional()
+      .describe(
+        'The specific gap between current and goal, e.g. "needs to drop 27 seconds from 4:47 to 4:20"'
+      ),
+    missingData: z
+      .array(z.string())
+      .describe('Data points still needed before planning'),
+    safetyFlags: z
+      .array(z.string())
+      .describe('Safety concerns to shape the plan around'),
+    notes: z
+      .string()
+      .describe('Internal coaching notes — context for RESPOND, not shared with athlete'),
   }),
   execute: async (params) => {
     return {
-      collected: true,
-      fieldName: params.fieldName,
-      value: params.value,
+      gapAnalysis: params.gapAnalysis,
+      missingData: params.missingData,
+      safetyFlags: params.safetyFlags,
+      notes: params.notes,
     };
   },
 });
 
 /**
- * INTAKE: Signal that all required data has been gathered
+ * RESPOND: Transition from conversation to plan generation.
  */
-export const intakeComplete = tool({
-  description: 'Signal that all required intake fields have been gathered',
+export const beginPlan = tool({
+  description:
+    'Transition to plan generation when all required data has been gathered',
   inputSchema: z.object({
-    collectedDataJson: z.string().describe('All collected intake data as a JSON object string'),
-    summary: z.string().describe('Brief summary of what was learned about the athlete'),
+    athleteSummary: z
+      .string()
+      .describe('Brief summary of the athlete for plan generation'),
+    planConstraints: z
+      .array(z.string())
+      .describe('Constraints the plan must respect'),
   }),
   execute: async (params) => {
-    // Parse the JSON string
-    let collectedData = {};
-    try {
-      collectedData = JSON.parse(params.collectedDataJson);
-    } catch (e) {
-      console.error('Failed to parse collectedDataJson:', e);
-    }
     return {
-      intakeComplete: true,
-      intakeData: collectedData,
-      summary: params.summary,
+      transitionToPlan: true,
+      athleteSummary: params.athleteSummary,
+      planConstraints: params.planConstraints,
     };
   },
 });
 
 /**
- * SAFETY: Run safety checks on the profile
- */
-export const safetyCheck = tool({
-  description: 'Run safety checks on the athlete profile',
-  inputSchema: z.object({
-    profileJson: z.string().describe('The athlete profile data as a JSON object string'),
-  }),
-  execute: async ({ profileJson }) => {
-    // Parse the JSON string
-    let profile: Record<string, unknown> = {};
-    try {
-      profile = JSON.parse(profileJson);
-    } catch (e) {
-      console.error('Failed to parse profileJson:', e);
-    }
-
-    const warnings: string[] = [];
-    const contraindications: string[] = [];
-    const recommendations: string[] = [];
-
-    // Age-based checks
-    const age = Number(profile.age);
-    const trainingDays = Number(profile.training_days || profile.trainingDays);
-    const weeklyVolume = Number(profile.weekly_volume || profile.weeklyVolume || 0);
-
-    if (age > 50 && trainingDays > 6) {
-      warnings.push(
-        'Training 7 days/week at 50+ increases injury risk. Consider 5-6 days with proper recovery.'
-      );
-    }
-
-    if (age > 40 && weeklyVolume > 80) {
-      warnings.push(
-        'High volume (80+ km/week) for masters athletes requires careful load management.'
-      );
-    }
-
-    // Injury history checks
-    const injuryHistory = String(profile.injury_history || profile.injuryHistory || '').toLowerCase();
-
-    if (injuryHistory.includes('stress fracture')) {
-      contraindications.push('Gradual volume increases only due to stress fracture history');
-      recommendations.push('Consider bone density assessment');
-    }
-
-    if (injuryHistory.includes('achilles') || injuryHistory.includes('plantar')) {
-      recommendations.push('Include calf strengthening and mobility work');
-    }
-
-    // Volume progression checks
-    if (weeklyVolume < 20 && profile.goalType === 'performance') {
-      recommendations.push(
-        'Build base fitness before adding intense speedwork - focus on consistent easy running first'
-      );
-    }
-
-    const status =
-      contraindications.length > 0
-        ? 'approved_with_warnings'
-        : warnings.length > 0
-          ? 'approved_with_warnings'
-          : 'approved';
-
-    return {
-      safetyChecked: true,
-      safetyResult: {
-        status,
-        warnings,
-        contraindications,
-        recommendations,
-      },
-    };
-  },
-});
-
-/**
- * PLAN: Generate the training plan
+ * PLAN: Generate the training plan.
  */
 export const generatePlan = tool({
   description: 'Generate a personalized training plan',
@@ -454,10 +518,11 @@ export const generatePlan = tool({
         notes: z.string().optional(),
       })
     ),
-    summary: z.string().describe('Brief summary of the plan philosophy'),
+    summary: z
+      .string()
+      .describe('Brief summary of the plan philosophy'),
   }),
   execute: async (params) => {
-    // In a real implementation, this would trigger the training-block artifact creation
     return {
       planGenerated: true,
       plan: params,
@@ -466,13 +531,16 @@ export const generatePlan = tool({
 });
 
 /**
- * PRESENT: Refine the plan based on feedback
+ * PRESENT/RESPOND: Refine the plan based on feedback.
  */
 export const refinePlan = tool({
   description: 'Modify the training plan based on user feedback',
   inputSchema: z.object({
     modification: z.string().describe('What change the user requested'),
-    affectedWeeks: z.array(z.number()).optional().describe('Which weeks are affected'),
+    affectedWeeks: z
+      .array(z.number())
+      .optional()
+      .describe('Which weeks are affected'),
     reason: z.string().optional().describe('Reason for the change'),
   }),
   execute: async (params) => {
@@ -484,12 +552,14 @@ export const refinePlan = tool({
 });
 
 /**
- * PRESENT: User accepts the plan
+ * PRESENT/RESPOND: User accepts the plan.
  */
 export const acceptPlan = tool({
   description: 'User accepts the training plan',
   inputSchema: z.object({
-    confirmed: z.boolean().describe('Whether the user confirmed acceptance'),
+    confirmed: z
+      .boolean()
+      .describe('Whether the user confirmed acceptance'),
     feedback: z.string().optional().describe('Any final feedback'),
   }),
   execute: async (params) => {
@@ -504,11 +574,9 @@ export const acceptPlan = tool({
  * All tools for the coaching workflow
  */
 export const coachingTools = {
-  captureGoal,
-  analyzeGoal,
-  collectData,
-  intakeComplete,
-  safetyCheck,
+  updateMemory,
+  updateAssessment,
+  beginPlan,
   generatePlan,
   refinePlan,
   acceptPlan,

@@ -36,7 +36,7 @@ export const workflowRegistry: Record<string, RegisteredWorkflow> = {
     workflow: coachingWorkflow,
     tools: coachingTools,
     description:
-      'Full coaching flow: capture your goal, gather your profile, safety check, and generate a personalized training plan',
+      'Conversational coaching: understands your goal, assesses your fitness, and builds a personalized training plan',
     icon: 'activity',
     label: 'Coaching',
   },

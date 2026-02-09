@@ -221,6 +221,16 @@ export async function POST(request: Request) {
       ]);
     }
 
+    // Helper to ensure tool input/output are objects, not strings.
+    // Haiku sometimes stringifies structured tool inputs which breaks the Anthropic API
+    // (tool_use.input must be a dictionary, not a string).
+    const parseIfString = (value: any): any => {
+      if (typeof value === 'string') {
+        try { return JSON.parse(value); } catch { return value; }
+      }
+      return value;
+    };
+
     // Helper to normalize tool parts from DB format to AI SDK v6 UI format
     // DB may have: { type: "tool-invocation", toolInvocationId, toolName, args, state: "result" }
     // AI SDK expects: { type: "tool-{toolName}", toolCallId, input, output, state: "output-available" }
@@ -231,14 +241,19 @@ export async function POST(request: Request) {
           type: `tool-${part.toolName}`,
           toolCallId: part.toolInvocationId || part.toolCallId,
           toolName: part.toolName,
-          input: part.args || part.input,
-          output: part.result || part.output,
+          input: parseIfString(part.args || part.input),
+          output: parseIfString(part.result || part.output),
           state: part.state === 'result' ? 'output-available' : (part.state || 'output-available'),
         };
       }
       // Already in correct format (type starts with "tool-" but not "tool-invocation")
       if (part.type?.startsWith('tool-') && part.type !== 'tool-invocation') {
-        return part;
+        // Still sanitize input/output in case they were stringified
+        return {
+          ...part,
+          input: parseIfString(part.input),
+          output: parseIfString(part.output),
+        };
       }
       return part;
     };
@@ -257,6 +272,8 @@ export async function POST(request: Request) {
         role: dbMsg.role,
         parts: normalizeMessageParts(dbMsg.parts as any[]),
       }));
+      console.log(`[workflow] Loading ${previousMessages.length} messages, total size: ${JSON.stringify(previousMessages).length} chars`);
+      console.log(`[workflow] Message roles: ${previousMessages.map(m => m.role).join(', ')}`);
     }
 
     // Create the stateful agent
@@ -370,43 +387,49 @@ export async function POST(request: Request) {
     };
 
     // Get the response stream with onFinish callback for message persistence
-    const response = previousMessages.length > 0
-      ? await agent.stream({
-          messages: previousMessages,
-          onFinish: async (messages) => {
-            // Save assistant messages with merged tool results when streaming finishes
-            console.log('[onFinish] Received messages:', JSON.stringify(messages.map((m: any) => ({
-              role: m.role,
-              contentTypes: Array.isArray(m.content) ? m.content.map((c: any) => c.type) : typeof m.content
-            })), null, 2));
+    try {
+      const response = previousMessages.length > 0
+        ? await agent.stream({
+            messages: previousMessages,
+            onFinish: async (messages) => {
+              console.log('[onFinish] Received messages:', JSON.stringify(messages.map((m: any) => ({
+                role: m.role,
+                contentTypes: Array.isArray(m.content) ? m.content.map((c: any) => c.type) : typeof m.content
+              })), null, 2));
 
-            if (workflowChat && messages.length > 0) {
-              const messagesToSave = mergeToolResultsIntoAssistantMessages(messages as any[]);
-              if (messagesToSave.length > 0) {
-                await saveMessages(messagesToSave);
+              if (workflowChat && messages.length > 0) {
+                const messagesToSave = mergeToolResultsIntoAssistantMessages(messages as any[]);
+                if (messagesToSave.length > 0) {
+                  await saveMessages(messagesToSave);
+                }
               }
-            }
-          },
-        })
-      : await agent.stream({
-          prompt,
-          onFinish: async (messages) => {
-            // Save assistant messages with merged tool results when streaming finishes
-            console.log('[onFinish] Received messages:', JSON.stringify(messages.map((m: any) => ({
-              role: m.role,
-              contentTypes: Array.isArray(m.content) ? m.content.map((c: any) => c.type) : typeof m.content
-            })), null, 2));
+            },
+          })
+        : await agent.stream({
+            prompt,
+            onFinish: async (messages) => {
+              console.log('[onFinish] Received messages:', JSON.stringify(messages.map((m: any) => ({
+                role: m.role,
+                contentTypes: Array.isArray(m.content) ? m.content.map((c: any) => c.type) : typeof m.content
+              })), null, 2));
 
-            if (workflowChat && messages.length > 0) {
-              const messagesToSave = mergeToolResultsIntoAssistantMessages(messages as any[]);
-              if (messagesToSave.length > 0) {
-                await saveMessages(messagesToSave);
+              if (workflowChat && messages.length > 0) {
+                const messagesToSave = mergeToolResultsIntoAssistantMessages(messages as any[]);
+                if (messagesToSave.length > 0) {
+                  await saveMessages(messagesToSave);
+                }
               }
-            }
-          },
-        });
+            },
+          });
 
-    return response;
+      return response;
+    } catch (error: any) {
+      console.error('[workflow] Stream error:', error?.message || error);
+      console.error('[workflow] Error stack:', error?.stack);
+      if (error?.data) console.error('[workflow] Error data:', JSON.stringify(error.data));
+      if (error?.responseBody) console.error('[workflow] Response body:', error.responseBody);
+      return Response.json({ error: error?.message || 'Workflow error' }, { status: 500 });
+    }
   }
 
   // Check if chat exists, create if not
@@ -497,14 +520,18 @@ export async function POST(request: Request) {
       });
 
       // System prompt - Health Coach
-      const regularPrompt = `You are a friendly AI running coach! Keep your responses concise and encouraging.
+      const regularPrompt = `You are a running coach. You know training, you know athletes, and you talk like a real person — not a chatbot.
 
 Your primary role is to help users with their training:
 - When users ask about their workouts, training, or schedule, use the getTodaySessions tool
 - Provide advice on running form, recovery, nutrition, and training plans
-- Be supportive and motivating
 
-When asked to write, create, or help with something, just do it directly. Don't ask clarifying questions unless absolutely necessary.`;
+CONVERSATION STYLE:
+- Keep responses short — 2-3 sentences. React to what they say, then ask or advise.
+- ONE question at a time. No bullet-point interrogations.
+- Match their energy. If they're excited, match it. If they're frustrated, acknowledge it.
+- No filler ("Great question!"). No corporate warmth. Just be direct and helpful.
+- Talk like a coach in a conversation, not a manual.`;
 
       const artifactsPrompt = `
 Artifacts is a special user interface mode that helps users with writing, editing, and other content creation tasks. When artifact is open, it is on the right side of the screen, while the conversation is on the left side. When creating or updating documents, changes are reflected in real-time on the artifacts and visible to the user.
