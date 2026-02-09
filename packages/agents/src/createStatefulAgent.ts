@@ -266,6 +266,11 @@ export function createStatefulAgent<TStates extends string>(
         internalContext.initialPrompt = params.prompt;
       }
 
+      // Store messages so prepareStep/instructions can access conversation history
+      if (params.messages) {
+        internalContext.messages = params.messages;
+      }
+
       // Call the agent with streaming
       // Note: prompt and messages are mutually exclusive
       // Convert UI messages to model messages format (parts -> content)

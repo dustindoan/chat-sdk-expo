@@ -6,8 +6,47 @@
  */
 
 import { createAnthropic } from '@ai-sdk/anthropic';
+import { wrapLanguageModel } from 'ai';
 import type { LanguageModelV3 } from '@ai-sdk/provider';
+import type { LanguageModelMiddleware } from 'ai';
 import type { ModelShorthand, ModelConfig } from './types';
+
+/**
+ * Middleware that sanitizes stringified tool-call inputs.
+ *
+ * Bug: The AI SDK's LanguageModelV3 spec defines tool-call input as `string`
+ * (stringified JSON). During multi-step agent execution, previous steps' tool
+ * calls are included in the message history with `input: string`. The Anthropic
+ * provider's convert-to-anthropic-messages-prompt passes `part.input` directly
+ * to the API without parsing, but the Anthropic API requires `input` to be a
+ * parsed object. This middleware parses string inputs before they reach the provider.
+ */
+const sanitizeToolInputsMiddleware: LanguageModelMiddleware = {
+  specificationVersion: 'v3',
+  transformParams: async ({ params }) => {
+    if (!params.prompt) return params;
+
+    return {
+      ...params,
+      prompt: params.prompt.map(msg => {
+        if (msg.role !== 'assistant' || !Array.isArray(msg.content)) return msg;
+        return {
+          ...msg,
+          content: msg.content.map((part: any) => {
+            if (part.type === 'tool-call' && typeof part.input === 'string') {
+              try {
+                return { ...part, input: JSON.parse(part.input) };
+              } catch {
+                return part;
+              }
+            }
+            return part;
+          }),
+        };
+      }),
+    };
+  },
+};
 
 /**
  * Default model shorthand mappings for Anthropic
@@ -54,7 +93,10 @@ export function getModel(
     apiKey: apiKey || process.env.ANTHROPIC_API_KEY || '',
   });
 
-  return anthropic(modelId);
+  return wrapLanguageModel({
+    model: anthropic(modelId),
+    middleware: sanitizeToolInputsMiddleware,
+  });
 }
 
 /**
@@ -86,6 +128,9 @@ export function createModelResolver(
       apiKey: apiKey || process.env.ANTHROPIC_API_KEY || '',
     });
 
-    return anthropic(modelId);
+    return wrapLanguageModel({
+      model: anthropic(modelId),
+      middleware: sanitizeToolInputsMiddleware,
+    });
   };
 }
