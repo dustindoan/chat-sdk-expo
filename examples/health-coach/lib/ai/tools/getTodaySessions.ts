@@ -23,25 +23,41 @@ import {
 export type { Session, SessionType, GetTodaySessionsResult, GetTodaySessionsInput };
 
 /**
- * Extract sessions for a specific date from a training block
+ * Get the day of week name from a date string
+ */
+function getDayOfWeekName(dateStr: string): string {
+  const date = new Date(dateStr + 'T00:00:00');
+  return date.toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase();
+}
+
+/**
+ * Extract sessions for a specific date from a training block.
+ * The new schema uses phases → weeks → days with dayOfWeek instead of dates.
+ * Since plans are templates (no dates), we match by day of week.
+ * Returns sessions from week 1 as the default (no calendar mapping yet).
  */
 function getSessionsFromTrainingBlock(
   trainingBlock: TrainingBlock,
   targetDate: string
 ): Session[] {
-  // Search through weeks and days to find the target date
-  for (const week of trainingBlock.weeks || []) {
-    for (const day of week.days || []) {
-      if (day.date === targetDate) {
-        return (day.sessions || []).map((session) => ({
-          id: session.id,
-          type: session.type as SessionType,
-          title: session.title,
-          duration: session.duration,
-          distance: session.distance,
-          description: session.description,
-          completed: session.completed,
-        }));
+  const targetDayOfWeek = getDayOfWeekName(targetDate);
+
+  // Search through phases → weeks → days
+  // For now, use the first week that has a matching day
+  for (const phase of trainingBlock.phases || []) {
+    for (const week of phase.weeks || []) {
+      for (const day of week.days || []) {
+        if (day.dayOfWeek === targetDayOfWeek) {
+          return (day.sessions || []).map((session) => ({
+            id: session.id,
+            type: session.type as SessionType,
+            title: session.title,
+            duration: session.duration,
+            distance: session.distance,
+            description: session.description,
+            completed: session.completed,
+          }));
+        }
       }
     }
   }

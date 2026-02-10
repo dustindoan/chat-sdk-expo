@@ -6,80 +6,46 @@
 
 import type {
   WorkflowDefinition,
-  WorkflowContext,
   StateTransitionRecord,
   ToolResult,
 } from './types';
 
 /**
- * Extract tool names from tool results
- */
-function getToolNames(toolResults: ToolResult[]): Set<string> {
-  return new Set(toolResults.map((r) => r.toolName));
-}
-
-/**
  * Derive the current state from tool results and transitions
  *
- * This walks through the workflow transitions and finds the latest
- * state that has been reached based on which tools have been called.
+ * Walks forward through tool results, tracking the current state.
+ * Each tool result is matched against transitions from the current state,
+ * allowing the same tool name to trigger different transitions from
+ * different states (e.g. updateDocument → PLAN from RESPOND,
+ * but updateDocument → PRESENT from PLAN).
+ *
+ * Tools that don't match any transition from the current state are
+ * ignored — they're side effects, not state changes.
  *
  * @param workflow - The workflow definition
- * @param toolResults - All tool results from the conversation
- * @param context - Optional partial context for condition evaluation
+ * @param toolResults - All tool results from the current round
  * @returns The current state identifier
  */
 export function deriveState<TStates extends string>(
   workflow: WorkflowDefinition<TStates>,
   toolResults: ToolResult[],
-  context?: Partial<WorkflowContext>
 ): TStates {
-  const toolNames = getToolNames(toolResults);
+  let currentState = workflow.initialState;
 
-  // Build a map of state -> tools that lead TO that state
-  const stateEntryTools = new Map<TStates, string[]>();
-
-  for (const transition of workflow.transitions) {
-    if (transition.trigger?.type === 'tool') {
-      const existing = stateEntryTools.get(transition.to as TStates) || [];
-      existing.push(transition.trigger.toolName);
-      stateEntryTools.set(transition.to as TStates, existing);
-    }
-  }
-
-  // Walk backwards through tool results to find the most recent state transition
-  // This ensures we get the LATEST state, not just any state we've been through
-  for (let i = toolResults.length - 1; i >= 0; i--) {
-    const toolName = toolResults[i].toolName;
-
-    // Find which state this tool transitions TO
+  for (const toolResult of toolResults) {
     for (const transition of workflow.transitions) {
-      if (transition.trigger?.type === 'tool' && transition.trigger.toolName === toolName) {
-        // Check condition if present
-        if (transition.condition && context) {
-          const fullContext: WorkflowContext = {
-            currentState: transition.to,
-            stateHistory: [],
-            toolResults,
-            collectedData: {},
-            initialPrompt: '',
-            stepNumber: 0,
-            messages: [],
-            ...context,
-          };
-
-          if (!transition.condition(fullContext)) {
-            continue;
-          }
-        }
-
-        return transition.to as TStates;
+      if (
+        transition.from === currentState &&
+        transition.trigger?.type === 'tool' &&
+        transition.trigger.toolName === toolResult.toolName
+      ) {
+        currentState = transition.to as TStates;
+        break;
       }
     }
   }
 
-  // No transitions found, return initial state
-  return workflow.initialState;
+  return currentState;
 }
 
 /**

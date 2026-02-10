@@ -262,6 +262,9 @@ export interface StatefulAgent<TStates extends string = string> {
   /** Stream a response (returns a Response for use with fetch-based clients) */
   stream(params: AgentCallParams): Promise<Response>;
 
+  /** Stream returning a ReadableStream (for merging into createUIMessageStream) */
+  streamUI(params: AgentCallParams): Promise<ReadableStream>;
+
   /** Get current workflow context */
   getContext(): WorkflowContext;
 

@@ -7,7 +7,7 @@
  * Uses ToolLoopAgent with prepareStep for per-step state control.
  */
 
-import { ToolLoopAgent, stepCountIs, hasToolCall, convertToModelMessages } from 'ai';
+import { ToolLoopAgent, stepCountIs, convertToModelMessages } from 'ai';
 import type { ToolSet, StopCondition } from 'ai';
 
 import type {
@@ -102,19 +102,16 @@ export function createStatefulAgent<TStates extends string>(
     messages: [],
   };
 
-  // Build stop conditions from terminal states
+  // Build stop conditions.
+  //
+  // We intentionally do NOT add hasToolCall() conditions for terminal state
+  // tools. Terminal state tools (like createDocument in RESPOND) are side
+  // effects — the loop should continue after calling them so the LLM can
+  // generate a natural conversational response in the next step. The loop
+  // already stops when the LLM generates text without calling a tool.
+  //
+  // The step limit is the only hard stop condition.
   const stopConditions: StopCondition<typeof allTools>[] = [];
-
-  // Add tool-based stop conditions for terminal states
-  // Stop when any tool in a terminal state is called
-  for (const state of workflow.terminalStates) {
-    const stateConfig = workflow.states[state];
-    for (const toolName of stateConfig.tools) {
-      stopConditions.push(hasToolCall(toolName));
-    }
-  }
-
-  // Add step limit
   stopConditions.push(stepCountIs(workflow.maxSteps || 50));
 
   // Model resolver function - uses custom resolver or default
@@ -307,6 +304,40 @@ export function createStatefulAgent<TStates extends string>(
 
       // Return the stream immediately so client can consume it
       return result.toUIMessageStreamResponse();
+    },
+
+    async streamUI(params: AgentCallParams): Promise<ReadableStream> {
+      if (params.prompt) {
+        internalContext.initialPrompt = params.prompt;
+      }
+      if (params.messages) {
+        internalContext.messages = params.messages;
+      }
+
+      const modelMessages = params.messages
+        ? await convertToModelMessages(params.messages)
+        : undefined;
+
+      const result = params.prompt
+        ? await agent.stream({ prompt: params.prompt })
+        : await agent.stream({ messages: modelMessages as any });
+
+      // Handle onFinish in background
+      if (params.onFinish) {
+        const responsePromise = result.response;
+        (async () => {
+          try {
+            const response = await responsePromise;
+            const messages = response.messages as unknown as Message[];
+            await params.onFinish!(messages);
+          } catch (error) {
+            console.error('Error in streamUI onFinish:', error);
+          }
+        })();
+      }
+
+      // Return the ReadableStream (not sealed into a Response)
+      return result.toUIMessageStream();
     },
 
     getContext(): WorkflowContext {

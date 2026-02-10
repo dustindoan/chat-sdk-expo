@@ -15,6 +15,8 @@ export { createDocumentTool, artifactKinds } from './createDocument';
 export type { CreateDocumentResult } from './createDocument';
 export { updateDocumentTool } from './updateDocument';
 export type { UpdateDocumentResult } from './updateDocument';
+export { getDocumentTool } from './getDocument';
+export type { GetDocumentResult } from './getDocument';
 
 // Code execution tool
 export { executeCodeTool } from './executeCode';

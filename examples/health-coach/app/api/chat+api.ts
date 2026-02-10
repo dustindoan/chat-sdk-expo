@@ -25,11 +25,13 @@ import {
   convertTemperatureTool,
   createDocumentTool,
   updateDocumentTool,
+  getDocumentTool,
   executeCodeTool,
   getTodaySessionsTool,
 } from '../../lib/ai/tools';
 import { modelSupportsReasoning } from '../../lib/ai/models';
 import type { DataStreamWriter } from '../../lib/artifacts/types';
+import { createDeferredDataStream } from '../../lib/ai/deferred-data-stream';
 import { requireAuth } from '../../lib/auth/api';
 import { createStatefulAgent, getWorkflow } from '../../lib/agents';
 
@@ -184,7 +186,7 @@ export async function POST(request: Request) {
   const registeredWorkflow = workflowId ? getWorkflow(workflowId) : undefined;
 
   if (registeredWorkflow) {
-    const { workflow, tools } = registeredWorkflow;
+    const { workflow, tools: staticTools } = registeredWorkflow;
 
     // Extract the prompt from the new message
     let prompt = '';
@@ -222,8 +224,6 @@ export async function POST(request: Request) {
     }
 
     // Helper to ensure tool input/output are objects, not strings.
-    // Haiku sometimes stringifies structured tool inputs which breaks the Anthropic API
-    // (tool_use.input must be a dictionary, not a string).
     const parseIfString = (value: any): any => {
       if (typeof value === 'string') {
         try { return JSON.parse(value); } catch { return value; }
@@ -231,28 +231,43 @@ export async function POST(request: Request) {
       return value;
     };
 
-    // Helper to normalize tool parts from DB format to AI SDK v6 UI format
-    // DB may have: { type: "tool-invocation", toolInvocationId, toolName, args, state: "result" }
-    // AI SDK expects: { type: "tool-{toolName}", toolCallId, input, output, state: "output-available" }
-    const normalizeToolPart = (part: any): any => {
+    // Helper to normalize tool parts from DB format to AI SDK v6 UI format.
+    // Returns null for corrupted parts that should be dropped.
+    const normalizeToolPart = (part: any): any | null => {
       if (part.type === 'tool-invocation') {
-        // Convert old "tool-invocation" format to AI SDK v6 format
+        const parsedInput = parseIfString(part.args || part.input);
+        const parsedOutput = parseIfString(part.result || part.output);
+
+        // Drop corrupted tool parts: input still a string after parsing = malformed JSON
+        if (typeof parsedInput === 'string' && typeof (part.args || part.input) === 'string') {
+          console.warn(`[normalize] Dropping corrupted tool-invocation ${part.toolName}: unparseable input`);
+          return null;
+        }
+
         return {
           type: `tool-${part.toolName}`,
           toolCallId: part.toolInvocationId || part.toolCallId,
           toolName: part.toolName,
-          input: parseIfString(part.args || part.input),
-          output: parseIfString(part.result || part.output),
+          input: parsedInput,
+          output: parsedOutput,
           state: part.state === 'result' ? 'output-available' : (part.state || 'output-available'),
         };
       }
-      // Already in correct format (type starts with "tool-" but not "tool-invocation")
       if (part.type?.startsWith('tool-') && part.type !== 'tool-invocation') {
-        // Still sanitize input/output in case they were stringified
+        const parsedInput = parseIfString(part.input);
+        const parsedOutput = parseIfString(part.output);
+
+        // Drop corrupted tool parts: input still a string after parsing = malformed JSON.
+        // This happens when the LLM produces garbled tool call arguments (e.g., mixed JSON + XML).
+        if (typeof part.input === 'string' && typeof parsedInput === 'string') {
+          console.warn(`[normalize] Dropping corrupted tool part ${part.toolName}: unparseable input`);
+          return null;
+        }
+
         return {
           ...part,
-          input: parseIfString(part.input),
-          output: parseIfString(part.output),
+          input: parsedInput,
+          output: parsedOutput,
         };
       }
       return part;
@@ -260,7 +275,7 @@ export async function POST(request: Request) {
 
     const normalizeMessageParts = (parts: any[]): any[] => {
       if (!Array.isArray(parts)) return parts;
-      return parts.map(normalizeToolPart);
+      return parts.map(normalizeToolPart).filter((p): p is any => p !== null);
     };
 
     // Load previous messages (now includes the user message we just saved)
@@ -273,69 +288,126 @@ export async function POST(request: Request) {
         parts: normalizeMessageParts(dbMsg.parts as any[]),
       }));
       console.log(`[workflow] Loading ${previousMessages.length} messages, total size: ${JSON.stringify(previousMessages).length} chars`);
-      console.log(`[workflow] Message roles: ${previousMessages.map(m => m.role).join(', ')}`);
     }
 
-    // Create the stateful agent
-    const agent = createStatefulAgent(workflow, tools, {
-      apiKey: getApiKey(),
+    // Create deferred DataStreamWriter for artifact tools.
+    // The proxy queues writes until attach() wires it to the real writer
+    // inside createUIMessageStream's execute callback.
+    const { proxy: deferredDataStream, attach: attachDataStream } = createDeferredDataStream();
+
+    // Shared mutable ref for planDraft content bypass.
+    // ASSESS populates this via onStepFinish; createDocument/updateDocument
+    // consume it automatically so the LLM doesn't have to echo 50k+ of JSON.
+    //
+    // Seed from previous round's scratchpad so that if ASSESS fails to produce
+    // a structured plan (e.g., garbled JSON on large output → retry produces
+    // simpler format), the planDraftProvider still has the best available plan.
+    const planDraftRef: { current: string | null } = { current: null };
+
+    // Seed planDraftRef from message history (last round's scratchpad)
+    for (let i = previousMessages.length - 1; i >= 0; i--) {
+      const msg = previousMessages[i];
+      if (msg.role !== 'assistant' || !msg.parts) continue;
+      for (const part of msg.parts as any[]) {
+        if (part.toolName === 'updateAssessment' && part.output) {
+          const output = typeof part.output === 'string'
+            ? (() => { try { return JSON.parse(part.output); } catch { return null; } })()
+            : part.output;
+          // Unwrap AI SDK v6 envelope
+          const value = output?.type === 'json' && output?.value !== undefined
+            ? output.value
+            : output;
+          if (value?.planDraft && Array.isArray(value.planDraft.phases) && value.planDraft.phases.length > 0) {
+            planDraftRef.current = JSON.stringify(value.planDraft);
+            break;
+          }
+        }
+      }
+      if (planDraftRef.current) break;
+    }
+    if (planDraftRef.current) {
+      console.log(`[workflow] Seeded planDraftRef from message history (${planDraftRef.current.length} chars)`);
+    }
+
+    // Create artifact tools per-request with the deferred proxy
+    const artifactApiKey = getApiKey();
+    const createDocument = createDocumentTool({
+      dataStream: deferredDataStream,
+      apiKey: artifactApiKey,
+      userId: user.id,
+      planDraftProvider: () => planDraftRef.current,
+    });
+    const updateDocument = updateDocumentTool({
+      dataStream: deferredDataStream,
+      apiKey: artifactApiKey,
+      userId: user.id,
+      planDraftProvider: () => planDraftRef.current,
+    });
+    const getDocument = getDocumentTool({
+      userId: user.id,
     });
 
-    // Helper to convert model message content to UI parts format
-    // AI SDK v6 expects: type: "tool-{toolName}", toolCallId, input, output, state
-    const convertToUIParts = (content: any): any[] => {
-      if (typeof content === 'string') {
-        return [{ type: 'text', text: content }];
-      }
-      if (Array.isArray(content)) {
-        // Collect tool results to pair with tool calls
-        const toolResults = new Map<string, any>();
-        for (const item of content) {
-          if (item.type === 'tool-result') {
-            toolResults.set(item.toolCallId, item.output);
+    // Merge static workflow tools + artifact tools
+    const allTools = { ...staticTools, createDocument, updateDocument, getDocument };
+
+    // Create the stateful agent with all tools.
+    // onPersist captures ASSESS's planDraft into planDraftRef so that
+    // createDocument/updateDocument can inject it automatically without
+    // requiring the LLM to echo 50k+ of JSON.
+    const agent = createStatefulAgent(workflow, allTools, {
+      apiKey: artifactApiKey,
+      onPersist: async (context) => {
+        // Look for the best updateAssessment result containing a planDraft.
+        // Prefer drafts with structured `phases` arrays over simpler formats
+        // (e.g., weeksSummary) which can occur when a large structured attempt
+        // fails and the model retries with a smaller payload.
+        //
+        // If no current-round draft has `phases`, preserve the seeded value
+        // from the previous round (which did have phases).
+        let bestDraft: any = null;
+        let bestHasPhases = false;
+
+        for (const tr of context.toolResults as any[]) {
+          if (tr.toolName === 'updateAssessment' && tr.output?.planDraft) {
+            const draft = tr.output.planDraft;
+            const hasPhases = Array.isArray(draft.phases) && draft.phases.length > 0;
+
+            // Always prefer a draft with phases over one without
+            if (hasPhases && !bestHasPhases) {
+              bestDraft = draft;
+              bestHasPhases = true;
+            } else if (hasPhases === bestHasPhases) {
+              // Same quality — take the later one (more recent)
+              bestDraft = draft;
+            }
           }
         }
 
-        return content
-          .map((item: any) => {
-            if (typeof item === 'string') {
-              return { type: 'text', text: item };
+        if (bestDraft) {
+          const newValue = JSON.stringify(bestDraft);
+          // Only update if the new draft has phases, OR if there's no seeded value
+          if (bestHasPhases || !planDraftRef.current) {
+            planDraftRef.current = newValue;
+          } else {
+            // Current round produced a simpler format — check if seeded value had phases
+            try {
+              const seeded = JSON.parse(planDraftRef.current);
+              if (Array.isArray(seeded.phases) && seeded.phases.length > 0) {
+                // Keep the seeded value (it has phases, new one doesn't)
+                console.log(`[workflow] Preserving seeded planDraft with phases over current round's simpler format`);
+              } else {
+                planDraftRef.current = newValue;
+              }
+            } catch {
+              planDraftRef.current = newValue;
             }
-            if (item.type === 'text') {
-              return { type: 'text', text: item.text };
-            }
-            // Skip tool-result entries - they're merged into tool calls below
-            if (item.type === 'tool-result') {
-              return null;
-            }
-            if (item.type === 'tool-call' || item.type === 'tool_use') {
-              const toolName = item.toolName || item.name;
-              const toolCallId = item.toolCallId || item.id;
-              const input = item.args || item.input;
-              const output = toolResults.get(toolCallId);
+          }
+        }
+      },
+    });
 
-              // AI SDK v6 UI format: type is "tool-{toolName}"
-              return {
-                type: `tool-${toolName}`,
-                toolCallId,
-                toolName, // Keep for getToolName() in dynamic case
-                input,
-                output,
-                state: output !== undefined ? 'output-available' : 'input-available',
-              };
-            }
-            return item;
-          })
-          .filter(Boolean);
-      }
-      return [{ type: 'text', text: String(content) }];
-    };
-
-    // Helper to merge tool results into assistant messages
-    // The Anthropic API requires tool_result to follow tool_use, but UI format expects
-    // tool results to be embedded in the tool part with state: 'output-available'
+    // Helper to merge tool results into assistant messages for DB persistence
     const mergeToolResultsIntoAssistantMessages = (messages: any[]): any[] => {
-      // First, collect all tool results from tool role messages
       const toolResults = new Map<string, any>();
       for (const msg of messages) {
         if (msg.role === 'tool' && Array.isArray(msg.content)) {
@@ -347,9 +419,6 @@ export async function POST(request: Request) {
         }
       }
 
-      console.log('[mergeToolResults] Found tool results for IDs:', Array.from(toolResults.keys()));
-
-      // Now process assistant messages, merging tool results
       const mergedMessages: any[] = [];
       for (const msg of messages) {
         if (msg.role !== 'assistant') continue;
@@ -365,7 +434,7 @@ export async function POST(request: Request) {
                 type: `tool-${item.toolName}`,
                 toolCallId: item.toolCallId,
                 toolName: item.toolName,
-                input: item.input,
+                input: parseIfString(item.input),
                 output,
                 state: output !== undefined ? 'output-available' : 'input-available',
               });
@@ -386,48 +455,52 @@ export async function POST(request: Request) {
       return mergedMessages;
     };
 
-    // Get the response stream with onFinish callback for message persistence
+    // onFinish callback for message persistence
+    const onFinish = async (messages: any[]) => {
+      if (workflowChat && messages.length > 0) {
+        const messagesToSave = mergeToolResultsIntoAssistantMessages(messages);
+        if (messagesToSave.length > 0) {
+          await saveMessages(messagesToSave);
+        }
+      }
+    };
+
     try {
-      const response = previousMessages.length > 0
-        ? await agent.stream({
-            messages: previousMessages,
-            onFinish: async (messages) => {
-              console.log('[onFinish] Received messages:', JSON.stringify(messages.map((m: any) => ({
-                role: m.role,
-                contentTypes: Array.isArray(m.content) ? m.content.map((c: any) => c.type) : typeof m.content
-              })), null, 2));
-
-              if (workflowChat && messages.length > 0) {
-                const messagesToSave = mergeToolResultsIntoAssistantMessages(messages as any[]);
-                if (messagesToSave.length > 0) {
-                  await saveMessages(messagesToSave);
-                }
-              }
-            },
-          })
-        : await agent.stream({
-            prompt,
-            onFinish: async (messages) => {
-              console.log('[onFinish] Received messages:', JSON.stringify(messages.map((m: any) => ({
-                role: m.role,
-                contentTypes: Array.isArray(m.content) ? m.content.map((c: any) => c.type) : typeof m.content
-              })), null, 2));
-
-              if (workflowChat && messages.length > 0) {
-                const messagesToSave = mergeToolResultsIntoAssistantMessages(messages as any[]);
-                if (messagesToSave.length > 0) {
-                  await saveMessages(messagesToSave);
-                }
-              }
-            },
+      // Use createUIMessageStream to get a writable stream for both
+      // the agent's message stream AND artifact data writes.
+      const stream = createUIMessageStream({
+        execute: async ({ writer }) => {
+          // Wire the deferred proxy to the real writer
+          attachDataStream({
+            write: (data) => writer.write(data as any),
           });
 
-      return response;
+          // Get the agent's stream and merge it into the writer
+          const agentStream = await agent.streamUI({
+            messages: previousMessages.length > 0 ? previousMessages : undefined,
+            prompt: previousMessages.length === 0 ? prompt : undefined,
+            onFinish,
+          });
+
+          writer.merge(agentStream);
+        },
+        generateId: generateUUID,
+        onError: (error) => {
+          console.error('[workflow] Stream error:', error);
+          return 'An error occurred during coaching.';
+        },
+      });
+
+      return createUIMessageStreamResponse({
+        stream,
+        headers: {
+          'Content-Type': 'application/octet-stream',
+          'Content-Encoding': 'none',
+        },
+      });
     } catch (error: any) {
       console.error('[workflow] Stream error:', error?.message || error);
       console.error('[workflow] Error stack:', error?.stack);
-      if (error?.data) console.error('[workflow] Error data:', JSON.stringify(error.data));
-      if (error?.responseBody) console.error('[workflow] Response body:', error.responseBody);
       return Response.json({ error: error?.message || 'Workflow error' }, { status: 500 });
     }
   }

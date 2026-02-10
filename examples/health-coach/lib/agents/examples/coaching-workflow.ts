@@ -1,29 +1,35 @@
 /**
  * Coaching Workflow - Health Coach
  *
- * An EXTRACT → ASSESS → RESPOND loop for personalized training plan creation.
+ * Three-Layer Cognitive Architecture:
+ *   1. Memory (semantic)    — stable athlete facts. EXTRACT's domain.
+ *   2. Scratchpad (working) — evolving plan draft + reasoning. ASSESS's domain.
+ *   3. Artifact (rendered)  — clean plan shown to athlete. Projection of scratchpad.
  *
- * Architecture:
  * Each user message triggers a 3-step loop (all within one ToolLoopAgent round):
- *   1. EXTRACT (silent) — pull structured data from conversation into working memory
- *   2. ASSESS  (silent) — analyze gaps, flag safety, determine what's missing
- *   3. RESPOND (conversational) — say one thing, ask one thing
+ *   1. EXTRACT (silent) — pull structured data from conversation into memory
+ *   2. ASSESS  (silent) — reason about the plan, build scratchpad, discover tensions
+ *   3. RESPOND (conversational) — say one thing, ask one thing, or render artifact
  *
- * When enough data is gathered, RESPOND exits the loop into:
- *   4. PLAN    — generate training plan
- *   5. PRESENT — present plan for review/refinement
+ * The coordinator is domain-free. It reads only ASSESS's signals (draftReady,
+ * draftChanged, notes, directRequest) and document state. All domain reasoning
+ * flows through ASSESS's output — the coordinator doesn't inspect memory fields
+ * or scratchpad schema internals.
  *
- * Key Principle: States serve the understanding process, not the conversation flow.
- * Information arrives whenever the user gives it. The machine keeps up.
+ * References:
+ * - CoALA (Sumers et al., 2024) — semantic/working/procedural memory taxonomy
+ * - MemGPT (Packer et al., 2023) — hierarchical memory with scratchpad
+ * - RAISE (Liu et al., 2024) — dual-component memory for conversational agents
  */
 
 import { tool } from 'ai';
 import { z } from 'zod';
 import type { WorkflowDefinition, WorkflowContext, ToolResult } from '../types';
 import type { UIMessage } from 'ai';
+import { trainingBlockSchema } from '../../artifacts/handlers/training-block';
 
 // =============================================================================
-// WORKING MEMORY
+// LAYER 1: MEMORY — Stable athlete facts (EXTRACT's domain)
 // =============================================================================
 
 export interface SafetyFlag {
@@ -46,17 +52,72 @@ export interface CoachingMemory {
     age?: number;
   };
   safetyFlags: SafetyFlag[];
-  readyToPlan: boolean;
 }
 
 const EMPTY_MEMORY: CoachingMemory = {
   safetyFlags: [],
-  readyToPlan: false,
 };
 
 // =============================================================================
-// HELPERS
+// LAYER 2: SCRATCHPAD — Evolving plan workspace (ASSESS's domain)
 // =============================================================================
+
+/**
+ * The scratchpad lives in updateAssessment's output.
+ * ASSESS reads the previous scratchpad and outputs the updated version.
+ * The planDraft field uses the training block schema's deep partial —
+ * the agent thinks in the same vocabulary as the rendered artifact.
+ */
+export interface PlanWorkspace {
+  planDraft?: Record<string, unknown>; // DeepPartial<TrainingBlock> at runtime
+  reasoning?: string;
+  tensions?: string[];
+  missingData?: string[];
+}
+
+// =============================================================================
+// ASSESSMENT — ASSESS's full output (scratchpad + coordinator signals + analysis)
+// =============================================================================
+
+export interface Assessment {
+  // Coordinator signals (domain-free)
+  draftReady: boolean;
+  draftChanged: boolean;
+  notes: string;
+  directRequest?: string;
+  // Analysis
+  gapAnalysis?: string;
+  missingData: string[];
+  safetyFlags: string[];
+  // Scratchpad
+  planDraft?: Record<string, unknown>;
+  reasoning?: string;
+  tensions?: string[];
+}
+
+// =============================================================================
+// HELPERS — Message history scanners
+// =============================================================================
+
+/**
+ * Generic backward scanner: find the most recent tool output by name in message history.
+ */
+function getToolOutputFromMessages(
+  toolName: string,
+  messages: UIMessage[],
+): Record<string, unknown> | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role !== 'assistant' || !msg.parts) continue;
+    for (const part of msg.parts as any[]) {
+      const name = part.toolName || part.type?.replace('tool-', '');
+      if (name === toolName) {
+        return unwrapOutput(part.output || part.result) as Record<string, unknown> | null;
+      }
+    }
+  }
+  return null;
+}
 
 /**
  * Get the latest CoachingMemory from the current round's tool results.
@@ -75,22 +136,11 @@ function getMemoryFromToolResults(toolResults: ToolResult[]): CoachingMemory {
 
 /**
  * Get the latest CoachingMemory from previous rounds' message history.
- * Scans backward through messages for the most recent updateMemory tool result.
  */
 function getMemoryFromMessages(messages: UIMessage[]): CoachingMemory {
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const msg = messages[i];
-    if (msg.role !== 'assistant' || !msg.parts) continue;
-    for (const part of msg.parts as any[]) {
-      // Check both the toolName field and the type prefix
-      const name = part.toolName || part.type?.replace('tool-', '');
-      if (name === 'updateMemory') {
-        const output = part.output || part.result;
-        if (output?.memory) {
-          return output.memory as CoachingMemory;
-        }
-      }
-    }
+  const output = getToolOutputFromMessages('updateMemory', messages);
+  if (output?.memory) {
+    return output.memory as CoachingMemory;
   }
   return { ...EMPTY_MEMORY };
 }
@@ -98,81 +148,155 @@ function getMemoryFromMessages(messages: UIMessage[]): CoachingMemory {
 /**
  * Get the latest assessment from the current round's tool results.
  */
-function getAssessmentFromToolResults(
-  toolResults: ToolResult[]
-): { gapAnalysis?: string; missingData: string[]; safetyFlags: string[]; notes: string } | null {
+function getAssessmentFromToolResults(toolResults: ToolResult[]): Assessment | null {
   for (let i = toolResults.length - 1; i >= 0; i--) {
     if (toolResults[i].toolName === 'updateAssessment') {
-      return toolResults[i].output as any;
+      return toolResults[i].output as unknown as Assessment;
     }
   }
   return null;
 }
 
 /**
- * Check if a plan has already been generated in message history.
+ * Get the previous scratchpad from message history.
+ * Scans backward for the most recent updateAssessment with scratchpad data.
  */
-function hasPlanInHistory(messages: UIMessage[]): boolean {
+function getScratchpadFromMessages(messages: UIMessage[]): PlanWorkspace {
+  const output = getToolOutputFromMessages('updateAssessment', messages);
+  if (!output) return {};
+
+  return {
+    planDraft: output.planDraft as Record<string, unknown> | undefined,
+    reasoning: output.reasoning as string | undefined,
+    tensions: output.tensions as string[] | undefined,
+    missingData: output.missingData as string[] | undefined,
+  };
+}
+
+/**
+ * Check if a training-block artifact has been created in message history.
+ */
+function hasDraftInHistory(messages: UIMessage[]): boolean {
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];
     if (msg.role !== 'assistant' || !msg.parts) continue;
     for (const part of msg.parts as any[]) {
       const name = part.toolName || part.type?.replace('tool-', '');
-      if (name === 'generatePlan') return true;
+      if (name === 'createDocument') return true;
     }
   }
   return false;
 }
 
 /**
- * Deterministic coordinator: pick response directive based on memory gaps.
- * This is NOT an LLM call — it's a simple function that drives what RESPOND says.
+ * Unwrap AI SDK v6 result envelope: {type:"json", value: {...}} → the inner value.
+ * Also handles direct objects (no envelope) for tool results within the agent loop.
  */
-function getResponseDirective(memory: CoachingMemory, planExists: boolean): string {
-  // Post-plan mode: handle refinement
-  if (planExists) {
-    return `A training plan has already been generated. Handle the athlete's feedback about the plan. If they want changes, use refinePlan. If they're satisfied, use acceptPlan. Otherwise just answer their question about the plan.`;
+function unwrapOutput(output: any): any {
+  if (!output) return output;
+  // AI SDK v6 envelope: { type: "json", value: { ... } }
+  if (output.type === 'json' && output.value !== undefined) {
+    return output.value;
+  }
+  return output;
+}
+
+/**
+ * Get the document ID from the current round's tool results (for within-round awareness).
+ */
+function getDocumentIdFromToolResults(toolResults: ToolResult[]): string | null {
+  for (let i = toolResults.length - 1; i >= 0; i--) {
+    const tr = toolResults[i] as any;
+    if (tr.toolName === 'createDocument' || tr.toolName === 'updateDocument') {
+      const output = unwrapOutput(tr.output);
+      if (output?.id) return output.id;
+    }
+  }
+  return null;
+}
+
+/**
+ * Get the document ID from the most recent createDocument or updateDocument call.
+ */
+function getDocumentIdFromHistory(messages: UIMessage[]): string | null {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg.role !== 'assistant' || !msg.parts) continue;
+    for (const part of msg.parts as any[]) {
+      const name = part.toolName || part.type?.replace('tool-', '');
+      if (name === 'createDocument' || name === 'updateDocument') {
+        const output = unwrapOutput(part.output || part.result);
+        if (output?.id) return output.id;
+      }
+    }
+  }
+  return null;
+}
+
+// =============================================================================
+// COORDINATOR — Domain-free routing layer
+// =============================================================================
+
+/**
+ * Deterministic coordinator: pick response directive based on ASSESS signals.
+ *
+ * Domain-free: reads only coordinator signals (draftReady, draftChanged, notes,
+ * directRequest) and document state (draftExists, documentId). Does NOT inspect
+ * memory fields or scratchpad schema internals.
+ *
+ * The coordinator is pattern-level, not domain-level. It could work unchanged
+ * for a meal planner, career coach, or curriculum designer.
+ */
+function getResponseDirective(
+  draftExists: boolean,
+  documentId: string | null,
+  assessment: Assessment | null,
+  docActionTaken: boolean,
+): string {
+  // Direct request (non-coaching topic) — always takes priority
+  if (assessment?.directRequest) {
+    return assessment.directRequest;
   }
 
-  // Pre-plan: work through what's missing. Do not call any tools.
-  const noTools = 'Do not call any tools.';
+  // Build a composed directive. Tool actions and conversation are not mutually exclusive.
+  const parts: string[] = [];
 
-  if (!memory.goal) {
-    return `The athlete hasn't shared their goal yet. Ask what they're working toward. Be a coach meeting someone for the first time. ${noTools}`;
-  }
-  if (!memory.currentFitness) {
-    return `The athlete wants: "${memory.goal.raw}". You don't know where they are now. Ask about their current level — recent times, how much they're running. ${noTools}`;
-  }
-  if (!memory.motivation) {
-    return `You know their goal and current fitness. Ask why this goal matters to them — what's the story behind it? ${noTools}`;
-  }
-  if (!memory.constraints?.schedule) {
-    return `You have their goal, fitness, and motivation. Ask about training availability — how many days a week they can train. ${noTools}`;
-  }
-
-  // Unacknowledged safety flags need to be addressed once, then folded into context
-  const unacknowledged = memory.safetyFlags.filter(f => !f.acknowledged);
-  if (unacknowledged.length > 0 && !memory.readyToPlan) {
-    return `There are safety considerations: ${unacknowledged.map(f => f.flag).join('; ')}. Acknowledge these as a caring coach — tell them how you'll account for it in the plan. Then ask about the next missing piece. ${noTools}`;
+  // Artifact action — phrased as a hard requirement so the model doesn't skip it.
+  // Note: the content parameter is injected automatically by the system from
+  // ASSESS's planDraft. The LLM only needs to provide title/kind (create) or
+  // id/description (update) — no need to echo the full plan JSON.
+  // Skip if a doc action was already taken this round (prevent create→update chain).
+  if (!docActionTaken && assessment?.draftReady && !draftExists) {
+    parts.push(
+      `REQUIRED ACTION: You MUST call createDocument with kind "training-block" and a descriptive title. The plan content is handled automatically — do NOT pass a "content" parameter. The plan is a living draft — generating it early lets the athlete see and react to it. Do this FIRST, then continue the conversation.`,
+    );
+  } else if (!docActionTaken && assessment?.draftChanged && draftExists && documentId) {
+    parts.push(
+      `REQUIRED ACTION: You MUST call updateDocument with id "${documentId}" and a description of what changed. The updated plan content is handled automatically — do NOT pass a "content" parameter. Do this FIRST, then continue the conversation.`,
+    );
   }
 
-  // Ready to plan — safety flags (acknowledged or not) inform the plan, they don't block it
-  if (memory.readyToPlan) {
-    const safetyNote = memory.safetyFlags.length > 0
-      ? ` The plan must account for: ${memory.safetyFlags.map(f => f.flag).join('; ')}.`
-      : '';
-    return `You have everything needed. Briefly summarize what you know about this athlete, then call beginPlan to start building their training plan.${safetyNote}`;
+  // Conversational guidance from ASSESS — always threaded through
+  if (assessment?.notes) {
+    parts.push(`After the tool call (if any), say this to the athlete: ${assessment.notes}`);
+  } else if (documentId) {
+    parts.push(
+      `Answer questions, provide coaching advice. If they want plan changes, call updateDocument with id "${documentId}".`,
+    );
+  } else if (parts.length === 0) {
+    parts.push('Continue the conversation naturally.');
   }
 
-  // Fallback: check for missing optional fields
-  const missing: string[] = [];
-  if (!memory.constraints?.age) missing.push('age');
-  if (!memory.athleteBackground) missing.push('running background');
-  if (missing.length > 0) {
-    return `Almost ready to build the plan. Ask about: ${missing[0]}. ${noTools}`;
+  // If no tool actions needed (or already taken), suppress tool calls
+  const hasToolAction = !docActionTaken && (
+    (assessment?.draftReady && !draftExists) ||
+    (assessment?.draftChanged && draftExists && documentId)
+  );
+  if (!hasToolAction) {
+    parts.push('Do not call any tools.');
   }
 
-  return `Continue the conversation naturally. Ask if they have any other details before you build the plan. ${noTools}`;
+  return parts.join(' ');
 }
 
 // =============================================================================
@@ -182,23 +306,22 @@ function getResponseDirective(memory: CoachingMemory, planExists: boolean): stri
 export type CoachingState =
   | 'EXTRACT'
   | 'ASSESS'
-  | 'RESPOND'
-  | 'PLAN'
-  | 'PRESENT';
+  | 'RESPOND';
 
 export const coachingWorkflow: WorkflowDefinition<CoachingState> = {
   id: 'coaching',
   name: 'Fitness Coaching',
   description:
-    'Personalized training plan creation through conversational coaching with structured understanding',
+    'Three-layer cognitive architecture: memory (athlete facts), scratchpad (plan reasoning), artifact (rendered plan)',
 
   states: {
     // =========================================================================
-    // EXTRACT — Silent. Pull structured data from the latest conversation.
+    // EXTRACT — Silent. Pull structured data into memory.
+    // Only handles athlete facts. No scratchpad awareness.
     // =========================================================================
     EXTRACT: {
       name: 'Understanding',
-      description: 'Extract structured data from the conversation into working memory',
+      description: 'Extract structured athlete data from the conversation into memory',
       model: 'haiku',
       tools: ['updateMemory'],
       toolChoice: 'required',
@@ -215,56 +338,149 @@ Rules:
 - Carry forward all previous values unchanged unless the user corrected something.
 - If the user gave new information, add it to the appropriate field.
 - safetyFlags are objects with {flag, acknowledged}. Set acknowledged: true when the coach has already addressed this concern in a previous response. New flags start as acknowledged: false.
-- Set readyToPlan to true ONLY when ALL of these are present: goal, currentFitness, motivation, AND constraints.schedule.
 
 Call updateMemory with the complete updated memory.`;
       },
     },
 
     // =========================================================================
-    // ASSESS — Silent. Analyze the memory, compute gaps, flag safety.
+    // ASSESS — Silent. Reason about the plan. Build scratchpad.
+    // Receives memory + previous scratchpad. Outputs updated scratchpad +
+    // coordinator signals + analysis.
     // =========================================================================
     ASSESS: {
       name: 'Analyzing',
-      description: 'Analyze memory state, compute gaps, flag safety concerns',
+      description: 'Analyze memory, build plan draft in scratchpad, discover tensions',
       model: 'haiku',
       tools: ['updateAssessment'],
       toolChoice: 'required',
       hidden: true,
       instructions: (context: WorkflowContext) => {
         const memory = getMemoryFromToolResults(context.toolResults);
-        return `Analyze this athlete's data. Compute gaps and flag safety concerns.
+        const scratchpad = getScratchpadFromMessages(context.messages);
+        return `You are a running coach's analytical mind. You have two inputs: the athlete's profile (memory) and your planning workspace (scratchpad). Your job: analyze the athlete data, build or refine the training plan draft, and decide what to ask or say next.
 
-Memory:
+MEMORY (stable athlete facts):
 ${JSON.stringify(memory, null, 2)}
 
-Rules:
-- If goal and currentFitness both exist, compute the gap precisely. Example: goal is 4:20, current is 4:47, gap is "27 seconds to drop" (NOT "dropped 27 seconds").
-- Flag safety concerns: age + high intensity, injury history, unrealistic timelines.
-- List what data is still missing for a training plan.
-- Be precise with direction: the gap is what they NEED TO CLOSE, not what they've achieved.
+SCRATCHPAD (your previous planning workspace):
+${JSON.stringify(scratchpad, null, 2)}
 
-Call updateAssessment with your analysis.`;
+## Your Two Jobs:
+
+### 1. Build/Refine the planDraft
+Think in the training block schema. Build the plan incrementally as understanding deepens:
+
+**LEVEL 1** (Goal + fitness known): Start with athleteProfile, totalWeeks, phase names/focus/duration
+**LEVEL 2** (Schedule + constraints known): Add weeklyVolume ranges, qualitySessions summaries
+**LEVEL 3** (Paces calibrated OR 3+ rounds of data): Populate STRUCTURED weeks with days and sessions
+
+CRITICAL: Once you have the athlete's schedule (which days), paces or recent race times, and injury constraints, you MUST populate each phase's \`weeks\` array with actual week objects containing \`days\` and \`sessions\`. Do NOT stay at prose descriptions — the renderer needs structured data.
+
+Each session in the \`sessions\` array must have: \`id\` (unique string like "w1-tue-1"), \`type\` ("run"|"strength"|"rest"|"cross-training"), \`title\` (e.g., "Easy Run"), and optionally: \`category\` ("easy"|"tempo"|"interval"|"long"|"recovery"|"race-pace"|"fartlek"), \`distance\`, \`duration\`, \`intensity\` ({target, zone?, rpe?}), \`intervals\` ({reps, distance, pace, recovery}), \`warmup\`, \`cooldown\`, \`description\`.
+
+When updating planDraft, include the COMPLETE current draft (carry forward unchanged parts).
+The planDraft schema (all fields optional for incremental building):
+{
+  name: string,
+  athleteProfile: { currentLevel, goalEvent, gap, constraints?, notes? },
+  totalWeeks: number,
+  phases: [{
+    name, focus, durationWeeks,
+    weeklyVolume: { start, end, progression },
+    qualitySessions: { perWeek, types },
+    weeks: [{
+      weekNumber, targetVolume, focus?,
+      days: [{
+        dayOfWeek: "monday"|"tuesday"|...|"sunday",
+        sessions: [{ id, type, category?, title, distance?, duration?, intensity?, intervals?, warmup?, cooldown?, description? }]
+      }]
+    }]
+  }]
+}
+
+IMPORTANT: When populating weeks, you don't need to generate ALL weeks immediately. Start with weeks 1-2 of each phase as representative examples, then fill in more detail in subsequent rounds. But DO use the structured format — not prose descriptions.
+
+### 2. Maintain the missingData List
+Your scratchpad carries forward a missingData list from last round. Manage it:
+- **Cross off** items the athlete just answered
+- **Keep** items that are still unanswered
+- **Add new items** as the plan reveals assumptions that haven't been confirmed
+
+Look for what the plan assumes but hasn't verified:
+- Structural: schedule conflicts, pace/fitness gaps, volume vs injury risk, recovery gaps
+- Training history: has the athlete done this type of work before? How recently? What went well or badly?
+- Auxiliary: strength training, core work, mobility (critical for injury prevention and 1500m power)
+- Recovery: sleep, stress, nutrition — these constrain adaptation rate
+- Race context: race experience, heat structure, pacing strategy, gear (spikes?)
+- Context of previous times: peak-fitness race or rust-buster? Solo or paced? This affects the real gap
+- Age and life stage: recovery capacity, training response, injury risk all vary with age
+
+The missingData list is your curiosity. It should only shrink when the athlete gives you answers, never because you got distracted by other information.
+
+### 3. Pick the Next Question
+From missingData, pick the ONE item that would most change the plan if the answer were surprising. Put it in 'notes'. This drives the conversation.
+
+## Coordinator Signals (IMPORTANT):
+- Set draftReady to true when planDraft has phase structure (names, focus, duration estimates). This is a LOW bar — generate early, refine as answers come in.
+- Set draftChanged to true when you modified planDraft this round
+- ALWAYS put something in notes — the next question, a coaching insight, or a specific plan element to discuss
+
+## Analysis:
+- Compute the gap precisely if goal + fitness are known (e.g., "27 seconds to drop")
+- Flag safety concerns: age + intensity, injury history, unrealistic timelines
+- If the user's message is NOT about coaching (e.g., "compare running shoes"), set directRequest
+
+Call updateAssessment with your complete output.`;
       },
     },
 
     // =========================================================================
-    // RESPOND — Conversational. Say one thing, ask one thing.
+    // RESPOND — Conversational. Driven entirely by coordinator directive.
     // =========================================================================
     RESPOND: {
       name: 'Coaching',
       description: 'Generate one conversational coaching response',
       model: 'haiku',
-      tools: ['beginPlan', 'refinePlan', 'acceptPlan'],
-      instructions: (context: WorkflowContext) => {
-        const memory = getMemoryFromToolResults(context.toolResults);
+      // createDocument, updateDocument, and getDocument are injected per-request
+      // in chat+api.ts. They don't trigger state transitions — they're side
+      // effects within RESPOND.
+      tools: ['createDocument', 'updateDocument', 'getDocument'],
+      // Dynamic toolChoice: force 'required' when the coordinator needs a
+      // document action (create or update) AND the action hasn't been taken
+      // yet in this round. Otherwise 'auto' so the model can respond
+      // conversationally without calling tools.
+      toolChoice: (context: WorkflowContext) => {
+        // Check if createDocument/updateDocument was already called in this round
+        const docActionTaken = context.toolResults.some(
+          (tr: any) => tr.toolName === 'createDocument' || tr.toolName === 'updateDocument'
+        );
+        if (docActionTaken) return 'auto';
+
         const assessment = getAssessmentFromToolResults(context.toolResults);
-        const planExists = hasPlanInHistory(context.messages);
-        const directive = getResponseDirective(memory, planExists);
+        const draftExists = hasDraftInHistory(context.messages);
+        const documentId = getDocumentIdFromHistory(context.messages);
+        const needsToolCall =
+          (assessment?.draftReady && !draftExists) ||
+          (assessment?.draftChanged && draftExists && !!documentId);
+        return needsToolCall ? 'required' : 'auto';
+      },
+      instructions: (context: WorkflowContext) => {
+        const assessment = getAssessmentFromToolResults(context.toolResults);
+
+        // Check both message history AND current round's tool results for doc state
+        const docActionInRound = context.toolResults.some(
+          (tr: any) => tr.toolName === 'createDocument' || tr.toolName === 'updateDocument'
+        );
+        const draftExists = docActionInRound || hasDraftInHistory(context.messages);
+        const documentId = getDocumentIdFromToolResults(context.toolResults)
+          || getDocumentIdFromHistory(context.messages);
+        const directive = getResponseDirective(draftExists, documentId, assessment, docActionInRound);
 
         return `You are a running coach in conversation. ${directive}
 
-${assessment?.notes ? `Internal notes (do NOT share directly, use to inform your response): ${assessment.notes}` : ''}
+${assessment?.missingData?.length ? `Still need to learn: ${assessment.missingData.join(', ')}` : ''}
+${assessment?.tensions?.length ? `Tensions to explore: ${assessment.tensions.join('; ')}` : ''}
 
 Style:
 - 2-3 sentences max. React to what they said, then ask or advise.
@@ -272,63 +488,13 @@ Style:
 - Talk like a person, not a manual.`;
       },
     },
-
-    // =========================================================================
-    // PLAN — Generate training plan from accumulated memory.
-    // =========================================================================
-    PLAN: {
-      name: 'Building Your Plan',
-      description: 'Generate personalized training plan',
-      model: 'haiku',
-      tools: ['generatePlan'],
-      toolChoice: 'required',
-      instructions: (context: WorkflowContext) => {
-        const memory = getMemoryFromToolResults(context.toolResults)
-          || getMemoryFromMessages(context.messages);
-        const assessment = getAssessmentFromToolResults(context.toolResults);
-
-        return `Create a personalized training plan for this athlete.
-
-Athlete:
-${JSON.stringify(memory, null, 2)}
-
-${assessment ? `Analysis: ${assessment.notes}` : ''}
-${assessment?.gapAnalysis ? `Gap: ${assessment.gapAnalysis}` : ''}
-${memory.safetyFlags.length > 0 ? `Safety flags: ${memory.safetyFlags.map(f => f.flag).join(', ')}` : ''}
-
-Plan requirements:
-1. Respect current fitness level and available time
-2. No more than 10% weekly volume increase
-3. Account for any safety flags
-4. Mix of workout types (easy, tempo, intervals, long run)
-5. 1-2 rest days per week
-
-Call generatePlan with the complete training plan.`;
-      },
-    },
-
-    // =========================================================================
-    // PRESENT — Present plan, handle refinement.
-    // =========================================================================
-    PRESENT: {
-      name: 'Your Plan',
-      description: 'Present plan for review and refinement',
-      model: 'haiku',
-      tools: ['refinePlan', 'acceptPlan'],
-      instructions: `You are the coach presenting the training plan.
-
-Your job:
-1. Briefly summarize the plan structure and key workouts
-2. Explain reasoning behind important decisions
-3. If they request changes, use refinePlan
-4. If they're happy, use acceptPlan
-
-Be encouraging — they're about to start their training journey.`,
-    },
   },
 
   transitions: [
-    // Loop: EXTRACT → ASSESS → RESPOND
+    // The loop: EXTRACT → ASSESS → RESPOND
+    // createDocument/updateDocument do NOT trigger transitions — they're
+    // side effects within RESPOND. The loop resets to EXTRACT on each new
+    // user message (deriveState sees no tool results at round start).
     {
       from: 'EXTRACT',
       to: 'ASSESS',
@@ -339,48 +505,25 @@ Be encouraging — they're about to start their training journey.`,
       to: 'RESPOND',
       trigger: { type: 'tool', toolName: 'updateAssessment' },
     },
-    // Loop exit: RESPOND → PLAN (when readyToPlan)
-    {
-      from: 'RESPOND',
-      to: 'PLAN',
-      trigger: { type: 'tool', toolName: 'beginPlan' },
-    },
-    // Plan generation → presentation
-    {
-      from: 'PLAN',
-      to: 'PRESENT',
-      trigger: { type: 'tool', toolName: 'generatePlan' },
-    },
-    // Post-plan refinement from RESPOND (after loop processes refinement message)
-    {
-      from: 'RESPOND',
-      to: 'PLAN',
-      trigger: { type: 'tool', toolName: 'refinePlan' },
-    },
-    // Refinement from PRESENT
-    {
-      from: 'PRESENT',
-      to: 'PLAN',
-      trigger: { type: 'tool', toolName: 'refinePlan' },
-    },
   ],
 
   initialState: 'EXTRACT',
-  terminalStates: ['PRESENT'],
+  terminalStates: ['RESPOND'],
   defaultModel: 'haiku',
   maxSteps: 30,
 };
 
 // =============================================================================
-// TOOLS
+// TOOLS (static — no dataStream dependency)
 // =============================================================================
 
 /**
- * EXTRACT: Update the coaching working memory with extracted data.
+ * EXTRACT: Update the coaching memory with extracted athlete data.
+ * Memory = stable athlete facts only. No scratchpad, no plan draft.
  */
 export const updateMemory = tool({
   description:
-    'Update the coaching working memory with structured data extracted from the conversation',
+    'Update the coaching memory with structured athlete data extracted from the conversation',
   inputSchema: z.object({
     goal: z
       .object({
@@ -423,11 +566,6 @@ export const updateMemory = tool({
       }))
       .default([])
       .describe('Safety concerns with tracking of whether the coach has addressed them'),
-    readyToPlan: z
-      .boolean()
-      .describe(
-        'True ONLY when goal, currentFitness, motivation, AND constraints.schedule are ALL present'
-      ),
   }),
   execute: async (params) => {
     const memory: CoachingMemory = {
@@ -437,147 +575,88 @@ export const updateMemory = tool({
       athleteBackground: params.athleteBackground,
       constraints: params.constraints,
       safetyFlags: params.safetyFlags || [],
-      readyToPlan: params.readyToPlan,
     };
     return { memory, timestamp: new Date().toISOString() };
   },
 });
 
 /**
- * ASSESS: Record gap analysis and safety assessment.
+ * ASSESS: Record analysis, scratchpad updates, and coordinator signals.
+ *
+ * Output structure:
+ * - Coordinator signals: draftReady, draftChanged, notes, directRequest
+ * - Analysis: gapAnalysis, missingData, safetyFlags
+ * - Scratchpad: planDraft, reasoning, tensions
  */
 export const updateAssessment = tool({
-  description: 'Record gap analysis, safety assessment, and missing data analysis',
+  description: 'Record analysis, update plan scratchpad, and signal coordinator',
   inputSchema: z.object({
+    // Coordinator signals (domain-free)
+    draftReady: z
+      .boolean()
+      .describe('True when the scratchpad planDraft has enough substance to render as a document'),
+    draftChanged: z
+      .boolean()
+      .describe('True when planDraft was modified this round'),
+    notes: z
+      .string()
+      .describe('The most important coaching insight or question for this round — this is what the coach will say or ask'),
+    directRequest: z
+      .string()
+      .optional()
+      .describe('If the user asked for something outside coaching (e.g. "compare running shoes"), describe what they want'),
+
+    // Analysis
     gapAnalysis: z
       .string()
       .optional()
-      .describe(
-        'The specific gap between current and goal, e.g. "needs to drop 27 seconds from 4:47 to 4:20"'
-      ),
+      .describe('The specific gap between current and goal, e.g. "needs to drop 27 seconds from 4:47 to 4:20"'),
     missingData: z
       .array(z.string())
-      .describe('Data points still needed before planning'),
+      .describe('Data points still needed'),
     safetyFlags: z
       .array(z.string())
       .describe('Safety concerns to shape the plan around'),
-    notes: z
+
+    // Scratchpad (working memory for plan reasoning)
+    planDraft: z
+      .record(z.string(), z.unknown())
+      .optional()
+      .describe('Updated training plan draft (partial TrainingBlock JSON). Include the COMPLETE current draft when plan changes.'),
+    reasoning: z
       .string()
-      .describe('Internal coaching notes — context for RESPOND, not shared with athlete'),
+      .optional()
+      .describe('Internal planning reasoning — alternatives considered, tradeoffs, tentative decisions'),
+    tensions: z
+      .array(z.string())
+      .optional()
+      .describe('Conflicts between the plan and known data that may surface questions'),
   }),
   execute: async (params) => {
     return {
+      // Coordinator signals
+      draftReady: params.draftReady,
+      draftChanged: params.draftChanged,
+      notes: params.notes,
+      directRequest: params.directRequest,
+      // Analysis
       gapAnalysis: params.gapAnalysis,
       missingData: params.missingData,
       safetyFlags: params.safetyFlags,
-      notes: params.notes,
+      // Scratchpad
+      planDraft: params.planDraft,
+      reasoning: params.reasoning,
+      tensions: params.tensions,
     };
   },
 });
 
 /**
- * RESPOND: Transition from conversation to plan generation.
- */
-export const beginPlan = tool({
-  description:
-    'Transition to plan generation when all required data has been gathered',
-  inputSchema: z.object({
-    athleteSummary: z
-      .string()
-      .describe('Brief summary of the athlete for plan generation'),
-    planConstraints: z
-      .array(z.string())
-      .describe('Constraints the plan must respect'),
-  }),
-  execute: async (params) => {
-    return {
-      transitionToPlan: true,
-      athleteSummary: params.athleteSummary,
-      planConstraints: params.planConstraints,
-    };
-  },
-});
-
-/**
- * PLAN: Generate the training plan.
- */
-export const generatePlan = tool({
-  description: 'Generate a personalized training plan',
-  inputSchema: z.object({
-    name: z.string().describe('Name of the training plan'),
-    goal: z.string().describe('The goal this plan achieves'),
-    startDate: z.string().describe('Start date (YYYY-MM-DD)'),
-    endDate: z.string().describe('End date (YYYY-MM-DD)'),
-    weeklyStructure: z.string().describe('Overview of weekly structure'),
-    weeks: z.array(
-      z.object({
-        weekNumber: z.number(),
-        focus: z.string().optional(),
-        totalVolume: z.string().optional(),
-        keyWorkouts: z.array(z.string()),
-        notes: z.string().optional(),
-      })
-    ),
-    summary: z
-      .string()
-      .describe('Brief summary of the plan philosophy'),
-  }),
-  execute: async (params) => {
-    return {
-      planGenerated: true,
-      plan: params,
-    };
-  },
-});
-
-/**
- * PRESENT/RESPOND: Refine the plan based on feedback.
- */
-export const refinePlan = tool({
-  description: 'Modify the training plan based on user feedback',
-  inputSchema: z.object({
-    modification: z.string().describe('What change the user requested'),
-    affectedWeeks: z
-      .array(z.number())
-      .optional()
-      .describe('Which weeks are affected'),
-    reason: z.string().optional().describe('Reason for the change'),
-  }),
-  execute: async (params) => {
-    return {
-      refinementRequested: true,
-      modification: params.modification,
-    };
-  },
-});
-
-/**
- * PRESENT/RESPOND: User accepts the plan.
- */
-export const acceptPlan = tool({
-  description: 'User accepts the training plan',
-  inputSchema: z.object({
-    confirmed: z
-      .boolean()
-      .describe('Whether the user confirmed acceptance'),
-    feedback: z.string().optional().describe('Any final feedback'),
-  }),
-  execute: async (params) => {
-    return {
-      planAccepted: params.confirmed,
-      feedback: params.feedback,
-    };
-  },
-});
-
-/**
- * All tools for the coaching workflow
+ * Static tools for the coaching workflow.
+ * createDocument, updateDocument, and getDocument are injected per-request
+ * in chat+api.ts because they need a DataStreamWriter for artifact streaming.
  */
 export const coachingTools = {
   updateMemory,
   updateAssessment,
-  beginPlan,
-  generatePlan,
-  refinePlan,
-  acceptPlan,
 };
