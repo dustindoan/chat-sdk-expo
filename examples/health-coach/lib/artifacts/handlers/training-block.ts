@@ -2,7 +2,14 @@
  * Training Block Document Handler
  *
  * Server-side handler for creating and updating training blocks.
- * Uses streamObject to generate structured JSON training plans.
+ * Schema defines the agent's vocabulary for training cognition —
+ * phases contain weeks, weeks contain days, days contain sessions
+ * with intensity, intervals, and category metadata.
+ *
+ * The handler's LLM generation is a fallback. The primary path is
+ * content bypass: the coaching agent builds planDraft in its scratchpad
+ * and passes pre-built JSON via the `content` field on createDocument/
+ * updateDocument. When content is provided, the handler is not called.
  */
 
 import { streamObject } from 'ai';
@@ -11,81 +18,174 @@ import { createAnthropic } from '@ai-sdk/anthropic';
 import type { DocumentHandler, CreateDocumentArgs, UpdateDocumentArgs } from '../types';
 
 /**
- * Get the Anthropic model for training block generation
+ * Get the Anthropic model for training block generation (fallback path)
  */
 function getArtifactModel(apiKey: string) {
   const anthropic = createAnthropic({
     apiKey,
     baseURL: 'https://api.anthropic.com/v1',
   });
-  // Use Haiku for faster generation
   return anthropic('claude-haiku-4-5-20251001');
 }
+
+// =============================================================================
+// SCHEMA — The agent's vocabulary for training cognition
+// =============================================================================
 
 /**
  * Session type enum
  */
-const sessionTypeSchema = z.enum(['run', 'strength', 'rest', 'cross-training']);
+export const sessionTypeSchema = z.enum(['run', 'strength', 'rest', 'cross-training']);
 
 /**
- * Time of day for scheduling sessions
+ * Session category — what kind of run/workout
  */
-const timeOfDaySchema = z.enum(['morning', 'afternoon', 'evening', 'any']);
+export const sessionCategorySchema = z.enum([
+  'easy', 'tempo', 'interval', 'long', 'recovery',
+  'race-pace', 'fartlek',
+]);
 
 /**
- * Individual workout session schema
+ * Interval definition — structured speed work
  */
-const sessionSchema = z.object({
-  id: z.string().describe('Unique session ID (e.g., "2026-01-27-run-1")'),
+export const intervalSchema = z.object({
+  reps: z.number().describe('Number of repetitions'),
+  distance: z.string().describe('Distance per rep (e.g., "400m", "1km")'),
+  pace: z.string().describe('Target pace per rep (e.g., "3:45/km", "75s")'),
+  recovery: z.string().describe('Recovery between reps (e.g., "90s jog", "200m walk")'),
+});
+
+/**
+ * Intensity specification
+ */
+export const intensitySchema = z.object({
+  target: z.string().describe('Target pace or effort (e.g., "5:00/km", "conversational")'),
+  zone: z.string().optional().describe('Heart rate or effort zone (e.g., "Zone 2", "aerobic")'),
+  rpe: z.number().optional().describe('Rate of perceived exertion (1-10 scale)'),
+});
+
+/**
+ * Individual workout session
+ */
+export const sessionSchema = z.object({
+  id: z.string().describe('Unique session ID (e.g., "w1-d1-run-1")'),
   type: sessionTypeSchema.describe('Type of workout session'),
-  title: z.string().describe('Short title for the session (e.g., "Easy Run", "Interval Training")'),
-  timeOfDay: timeOfDaySchema.optional().describe('Recommended time of day for this session'),
-  duration: z.string().optional().describe('Duration in human-readable format (e.g., "45 min")'),
-  distance: z.string().optional().describe('Distance if applicable (e.g., "6 km")'),
-  description: z.string().optional().describe('Detailed description of the workout'),
+  category: sessionCategorySchema.optional().describe('Specific category for runs'),
+  title: z.string().describe('Short title (e.g., "Easy Run", "VO2max Intervals")'),
+  distance: z.string().optional().describe('Total distance (e.g., "8 km")'),
+  duration: z.string().optional().describe('Duration (e.g., "45 min")'),
+  intensity: intensitySchema.optional().describe('Intensity target'),
+  intervals: intervalSchema.optional().describe('Interval structure for speed work'),
+  warmup: z.string().optional().describe('Warmup description (e.g., "2km easy + dynamic stretches")'),
+  cooldown: z.string().optional().describe('Cooldown description (e.g., "1km easy jog")'),
+  description: z.string().optional().describe('Additional notes or instructions'),
   completed: z.boolean().optional().describe('Whether the session has been completed'),
 });
 
 /**
- * Day in the training plan
+ * Day of week enum
  */
-const daySchema = z.object({
-  date: z.string().describe('Date in YYYY-MM-DD format'),
+export const dayOfWeekSchema = z.enum([
+  'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday',
+]);
+
+/**
+ * Day in the training plan — identified by day of week, not date
+ */
+export const daySchema = z.object({
+  dayOfWeek: dayOfWeekSchema.optional().describe('Day of the week'),
   sessions: z.array(sessionSchema).describe('Workout sessions for this day'),
 });
 
 /**
  * Week in the training plan
  */
-const weekSchema = z.object({
+export const weekSchema = z.object({
   weekNumber: z.number().describe('Week number in the training block (1-indexed)'),
-  startDate: z.string().describe('Start date of the week (YYYY-MM-DD)'),
-  endDate: z.string().describe('End date of the week (YYYY-MM-DD)'),
-  focus: z.string().optional().describe('Training focus for this week (e.g., "Base building", "Speed work")'),
+  targetVolume: z.string().describe('Target weekly volume (e.g., "55 km")'),
+  focus: z.string().optional().describe('Training focus (e.g., "Base building", "VO2max development")'),
   days: z.array(daySchema).describe('Days in this week with their sessions'),
 });
 
 /**
- * Complete training block schema
+ * Phase-level volume progression
  */
-const trainingBlockSchema = z.object({
-  name: z.string().describe('Name of the training block (e.g., "Marathon Prep - Base Phase")'),
-  goal: z.string().describe('Primary goal for this training block'),
-  startDate: z.string().describe('Start date of the training block (YYYY-MM-DD)'),
-  endDate: z.string().describe('End date of the training block (YYYY-MM-DD)'),
-  weeks: z.array(weekSchema).describe('Weeks in the training block'),
+export const volumeProgressionSchema = z.object({
+  start: z.string().describe('Starting weekly volume (e.g., "45 km")'),
+  end: z.string().describe('Ending weekly volume (e.g., "60 km")'),
+  progression: z.string().describe('How volume progresses (e.g., "10% increase per week with deload every 4th week")'),
 });
 
+/**
+ * Quality session specification at phase level
+ */
+export const qualitySessionsSchema = z.object({
+  perWeek: z.number().describe('Number of quality/hard sessions per week'),
+  types: z.array(z.string()).describe('Types of quality work (e.g., ["tempo", "interval", "long run"])'),
+});
+
+/**
+ * Training phase — a mesocycle within the block
+ */
+export const phaseSchema = z.object({
+  name: z.string().describe('Phase name (e.g., "Base Building", "VO2max Development", "Race Specific")'),
+  focus: z.string().describe('Primary training focus for this phase'),
+  durationWeeks: z.number().describe('Number of weeks in this phase'),
+  weeklyVolume: volumeProgressionSchema.describe('Volume progression through the phase'),
+  qualitySessions: qualitySessionsSchema.describe('Quality session prescription'),
+  weeks: z.array(weekSchema).describe('Individual weeks in this phase'),
+});
+
+/**
+ * Athlete profile embedded in the plan
+ */
+export const athleteProfileSchema = z.object({
+  currentLevel: z.string().describe('Current fitness summary (e.g., "4:47 1500m, 55km/week")'),
+  goalEvent: z.string().describe('Target event (e.g., "1500m")'),
+  gap: z.string().describe('Gap to close (e.g., "27 seconds from 4:47 to 4:20")'),
+  constraints: z.string().optional().describe('Training constraints (e.g., "5 days/week, shin splint history")'),
+  notes: z.string().optional().describe('Additional coaching notes'),
+});
+
+/**
+ * Complete training block schema — the full plan
+ */
+export const trainingBlockSchema = z.object({
+  name: z.string().describe('Name of the training block (e.g., "1500m Race Preparation")'),
+  athleteProfile: athleteProfileSchema.describe('Athlete profile and goal context'),
+  totalWeeks: z.number().describe('Total weeks in the training block'),
+  phases: z.array(phaseSchema).describe('Training phases (mesocycles)'),
+});
+
+// =============================================================================
+// EXPORTED TYPES
+// =============================================================================
+
 export type TrainingBlock = z.infer<typeof trainingBlockSchema>;
+export type TrainingPhase = z.infer<typeof phaseSchema>;
 export type TrainingWeek = z.infer<typeof weekSchema>;
 export type TrainingDay = z.infer<typeof daySchema>;
 export type TrainingSession = z.infer<typeof sessionSchema>;
 export type SessionType = z.infer<typeof sessionTypeSchema>;
-export type TimeOfDay = z.infer<typeof timeOfDaySchema>;
+export type SessionCategory = z.infer<typeof sessionCategorySchema>;
+export type DayOfWeek = z.infer<typeof dayOfWeekSchema>;
+export type Interval = z.infer<typeof intervalSchema>;
+export type Intensity = z.infer<typeof intensitySchema>;
+export type AthleteProfile = z.infer<typeof athleteProfileSchema>;
+export type VolumeProgression = z.infer<typeof volumeProgressionSchema>;
+export type QualitySessions = z.infer<typeof qualitySessionsSchema>;
+
+// =============================================================================
+// HANDLER (LLM fallback — primary path is content bypass)
+// =============================================================================
 
 /**
  * Training block document handler
- * Creates structured training plans based on user goals
+ * Creates structured training plans based on user goals.
+ *
+ * Note: The primary path for training-block documents is content bypass —
+ * the coaching agent passes pre-built JSON via createDocument/updateDocument's
+ * `content` field. This handler is the fallback for when content is not provided.
  */
 export const trainingBlockDocumentHandler: DocumentHandler<'training-block'> = {
   kind: 'training-block',
@@ -105,22 +205,21 @@ export const trainingBlockDocumentHandler: DocumentHandler<'training-block'> = {
         model: getArtifactModel(apiKey),
         system: `You are an expert running coach creating personalized training plans.
 
-Based on the user's request, create a structured training block.
+Based on the user's request, create a structured training block with phases.
 
 Guidelines:
-- Create a realistic, progressive training plan
+- Create a realistic, progressive training plan organized into phases
+- Each phase should have a clear focus (e.g., base building, VO2max, race specific)
 - Include a mix of easy runs, tempo runs, intervals, and rest days
 - Add strength and cross-training sessions as appropriate
 - Each week should have 1-2 rest days
-- Progress weekly volume by ~10% max
+- Progress weekly volume by ~10% max with deload weeks
 - Include specific paces, distances, and durations
-- Session IDs should follow the format: YYYY-MM-DD-type-number (e.g., "2026-01-27-run-1")
-- Dates should be in YYYY-MM-DD format
-- Start from today's date unless specified otherwise
-- Set timeOfDay based on workout type: morning for easy/long runs, afternoon/evening for speed work or strength, any for flexibility
+- Session IDs should follow the format: w{week}-d{day}-{type}-{number}
+- Days use dayOfWeek (monday-sunday), not dates
 - All sessions start with completed: false
-
-Today's date is ${new Date().toISOString().split('T')[0]}.`,
+- Include warmup and cooldown for quality sessions
+- Set intensity targets for non-easy sessions`,
         prompt: title,
         schema: trainingBlockSchema,
       });
@@ -130,10 +229,8 @@ Today's date is ${new Date().toISOString().split('T')[0]}.`,
           const { object } = delta;
 
           if (object) {
-            // Serialize the partial object to JSON
             const jsonContent = JSON.stringify(object, null, 2);
 
-            // Send the full JSON as delta (replaces previous content)
             dataStream.write({
               type: 'data-codeDelta',
               data: jsonContent,
@@ -178,9 +275,7 @@ ${document.content}
 
 Update the training block according to the user's instructions.
 Maintain the same structure and format.
-Only modify what the user requests.
-
-Today's date is ${new Date().toISOString().split('T')[0]}.`,
+Only modify what the user requests.`,
         prompt: description,
         schema: trainingBlockSchema,
       });

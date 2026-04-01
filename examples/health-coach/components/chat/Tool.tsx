@@ -22,7 +22,14 @@ export function Tool({ part, onApprovalResponse }: ToolProps) {
 
   // Support both new format (args/result) and legacy format (input/output)
   const args = part.args || part.input;
-  const result = part.result || part.output;
+  const rawResult = part.result || part.output;
+
+  // AI SDK v6 wraps tool results as { type: "json", value: { ... } } when state is
+  // "output-available". Unwrap to give tool components direct access to the result data.
+  const result =
+    rawResult && typeof rawResult === 'object' && 'type' in rawResult && 'value' in rawResult
+      ? (rawResult as { type: string; value: unknown }).value
+      : rawResult;
 
   // Handle approval states
   if (state === 'approval-requested') {

@@ -13,6 +13,7 @@ import { Text } from '@chat-sdk-expo/ui/primitives';
 import { useArtifact } from '../../../contexts/ArtifactContext';
 import { CodeContent } from '@chat-sdk-expo/ui/artifacts';
 import { TextContent } from '@chat-sdk-expo/ui/artifacts';
+import { authFetch } from '../../../lib/auth/client';
 import type { ToolUIProps } from './types';
 import type { ArtifactKind } from '../../../lib/artifacts/types';
 
@@ -122,7 +123,7 @@ export const DocumentTool = memo(function DocumentTool({
     if (documentId) {
       setIsLoading(true);
       try {
-        const response = await fetch(`/api/documents/${documentId}`);
+        const response = await authFetch(`/api/documents/${documentId}`);
         if (response.ok) {
           const doc = await response.json();
           setArtifact({

@@ -37,21 +37,23 @@ interface CreateDocumentToolProps {
   apiKey: string;
   /** User ID for document ownership */
   userId: string;
+  /**
+   * Optional callback that provides pre-built content (e.g., from ASSESS's planDraft).
+   * When the LLM doesn't provide explicit `content` and this returns a non-null string,
+   * that string is used as the document content — bypassing LLM generation without
+   * requiring the LLM to echo large payloads in tool call arguments.
+   */
+  planDraftProvider?: () => string | null;
 }
 
 /**
  * Create the createDocument tool
  * Factory function that takes dataStream context
  */
-export function createDocumentTool({ dataStream, apiKey, userId }: CreateDocumentToolProps) {
+export function createDocumentTool({ dataStream, apiKey, userId, planDraftProvider }: CreateDocumentToolProps) {
   return tool({
-    description: `Create a document with auto-generated content based on the title.
-IMPORTANT: Call this tool only ONCE per request. The content is automatically generated - do not call again to "add" content.
-
-Use when users ask for:
-- Essays, stories, poems, articles, documentation
-- Code, scripts, or programs
-- Training plans, workout schedules, running programs
+    description: `Create a document. When content is provided, it's saved directly (no LLM generation). When content is omitted, content is auto-generated from the title.
+IMPORTANT: Call this tool only ONCE per request.
 
 The document displays in a dedicated panel. After calling, briefly describe what was created.`,
     inputSchema: z.object({
@@ -61,8 +63,12 @@ The document displays in a dedicated panel. After calling, briefly describe what
       kind: z
         .enum(artifactKinds)
         .describe('The type of document: "text" for written content, "code" for programming, "training-block" for workout training plans'),
+      content: z
+        .string()
+        .optional()
+        .describe('Pre-built content (e.g., JSON). When provided, saved directly without LLM generation.'),
     }),
-    execute: async ({ title, kind }: { title: string; kind: ArtifactKind }) => {
+    execute: async ({ title, kind, content: prebuiltContent }: { title: string; kind: ArtifactKind; content?: string }) => {
       const id = generateUUID();
       let capturedLanguage: string | undefined;
 
@@ -119,18 +125,34 @@ The document displays in a dedicated panel. After calling, briefly describe what
         transient: true,
       });
 
-      // Get the appropriate handler and generate content
-      const handler = getDocumentHandler(kind);
-      if (!handler) {
-        throw new Error(`No document handler found for kind: ${kind}`);
-      }
+      let finalContent: string;
 
-      const content = await handler.onCreateDocument({
-        id,
-        title,
-        dataStream: wrappedDataStream,
-        apiKey,
-      });
+      // Resolve content: explicit content > planDraftProvider > handler LLM
+      const resolvedContent = prebuiltContent || (kind === 'training-block' ? planDraftProvider?.() : null);
+
+      if (resolvedContent) {
+        const prebuiltContent = resolvedContent;
+        // Content bypass: stream pre-built content directly, skip handler LLM
+        wrappedDataStream.write({
+          type: 'data-codeDelta',
+          data: prebuiltContent,
+          transient: true,
+        });
+        finalContent = prebuiltContent;
+      } else {
+        // Fallback: use handler's LLM generation
+        const handler = getDocumentHandler(kind);
+        if (!handler) {
+          throw new Error(`No document handler found for kind: ${kind}`);
+        }
+
+        finalContent = await handler.onCreateDocument({
+          id,
+          title,
+          dataStream: wrappedDataStream,
+          apiKey,
+        });
+      }
 
       // Save document to database
       try {
@@ -138,7 +160,7 @@ The document displays in a dedicated panel. After calling, briefly describe what
           id,
           userId,
           title,
-          content,
+          content: finalContent,
           kind,
           language: capturedLanguage,
         });

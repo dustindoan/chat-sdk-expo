@@ -96,8 +96,13 @@ export interface StateConfig {
   /** Tool names available in this state */
   tools: string[];
 
-  /** Tool choice strategy for this state */
-  toolChoice?: ToolChoiceConfig;
+  /**
+   * Tool choice strategy for this state.
+   * Can be a static value or a function that receives the current context.
+   * Use a function when tool choice depends on runtime state (e.g., force
+   * 'required' when the coordinator determines a document action is needed).
+   */
+  toolChoice?: ToolChoiceConfig | ((context: WorkflowContext) => ToolChoiceConfig);
 
   /**
    * System instructions for this state.
@@ -258,6 +263,9 @@ export interface StatefulAgent<TStates extends string = string> {
 
   /** Stream a response (returns a Response for use with fetch-based clients) */
   stream(params: AgentCallParams): Promise<Response>;
+
+  /** Stream returning a ReadableStream (for merging into createUIMessageStream) */
+  streamUI(params: AgentCallParams): Promise<ReadableStream>;
 
   /** Get current workflow context */
   getContext(): WorkflowContext;
